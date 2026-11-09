@@ -13,7 +13,7 @@ export function createChromePreview({document,ui,onPick,resolveArtwork}={}){
  function fit(){const textarea=input?.querySelector('textarea');if(!textarea)return;textarea.style.height='1px';textarea.style.height=textarea.scrollHeight+'px';}
  function update(c){
   build();if(!top)return;const metrics=chromeTopMetrics(top.clientWidth||top.getBoundingClientRect().width||390,c.chromeStyle.topbar);for(const [key,value]of Object.entries(metrics))top.style.setProperty('--oc-top-'+key,value+'px');
-  const visible=ui.page==='chat'&&ui.previewMode==='page';top.hidden=input.hidden=!visible;
+  const visible=ui.page==='chat'&&ui.previewMode==='page';const focused=(document.defaultView?.innerWidth||1200)<=700&&ui.mobileView!=='preview';top.hidden=!visible||(focused&&ui.region!=='topbar');input.hidden=!visible||(focused&&!['input','qr'].includes(ui.region));
   for(const [zone,node]of [['topbar',top],['input',input]])for(const button of node.querySelectorAll('[data-chrome-pick]')){
    const src=chromeSourceUrl(c.chromeStyle[zone].icons[button.dataset.chromePick]);let image=button.querySelector('.otl-chrome-icon');
    if(image&&image.getAttribute('src')!==src){image.remove();image=null;}
@@ -39,6 +39,7 @@ html[data-orange-lab] .otl-page-tools,html[data-orange-lab] .otl-page-send{displ
 html[data-orange-lab] .otl-page-textarea{display:block;width:100%;box-sizing:border-box;min-width:0;min-height:44px;max-height:320px;padding:6px;border:0;resize:vertical;font:16px/1.5 sans-serif;color:inherit;background:transparent;overflow:auto}
 html[data-orange-lab] .otl-page-file,html[data-orange-lab] .otl-page-qr{font:12px/1.5 sans-serif;padding:6px;background:#edf1e8;border-radius:5px;margin:4px 0}
 html[data-orange-lab][data-otl-preview-mode=page] #sheld{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);justify-content:center;gap:0!important}
+html[data-orange-lab][data-otl-preview-mode=page] #sheld>.otl-page-topbar{grid-row:1}html[data-orange-lab][data-otl-preview-mode=page] #sheld>#chat{grid-row:2;min-height:0}html[data-orange-lab][data-otl-preview-mode=page] #sheld>.otl-page-input{grid-row:3}
 html[data-orange-lab][data-otl-preview-mode=page] #sheld>:is(.otl-page-topbar,#chat){width:100%;max-width:100%;min-width:0}
 html[data-orange-lab][data-otl-preview-mode=page] #sheld>.otl-page-input{justify-self:start;min-width:0}
 html[data-orange-lab][data-otl-preview-mode=page][data-otl-narrow=true] #sheld{grid-template-columns:minmax(0,390px)!important}

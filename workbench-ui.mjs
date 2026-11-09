@@ -17,7 +17,7 @@ export function layoutWidths(viewport,requested){
 }
 export function mobileGeometry(height,top=130,expanded=false,offset=0,compact=false,safeBottom=0){
  const h=Math.max(1,Number(height)||1),y=Math.max(0,Number(offset)||0),head=Math.min(Math.max(0,top),Math.max(0,h-100));
- const dock=64+Math.max(0,Number(safeBottom)||0),space=Math.max(0,h-head-dock-12),sheet=expanded?Math.max(0,Math.min(space,Math.max(140,space*(compact?1:.58)))):0;
+ const dock=64+Math.max(0,Number(safeBottom)||0),space=Math.max(0,h-head-dock-12),sheet=expanded?Math.max(0,Math.min(space,Math.max(140,space*(compact?1:.46)))):0;
  return {top:y+head,height:Math.max(0,space-sheet),sheet,offset:y,viewport:h};
 }
 const STYLE=`
@@ -55,7 +55,7 @@ export function createWorkbench(shadow,{onNavigate,onLayout}={}){
  }
  function syncSizing(value=ui.split){const win=shadow.ownerDocument.defaultView,vv=win?.visualViewport;shadow.host.style.setProperty('--wb-vv-top',(vv?.offsetTop||0)+'px');shadow.host.style.setProperty('--wb-vv-height',(vv?.height||win?.innerHeight||800)+'px');const size=layoutWidths(shadow.ownerDocument.defaultView?.innerWidth||1200,value);ui.split=size.share;shadow.host.style.setProperty('--wb-panel-width',size.panel+'px');shadow.host.style.setProperty('--wb-share',ui.split);find('#wb-split').value=ui.split;find('#wb-split-number').value=ui.split;find('#wb-split-value').textContent=ui.split+' : '+(100-ui.split);find('#wb-splitter').setAttribute('aria-valuenow',ui.split);}
  function split(value){syncSizing(value);onLayout?.();}
- for(const b of shadow.querySelectorAll('.mobile-dock [data-mobile-view]'))b.addEventListener('click',()=>{ui.mobileView=b.dataset.mobileView;ui.mode=ui.mobileView==='library'?'library':'edit';syncMobile();onNavigate?.();onLayout?.();});
+ for(const b of shadow.querySelectorAll('.mobile-dock [data-mobile-view]'))b.addEventListener('click',()=>{ui.mobileView=ui.mobileView===b.dataset.mobileView&&ui.mobileView!=='preview'?'preview':b.dataset.mobileView;ui.mode=ui.mobileView==='library'?'library':'edit';syncMobile();onNavigate?.();onLayout?.();});
  syncSizing();for(const type of ['resize','scroll'])shadow.ownerDocument.defaultView?.visualViewport?.addEventListener?.(type,()=>{syncSizing();onLayout?.();});shadow.ownerDocument.defaultView?.addEventListener?.('resize',()=>{syncSizing();onLayout?.();});
  find('#preview-mode').addEventListener('change',e=>{ui.previewMode=e.target.value;onLayout?.();onNavigate?.();});find('#preview-state').addEventListener('change',e=>{ui.demoState=e.target.value;onLayout?.();});
  find('#page-scope').addEventListener('change',e=>{ui.page=e.target.value;ui.mode='edit';onNavigate?.();});
