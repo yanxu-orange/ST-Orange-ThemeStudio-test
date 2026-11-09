@@ -1,3 +1,4 @@
+import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
 import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
 import {normalizeChromeConfig,chromeFontEntries} from './chrome.mjs';
 import {createChromeAdapter} from './chrome-adapter.mjs';
@@ -89,6 +90,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   const caf=cancelFrame||win?.cancelAnimationFrame?.bind(win)||clearTimeout;
   const Observer=Observe||win?.MutationObserver;
   const ResizeObs=Resize||win?.ResizeObserver;
+  const scrollbarVisibility=createScrollbarVisibility({document});
   let snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
   const observedSizes=new Set();
@@ -203,7 +205,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   });}
   function stop(){
     if(!snapshot)return;
-    snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();if(frame!==null)caf(frame);frame=null;
+    scrollbarVisibility.stop();snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
     if(rootOriginal===null)document.documentElement.removeAttribute('data-orange-live');else document.documentElement.setAttribute('data-orange-live',rootOriginal);
@@ -211,9 +213,10 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function start(config){
     if(!document.querySelector('#chat'))throw Error('酒馆聊天区域尚未就绪');
-    const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));Object.assign(next,bodyCardSettings(next));stop();snapshot=next;
+    const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));Object.assign(next,bodyCardSettings(next));next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);stop();snapshot=next;
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
+      scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
       fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update({...textEntries(snapshot),...reasoningFontEntries(snapshot),...footerTextEntries(snapshot),...chromeFontEntries(snapshot)});stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
