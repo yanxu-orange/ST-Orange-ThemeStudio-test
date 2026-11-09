@@ -6,7 +6,7 @@ import {createChromeAdapter} from './chrome-adapter.mjs';
 import {normalizeTextScene,prepareScene,placeScene,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
 import {normalizeNativeConfig,nativeRules,renderNative,latestAI,nativeControlNodes} from './native.mjs';
 import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,measureFooter} from './footer.mjs';
-import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
+import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
 import {bodyCardSettings,bodyCardRules} from './body-card.mjs';
 import {normalizeCaptionConfig,captionKey,captionToken,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
@@ -54,8 +54,7 @@ ${q} > .mes_block > .mes_text{position:relative!important;width:100%!important;m
 ${q} > .mes_block > .mes_text p{margin:0 0 12px!important;line-height:inherit!important;color:inherit!important}
 ${q} > .mes_block > .mes_text :is(img,video){max-width:100%;height:auto}
 ${q} > .mes_block > .mes_text pre{max-width:100%;overflow:auto}
-${q} .mes_reasoning_summary{cursor:pointer;min-width:0}
-${q} .mes_reasoning_header_block{min-width:0;flex:1}
+${reasoningShellRules(q)}
 ${q} .mes_reasoning_actions{flex-shrink:0}
 ${q} .mes_reasoning_header_title[data-otl-live-reasoning]{font-size:0!important}
 ${reasoningRules(`${q} .mes_reasoning_header`,`${q} .mes_reasoning`,`${q} .otl-reasoning-bg`,config,families,interfaceFamily)}

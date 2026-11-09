@@ -10,7 +10,7 @@ import {createChromePreview,CHROME_PREVIEW_BASE} from './chrome-preview.mjs';
 import {normalizeTextScene,newSceneCaption,resetSceneLayout,prepareScene,placeScene,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
 import {normalizeNativeConfig,nativeRules,renderNative,latestAI} from './native.mjs';
 import {FOOTER_LIMIT,footerKey,newFooterCaption,normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,measureFooter} from './footer.mjs';
-import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningImageUrl,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
+import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningImageUrl,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
 import {BODY_CARD_DEFAULTS,bodyCardSettings,bodyCardRules} from './body-card.mjs';
 import {CAPTION_LIMIT,captionKey,captionToken,newCaption,normalizeCaptionConfig,stripLegacyCaptions,validateCaptionStyle,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {workbenchMarkup,createWorkbench,matchingLayers,normalizeSelection,layerRegion,layoutWidths,mobileGeometry} from './workbench-ui.mjs';
@@ -596,7 +596,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const nq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=`${nq} .otl-native-demo{display:flex!important}${nq} .otl-demo-stat-home > :is(.mesIDDisplay,.mes_timer,.tokenCounterDisplay){display:block!important}${nq}[is_user=false] > :is(.swipe_left,.swipeRightBlock),${nq}[is_user=false] > .swipeRightBlock > .swipe_right{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;interactivity:auto!important}${nq}[is_user=false]:not([data-otl-native-hide-counter=true]) .swipes-counter{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;interactivity:auto!important}${nq}[is_user=true] > :is(.swipe_left,.swipeRightBlock){display:none!important}`;
 
     root.dataset.otlLayout=config.layout;root.dataset.otlTime='below';renderCaptionNodes();
-    const rq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=reasoningRules(rq+' .mes_reasoning_header',rq+' .mes_reasoning',rq+' .otl-reasoning-bg',config,fontSession?.families()||{},interfaceFont(document));
+    const rq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=reasoningShellRules(rq)+reasoningRules(rq+' .mes_reasoning_header',rq+' .mes_reasoning',rq+' .otl-reasoning-bg',config,fontSession?.families()||{},interfaceFont(document));
     for(const e of document.querySelectorAll('[data-orange-lab-fixture] .otl-reasoning-title')){e.textContent=config.reasoningStyle.entry.content;let bg=e.parentElement.querySelector('.otl-reasoning-bg');if(!bg){bg=make('div','otl-reasoning-bg');bg.setAttribute('aria-hidden','true');e.parentElement.prepend(bg);}}
     for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]'))msg.querySelector('.name_text').textContent=msg.getAttribute('is_user')==='true'?'旅人':config.template==='kitty'?'小砚':'小砚 · 雨天邮局';
     renderPhotos();

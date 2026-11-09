@@ -38,12 +38,17 @@ export function reasoningFontEntries(c){return Object.fromEntries(['entry','body
 export function interfaceFont(document){const value=document.defaultView?.getComputedStyle?.(document.body)?.fontFamily;return value||'sans-serif';}
 export function reasoningImageUrl(source){return source?.kind==='asset'?assetUrl(source.asset):source?.kind==='custom'?source.image:'';}
 export function reasoningLabel(content,duration){return content+(duration&&duration!=='unknown'&&Number.isFinite(Number(duration))?' · '+duration+' s':'');}
+// Both surfaces use a block containing frame: auto width means fill the available
+// header block, not intrinsic flex-item width inherited from native ST classes.
+export function reasoningShellRules(root){return `${root} .mes_reasoning_summary{display:flex!important;cursor:pointer;box-sizing:border-box!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;gap:8px;flex-wrap:nowrap!important}
+${root} .mes_reasoning_header_block{display:block!important;flex:1;min-width:0}
+${root} .mes_reasoning_header_title[data-otl-live-reasoning]{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important}`;}
 export function reasoningRules(entry,body,bg,c,families={},interfaceFamily='sans-serif'){
  const s=c.reasoningStyle,e=s.entry,b=s.body,g=e.geometry,a=e.background,t=b.container;
  const family=(part,key)=>{const value=part.fontSource==='body'?c.font:part.fontSource==='interface'?interfaceFamily:part.font;return part.fontSource==='custom'&&families['reasoning:'+key]?'"'+families['reasoning:'+key]+'",'+value:value;};
  const typography=(v,key)=>`font-family:${family(v,key)}!important;font-size:${v.size}px!important;font-weight:${v.weight==='auto'?400:v.weight}!important;color:${v.color==='auto'?(key==='entry'?c.accent:c.text):v.color}!important;line-height:${key==='entry'?1.6:1.8}!important;`;
  const url=reasoningImageUrl(a.source),image=a.mode==='image'&&url?'url('+JSON.stringify(url)+')':'none';
- return `${entry}{position:relative!important;display:flex!important;align-items:baseline!important;box-sizing:border-box!important;min-width:0!important;max-width:100%!important;width:${g.width==='auto'?'auto':g.width+'%'}!important;min-height:${g.minHeight}px!important;padding:${g.paddingY}px ${g.paddingX}px!important;margin:0!important;border:0!important;border-radius:${g.radius}px!important;background:transparent!important;${typography(e,'entry')}overflow-wrap:anywhere;}
+ return `${entry}{position:relative!important;display:flex!important;gap:8px;flex-wrap:nowrap!important;align-items:baseline!important;box-sizing:border-box!important;min-width:0!important;max-width:100%!important;width:${g.width==='auto'?'auto':g.width+'%'}!important;min-height:${g.minHeight}px!important;padding:${g.paddingY}px ${g.paddingX}px!important;margin:0!important;border:0!important;border-radius:${g.radius}px!important;background:transparent!important;${typography(e,'entry')}overflow-wrap:anywhere;}
 ${entry} > :not(.otl-reasoning-bg):not(.otl-live-art):not(.otl-decoration){position:relative;z-index:1}
 ${entry} .mes_reasoning_arrow{position:static!important;flex:0 0 auto!important;align-self:center;transform:none!important;margin-left:8px}
 ${entry} .mes_reasoning_arrow:is(.mes_reasoning_details:not([open]) *){transform:rotate(180deg)!important}
