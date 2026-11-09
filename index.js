@@ -1,3 +1,4 @@
+import {addNumericStepper,NUMERIC_STEPPER_CSS} from './numeric-stepper.mjs';
 import {normalizeCanvasBackground,canvasBackgroundRules} from './canvas-background.mjs';
 import {createColorPicker} from './color-picker.mjs';
 import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
@@ -158,6 +159,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
 `;
   shadow.innerHTML=workbenchMarkup();
   const colorPicker=createColorPicker({document,root:shadow});
+  const numericStyle=make('style');numericStyle.textContent=NUMERIC_STEPPER_CSS;shadow.append(numericStyle);
   const workbench=createWorkbench(shadow,{onNavigate:()=>{invalidateEditing();libraryPurpose='layer';renderFields();},onLayout:()=>{updateWorkbenchLayout();chromePreview.update(config);scheduleFit();}}),ui=workbench.ui;
   panel=shadow.querySelector('.panel');
   const extraStyle=make('style');
@@ -245,7 +247,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       for(const [symbol,delta]of [['−',-1],['+',1]]){const button=make('button','nudge-button',symbol);button.type='button';button.setAttribute('aria-label',range.getAttribute('aria-label')+(delta<0?' 减少':' 增加'));button.addEventListener('click',event=>{event.preventDefault();if(button.disabled)return;number.dispatchEvent(new window.Event('change',{bubbles:true}));number.value=String(Math.min(Number(number.max),Math.max(Number(number.min),Number((Number(number.value)+delta*Number(number.step||1)).toFixed(6)))));number.dispatchEvent(new window.Event('input',{bubbles:true}));number.dispatchEvent(new window.Event('change',{bubbles:true}));refresh();});buttons.push([button,delta]);row.append(button);}
       for(const node of [range,number])node.addEventListener('input',refresh);refresh();
     }
-    row.append(range);label.append(row);if(unit.includes('（'))label.append(make('span','hint',unit.slice(unit.indexOf('（'))));return row;
+    row.append(range);label.append(row);addNumericStepper(row,range,number);if(unit.includes('（'))label.append(make('span','hint',unit.slice(unit.indexOf('（'))));return row;
   }
   function colorRow(label,swatch,hex){const row=make('span','control-row color-row');row.append(hex,swatch);label.append(row);return row;}
   function pairedFields(container){const row=make('div','paired-fields');container.append(row);return row;}
