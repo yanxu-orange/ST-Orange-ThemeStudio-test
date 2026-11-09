@@ -1,3 +1,4 @@
+import {canvasBackgroundRules} from './canvas-background.mjs';
 import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
 import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
 import {normalizeChromeConfig,chromeFontEntries} from './chrome.mjs';
@@ -78,6 +79,7 @@ ${meta} > .otl-live-caption-slot{position:static!important;display:contents!impo
 ${q} > .mesAvatarWrapper{top:calc(24px + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important}
 ${q} .otl-live-art.otl-scene-art{display:block!important}
 ${avatarFillRules(q,config)}
+${canvasBackgroundRules(config,'html[data-orange-live]')}
 
 `;
 }
