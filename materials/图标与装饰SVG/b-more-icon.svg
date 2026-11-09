@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#6879B5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="更多：小猫爪">
+  <ellipse cx="7.5" cy="13.3" rx="2.4" ry="3.2" transform="rotate(-23 7.5 13.3)"/>
+  <ellipse cx="12.8" cy="8.4" rx="2.45" ry="3.35" transform="rotate(-9 12.8 8.4)"/>
+  <ellipse cx="19.2" cy="8.4" rx="2.45" ry="3.35" transform="rotate(9 19.2 8.4)"/>
+  <ellipse cx="24.5" cy="13.3" rx="2.4" ry="3.2" transform="rotate(23 24.5 13.3)"/>
+  <path d="M16 16C12.9 16 12.1 18.5 10.1 20.4C8.8 21.6 8.1 22.8 8.5 24.3C9.1 26.4 11.5 26.8 13.5 26.1C15.1 25.5 16.9 25.5 18.5 26.1C20.5 26.8 22.9 26.4 23.5 24.3C23.9 22.8 23.2 21.6 21.9 20.4C19.9 18.5 19.1 16 16 16Z"/>
+</svg>

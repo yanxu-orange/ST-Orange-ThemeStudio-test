@@ -1,0 +1,18 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
+test('workbench fill and gradient save, restore, undo and keep independent normal settings',async()=>{
+ const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
+ const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
+ const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
+ await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
+ const save=()=>{sh.querySelector('#save').click();return JSON.parse(values.get('orange.theme-lab.mobile-test.v1'));};
+ sh.querySelector('.launcher').click();sh.querySelector('[data-region="header"]').click();sh.querySelector('[data-kind="avatar"]').click();assert.equal(sh.querySelector('[data-object="photo-ai"]').textContent,'AI头像设置');const direct=[...sh.querySelectorAll('.fields button')].find(b=>b.textContent==='AI头像设置');assert.ok(direct);direct.click();
+ const before=save();assert.equal(before.photos.ai.enabled,false);edit('铺满卡片顶部','true');edit('头像取景水平位置 数值',25);edit('渐变遮罩','true');edit('渐变强度 数值',.7);
+ let c=save();assert.equal(c.version,10);assert.equal(c.avatarFill.ai.enabled,true);assert.equal(c.avatarFill.ai.x,25);assert.equal(c.avatarFill.ai.gradient,true);assert.equal(c.avatarFill.ai.opacity,.7);assert.equal(c.avatarFill.user.enabled,false);assert.deepEqual(c.photos,before.photos);
+ assert.match([...document.querySelectorAll('style')].map(n=>n.textContent).join('\n'),/object-position:25% 50%/);
+ edit('铺满卡片顶部','false');sh.querySelector('#restore').click();c=save();assert.equal(c.avatarFill.ai.enabled,true);
+ sh.querySelector('[data-object="photo-ai"]').click();edit('铺满卡片顶部','false');sh.querySelector('#undo').click();assert.equal(save().avatarFill.ai.enabled,true);
+ const importer=sh.querySelector('#import-file');let good=save();const positions=structuredClone(good.textItems);sh.querySelector('[data-kind="region"]').click();edit('头像区最小高度 数值',1000);assert.equal(save().headerHeight,1000);assert.deepEqual(save().textItems,positions);
+ for(const version of [9,10]){const bad=structuredClone(good);bad.version=version;bad.headerHeight=version===9?361:1001;if(version===9)delete bad.avatarFill;Object.defineProperty(importer,'files',{value:[{size:100,text:async()=>JSON.stringify(bad)}],configurable:true});const event=new window.Event('change');importer.dispatchEvent(event);Object.defineProperty(event,'target',{value:importer});await new Promise(r=>setImmediate(r));assert.equal(save().headerHeight,1000);}
+ sh.querySelector('#close').click();assert.equal(document.querySelector('[data-orange-lab-fixture]'),null);
+});
