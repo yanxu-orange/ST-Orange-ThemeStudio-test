@@ -20,9 +20,9 @@ export function resetSceneLayout(c,layout){return seedTextPositions({...clone(c)
 export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-CARD_PADDING*2);}
 export function sceneGeometry(c,width,p,hidden=false,user=false){
  const fill=fillSettings(c,user);if(fill.enabled&&!hidden)return {width,baseHeight:c.headerHeight,photoWidth:width+CARD_PADDING*2,photoHeight:c.headerHeight+CARD_PADDING,photoTop:-CARD_PADDING};
- const photoWidth=hidden?0:p.enabled?Math.max(70,Math.min(width*p.widthPercent/100,p.maxSize)):c.avatarSize,photoHeight=p.enabled?photoWidth/Number(p.ratio):photoWidth;
- const normal=c.layout==='collage'?Math.min(c.headerHeight,Math.max(180,c.headerHeight*width/390)):c.headerHeight,baseHeight=hidden?Math.max(4,c.headerHeight):Math.max(normal,(c.layout==='collage'?photoHeight*(p.enabled?p.scale:1):photoHeight)+(c.layout==='top'?35:30));
- return {width,baseHeight,photoWidth,photoHeight,photoTop:c.layout==='collage'?baseHeight-photoHeight-30:c.layout==='left'?4:0};
+ const photoWidth=hidden?0:p.enabled?Math.max(70,Math.min(width*p.widthPercent/100,p.maxSize)):(p.size??c.avatarSize),photoHeight=p.enabled?photoWidth/Number(p.ratio):photoWidth;
+ const baseHeight=hidden?Math.max(4,c.headerHeight):Math.max(c.headerHeight,photoHeight+30);
+ return {width,baseHeight,photoWidth,photoHeight,photoTop:0};
 }
 export function itemPoint(c,item,width){return {x:width*(item.x+(c.textInset??0))/100,y:item.y+(c.textTop??0)};}
 export function itemWidth(item,width){return item.width==='auto'?width:width*item.width/100;}

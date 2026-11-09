@@ -1,3 +1,4 @@
+import {avatarDesignRules} from './avatar-design.mjs';
 import {canvasBackgroundRules} from './canvas-background.mjs';
 import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
 import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
@@ -77,6 +78,7 @@ ${meta}{position:static!important;width:auto!important;padding:0!important;z-ind
 ${meta} > .otl-live-caption-slot{position:static!important;display:contents!important}
 ${q} > .mesAvatarWrapper{top:calc(24px + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important}
 ${q} .otl-live-art.otl-scene-art{display:block!important}
+${avatarDesignRules(q,config)}
 ${avatarFillRules(q,config)}
 ${canvasBackgroundRules(config,'html[data-orange-live]')}
 
@@ -160,7 +162,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden);
     const {photoWidth,photoHeight,photoTop}=scene;
-    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':(p.enabled?p.x:0)+'px','photo-y':(p.enabled?-p.y:0)+'px','photo-rotation':(p.enabled?p.rotation:0)+'deg','photo-scale':p.enabled?p.scale:1,'photo-frame-width':(p.enabled?p.frameWidth:0)+'px','photo-frame-color':p.frameColor,'photo-outline':p.enabled?'1px solid '+p.outlineColor:'none','photo-radius':p.enabled?'1px':c.avatarRadius+'px','photo-shadow':p.enabled&&p.shadow?'1px 2px 3px #6c7b962b':'none','photo-tilt':(p.enabled?p.photoRotation:0)+'deg'}))variable(state,msg,'--ol-'+key,value);
+    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg','photo-scale':p.scale,'photo-frame-width':(p.enabled?p.frameWidth:0)+'px','photo-frame-color':p.frameColor,'photo-outline':p.enabled?'1px solid '+p.outlineColor:'none','photo-radius':p.enabled?'1px':(p.radius??c.avatarRadius)+'px','photo-shadow':p.enabled&&p.shadow?'1px 2px 3px #6c7b962b':'none','photo-tilt':(p.enabled?p.photoRotation:0)+'deg'}))variable(state,msg,'--ol-'+key,value);
     const destinations={header,avatar:photo,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
     for(const anchor of Object.keys(destinations)){
       if(!destinations[anchor])continue;const container=artContainer(state,destinations[anchor],anchor);if(anchor==='header')container.classList.add('otl-scene-art');if(anchor.startsWith('reasoning-'))container.setAttribute('data-otl-reason-owned','');
