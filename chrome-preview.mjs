@@ -44,7 +44,8 @@ html[data-orange-lab][data-otl-preview-mode=page] #sheld>:is(.otl-page-topbar,#c
 html[data-orange-lab][data-otl-preview-mode=page] #sheld>.otl-page-input{justify-self:start;min-width:0}
 html[data-orange-lab][data-otl-preview-mode=page][data-otl-narrow=true] #sheld{grid-template-columns:minmax(0,390px)!important}
 html[data-orange-lab][data-otl-preview-mode=page] #sheld>:not(#chat):not([data-oc-preview]){display:none!important}
-html[data-orange-lab][data-otl-preview-mode=page] #chat{height:100%!important;min-height:0!important;padding:12px!important;border-radius:0!important;box-sizing:border-box!important}
-html[data-orange-lab][data-otl-preview-mode=page] #chat>.mes[data-orange-lab-fixture]{width:100%!important;min-width:0!important;max-width:var(--otl-cardWidth)!important}
+html[data-orange-lab][data-otl-preview-mode=page] #chat{height:100%!important;min-height:0!important;border-radius:0!important;box-sizing:border-box!important}
+html[data-orange-lab][data-otl-preview-mode=page] #chat>.mes[data-orange-lab-fixture]{width:100%!important;min-width:0!important}
 html[data-orange-lab][data-otl-preview-mode=page] #form_sheld{display:none!important}
 `;
+

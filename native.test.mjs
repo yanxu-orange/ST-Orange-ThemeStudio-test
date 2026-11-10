@@ -5,7 +5,7 @@ const html='<html><head></head><body><div class="mes" is_user="false"><div class
 test('native schema7 defaults migrate real1-6 only in memory and strictly reject invalid fields and sources',()=>{
  for(const version of [1,2,3,4,5,6]){let raw={version:Math.min(version,3),layers:[]};if(version>=4)raw=normalizeCaptionConfig(raw);if(version>=5)raw=normalizeReasoningConfig(raw);if(version>=6)raw=normalizeFooterConfig(raw);const before=structuredClone(raw),c=normalizeNativeConfig(raw);assert.equal(c.version,7);assert.deepEqual(c.nativeStyle,NATIVE_DEFAULTS);assert.deepEqual(raw,before);assert.throws(()=>normalizeNativeConfig({...raw,nativeStyle:{}}));}
  const c=current();assert.deepEqual(normalizeNativeConfig(c),c);assert.deepEqual(normalizeFooterConfig(c).nativeStyle,c.nativeStyle);for(const v of [null,undefined])assert.throws(()=>normalizeNativeConfig({...c,nativeStyle:v}));
- for(const mutate of [s=>s.actions.size=9,s=>s.stats.x=101,s=>s.swipe.y=-161,s=>s.swipe.gap=41,s=>s.swipe.hideHistory='true',s=>s.actions.edit.source={kind:'custom',asset:'',image:'https://bad'},s=>s.swipe.left.mode='image',s=>s.stats.position='reasoning',s=>s.actions.edit.text='x'.repeat(41)]){const s=structuredClone(c.nativeStyle);mutate(s);assert.throws(()=>validateNativeStyle(s));}
+ for(const mutate of [s=>s.actions.size=9,s=>s.actions.anchor='middle',s=>delete s.actions.anchor,s=>s.stats.x=101,s=>s.swipe.y=-161,s=>s.swipe.gap=41,s=>s.swipe.hideHistory='true',s=>s.actions.edit.source={kind:'custom',asset:'',image:'https://bad'},s=>s.swipe.left.mode='image',s=>s.stats.position='reasoning',s=>s.actions.edit.text='x'.repeat(41)]){const s=structuredClone(c.nativeStyle);mutate(s);assert.throws(()=>validateNativeStyle(s));}
  assert.equal(effectiveNativeMode({mode:'text',text:'  '}),'default');assert.equal(effectiveNativeMode({mode:'image',source:null}),'default');assert.equal(effectiveNativeMode({mode:'text',text:'编辑'}),'text');
 });
 test('native slots keep true parents, measure stable rows and convert actual offsetParent borders and scroll',()=>{
@@ -22,4 +22,27 @@ test('native replacement labels have no pointer events, counters hide independen
 });
 test('latest AI classification remains after a user, advances on AI and excludes system messages',()=>{
  const {document}=parseHTML('<html><body><div id="chat"></div></body></html>'),chat=document.querySelector('#chat');const add=(id,user=false,system=false)=>{const n=document.createElement('div');n.id=id;n.className='mes';n.setAttribute('is_user',String(user));n.setAttribute('is_system',String(system));chat.append(n);return n;};const a=add('a'),u=add('u',true);assert.equal(latestAI(chat.children),a);const b=add('b');assert.equal(latestAI(chat.children),b);add('system',false,true);assert.equal(latestAI(chat.children),b);b.remove();assert.equal(latestAI(chat.children),a);assert.ok(u.isConnected);
+});
+
+
+test('header action anchors follow tall measured headers and visible action height without moving native controls',()=>{
+ const {document,window}=parseHTML(html),msg=document.querySelector('.mes'),c=current(),header=msg.querySelector('.ch_name'),buttons=header.querySelector('.mes_buttons'),editing=header.querySelector('.mes_edit_buttons');
+ const rect=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});let height=1000;
+ header.getBoundingClientRect=()=>rect(24,50,400,height);buttons.getBoundingClientRect=()=>rect(0,0,80,24);editing.getBoundingClientRect=()=>rect(0,0,90,40);
+ window.getComputedStyle=n=>({display:n.style.display||'flex',visibility:'visible',boxSizing:'border-box'});
+ c.nativeStyle.actions.y=7;assert.equal(c.nativeStyle.actions.anchor,'top');
+ const y=()=>parseFloat(msg.style.getPropertyValue('--on-actions-y'));
+ for(const [anchor,expected]of [['top',7],['center',495],['bottom',983]]){c.nativeStyle.actions.anchor=anchor;renderNative(msg,c);assert.equal(y(),expected);assert.equal(buttons.parentNode,header);assert.equal(editing.parentNode,header);assert.equal(msg.querySelector('.otl-native-head'),null);}
+ height=600;renderNative(msg,c);assert.equal(y(),583);renderNative(msg,c);assert.equal(y(),583,'measurements do not accumulate');
+ buttons.style.display='none';editing.style.display='flex';renderNative(msg,c);assert.equal(y(),567,'visible edit-state controls determine group height');
+ height=20;renderNative(msg,c);assert.equal(y(),7,'oversized controls do not gain a negative anchor offset');
+});
+test('footer action placement uses the current footer slot regardless of header anchor',()=>{
+ const {document,window}=parseHTML(html),msg=document.querySelector('.mes'),c=current(),header=msg.querySelector('.ch_name'),buttons=header.querySelector('.mes_buttons');
+ const rect=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});let footerTop=1200;
+ header.getBoundingClientRect=()=>rect(24,50,400,1000);buttons.getBoundingClientRect=()=>rect(0,0,80,24);window.getComputedStyle=n=>({display:n.style.display||'flex',visibility:'visible',boxSizing:'border-box'});
+ const create=(tag,cls,parent)=>{const n=document.createElement(tag);n.className=cls;parent.append(n);n.getBoundingClientRect=()=>rect(24,footerTop,400,32);return n;};
+ c.nativeStyle.actions.position='footer';c.nativeStyle.actions.y=5;
+ for(const anchor of ['top','center','bottom']){c.nativeStyle.actions.anchor=anchor;renderNative(msg,c,{createNode:create});assert.equal(msg.style.getPropertyValue('--on-actions-y'),'1155px');assert.equal(buttons.parentNode,header);}
+ footerTop=1500;renderNative(msg,c,{createNode:create});assert.equal(msg.style.getPropertyValue('--on-actions-y'),'1455px');assert.equal(msg.querySelectorAll('.otl-native-footer').length,1);
 });

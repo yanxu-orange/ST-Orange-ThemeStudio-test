@@ -8,7 +8,7 @@ import {normalizeTextScene,prepareScene,placeScene,sceneTextRules,sceneFrameRule
 import {normalizeNativeConfig,nativeRules,renderNative,latestAI,nativeControlNodes} from './native.mjs';
 import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,measureFooter} from './footer.mjs';
 import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
-import {bodyCardSettings,bodyCardRules} from './body-card.mjs';
+import {bodyCardSettings,bodyCardRules,chatFrameRules} from './body-card.mjs';
 import {normalizeCaptionConfig,captionKey,captionToken,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
 import {collageMetrics} from './photos.mjs';
@@ -70,6 +70,7 @@ body.no-blur ${q}{backdrop-filter:none!important}
 ${footerRules(q,config,families)}
 ${nativeRules(q,config)}
 ${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config)}
+${chatFrameRules('html[data-orange-live] #chat',q,config)}
 ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-id="${cap.id}"]`;return `${node}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important;${cap.visible?'':'display:none!important;'}}`;}).join('\n')}
 ${textItemRules(items,selectors,families,tokens,fallbacks,{position:false})}
 ${sceneTextRules(config,selectors)}
@@ -232,3 +233,4 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   return {start,stop,reconcile,get active(){return !!snapshot;},get messageCount(){return states.size;}};
 }
+

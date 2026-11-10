@@ -5,7 +5,8 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.15.5-avatar-design.0",
+  "version": "0.15.6-preview-controls.0",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }
+

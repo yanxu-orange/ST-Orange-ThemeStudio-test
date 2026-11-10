@@ -1,13 +1,14 @@
 import {validImage} from './layers.mjs';
 import {ASSETS,assetUrl} from './catalog.mjs';
 const common={size:15,color:'auto',gap:6,x:0,y:0};
-export const NATIVE_DEFAULTS={actions:{...common,position:'header',edit:{mode:'default',text:'编辑',source:null}},stats:{...common,position:'header',size:11},swipe:{...common,position:'footer',left:{mode:'default',text:'上一页'},right:{mode:'default',text:'下一页'},hideHistory:true,hideLatest:false}};
+export const NATIVE_DEFAULTS={actions:{...common,position:'header',anchor:'top',edit:{mode:'default',text:'编辑',source:null}},stats:{...common,position:'header',size:11},swipe:{...common,position:'footer',left:{mode:'default',text:'上一页'},right:{mode:'default',text:'下一页'},hideHistory:true,hideLatest:false}};
 function object(v,keys){if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k)))throw Error('原生功能字段无效');}
 function choice(v,values){if(!values.includes(v))throw Error('原生功能选项无效');}
 function number(v,min,max){if(!Number.isFinite(v)||v<min||v>max)throw Error('原生功能数值超出范围');}
 export function validateNativeStyle(raw){
  object(raw,['actions','stats','swipe']);
- for(const k of ['actions','stats','swipe']){const v=raw[k];object(v,[...Object.keys(common),'position',...(k==='actions'?['edit']:k==='swipe'?['left','right','hideHistory','hideLatest']:[])]);choice(v.position,['header','footer']);for(const [name,min,max]of [['size',10,28],['gap',0,40],['x',-100,100],['y',-160,160]])number(v[name],min,max);if(v.color!=='auto'&&(typeof v.color!=='string'||!/^#[a-f0-9]{6}$/i.test(v.color)))throw Error('原生功能颜色无效');}
+ for(const k of ['actions','stats','swipe']){const v=raw[k];object(v,[...Object.keys(common),'position',...(k==='actions'?['anchor','edit']:k==='swipe'?['left','right','hideHistory','hideLatest']:[])]);choice(v.position,['header','footer']);for(const [name,min,max]of [['size',10,28],['gap',0,40],['x',-100,100],['y',-160,160]])number(v[name],min,max);if(v.color!=='auto'&&(typeof v.color!=='string'||!/^#[a-f0-9]{6}$/i.test(v.color)))throw Error('原生功能颜色无效');}
+ choice(raw.actions.anchor,['top','center','bottom']);
  for(const [v,image]of [[raw.actions.edit,true],[raw.swipe.left,false],[raw.swipe.right,false]]){object(v,image?['mode','text','source']:['mode','text']);choice(v.mode,image?['default','text','image']:['default','text']);if(typeof v.text!=='string'||v.text.length>40)throw Error('原生功能文字过长');if(image&&v.source!==null){object(v.source,['kind','asset','image']);if(v.source.kind==='asset'){if(!Object.hasOwn(ASSETS,v.source.asset)||v.source.image!=='')throw Error('编辑图标素材无效');}else if(v.source.kind!=='custom'||v.source.asset!==''||!validImage(v.source.image))throw Error('编辑图标图片无效');}}
  if(typeof raw.swipe.hideHistory!=='boolean'||typeof raw.swipe.hideLatest!=='boolean')throw Error('版本计数开关无效');return structuredClone(raw);
 }
@@ -62,9 +63,10 @@ export function renderNative(msg,c,{createNode,removeNode,attribute,variable,lat
  // Row stacking and offsets use stable group sizes; reserve union in each native dock.
  const placements={};for(const [area,keys]of Object.entries(groups)){let cursor=0,top=0,bottom=0;for(const key of keys){const v=s[key],d=dimensions[key],y=cursor+v.y;placements[key]={x:v.x*regionWidth/100,y};top=Math.min(top,y);bottom=Math.max(bottom,y+d.height);cursor+=d.height+v.gap;}const shift=Math.max(0,-top),height=keys.length?Math.ceil(bottom+shift+8):0;set('--on-'+(area==='head'?'head':'footer')+'-height',height+'px');for(const key of keys)placements[key].y+=shift;}
  const css=msg.ownerDocument.defaultView?.getComputedStyle?.(header),extra=css?.boxSizing==='border-box'?0:['paddingTop','paddingBottom','borderTopWidth','borderBottomWidth'].reduce((n,k)=>n+(parseFloat(css?.[k])||0),0);const headHeight=parseFloat(msg.style.getPropertyValue('--on-head-height'))||0;set('--on-head-top',headerRect.height+'px');if(headHeight)set('--on-header-height',Math.max(0,headerRect.height+headHeight-extra)+'px');
- const target=key=>{if(key==='actions'&&s.actions.position==='header')return {left:headerRect.right-dimensions.actions.width+s.actions.x*regionWidth/100,top:headerRect.top+s.actions.y};const area=s[key].position==='footer'?'footer':'head',r=slots[area]?.getBoundingClientRect()||headerRect,p=placements[key]||{x:0,y:0};return {left:r.left+p.x,top:r.top+p.y};};
+ const target=key=>{if(key==='actions'&&s.actions.position==='header')return {left:headerRect.right-dimensions.actions.width+s.actions.x*regionWidth/100,top:headerRect.top+Math.max(0,headerRect.height-dimensions.actions.height)*({top:0,center:.5,bottom:1}[s.actions.anchor])+s.actions.y};const area=s[key].position==='footer'?'footer':'head',r=slots[area]?.getBoundingClientRect()||headerRect,p=placements[key]||{x:0,y:0};return {left:r.left+p.x,top:r.top+p.y};};
  const position=(node,key,point,parent)=>{if(!node||!parent)return;const offset=node.offsetParent||parent,r=offset.getBoundingClientRect(),originX=r.left+(offset.clientLeft||0)-(offset.scrollLeft||0),originY=r.top+(offset.clientTop||0)-(offset.scrollTop||0);set('--on-'+key+'-x',(point.left-originX)+'px');set('--on-'+key+'-y',(point.top-originY)+'px');};
  const ap=target('actions');position(normal||editing,'actions',ap,header);
  let sx=0;const sp=target('stats');for(const [i,n]of stats.entries()){position(n,'stat-'+i,{left:sp.left+sx,top:sp.top},wrapper);if(exists(sd[i]))sx+=sd[i].width+s.stats.gap;}
  const wp=target('swipe');position(left,'swipe-left',wp,msg);position(right,'swipe-right',{left:wp.left+(exists(ld)?ld.width+s.swipe.gap:0),top:wp.top},msg);
 }
+

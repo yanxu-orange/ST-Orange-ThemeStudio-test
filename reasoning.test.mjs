@@ -45,3 +45,45 @@ test('preview/live share a block width reference regardless of native flex-conta
  }
  assert.equal(JSON.stringify(c),before);
 });
+
+test('entry arrow defaults hidden and label offsets default to zero with strict required fields',()=>{
+ const c=current(),s=c.reasoningStyle;
+ assert.equal(s.entry.showArrow,false);assert.deepEqual(s.entry.labelPosition,{x:0,y:0});
+ for(const mutate of [
+  s=>delete s.entry.showArrow,s=>s.entry.showArrow=0,s=>s.entry.showArrow='false',s=>s.entry.showArrow=null,
+  s=>delete s.entry.labelPosition,s=>s.entry.labelPosition=null,s=>s.entry.labelPosition=[],
+  s=>delete s.entry.labelPosition.x,s=>delete s.entry.labelPosition.y,s=>s.entry.labelPosition.extra=0,
+  ...['x','y'].flatMap(key=>[-501,501,NaN,Infinity,-Infinity,'0',null].map(value=>s=>s.entry.labelPosition[key]=value)),
+ ]){const bad=structuredClone(s);mutate(bad);assert.throws(()=>validateReasoningStyle(bad));}
+ for(const [x,y]of [[-500,500],[500,-500],[12.5,-30.25]]){const valid=structuredClone(s);valid.entry.showArrow=true;valid.entry.labelPosition={x,y};assert.deepEqual(validateReasoningStyle(valid),valid);assert.deepEqual(normalizeReasoningConfig({...c,reasoningStyle:valid}).reasoningStyle,valid);}
+ const missing=structuredClone(c);delete missing.reasoningStyle.entry.showArrow;delete missing.reasoningStyle.entry.labelPosition;
+ assert.throws(()=>normalizeReasoningConfig(missing),'current schemas do not silently migrate missing fields');
+});
+test('preview/live arrow switching and label-only positioning share CSS without moving the entry frame',()=>{
+ const c=current();
+ const styles=(entry,body,bg)=>{
+  const {document}=parseHTML('<html><head></head><body></body></html>'),style=document.createElement('style');
+  style.textContent=reasoningRules(entry,body,bg,c);document.head.append(style);
+  return [...style.sheet.cssRules];
+ };
+ for(const root of ['html[data-orange-live] #chat > .mes','html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]']){
+  c.reasoningStyle.entry.showArrow=false;c.reasoningStyle.entry.labelPosition={x:0,y:0};
+  const entry=root+' .mes_reasoning_header',body=root+' .mes_reasoning',bg=root+' .otl-reasoning-bg';
+  const before=styles(entry,body,bg),arrowSelector=entry+' .mes_reasoning_arrow',labelSelector=entry+' :is(.otl-live-reasoning, .otl-reasoning-title)';
+  const arrow=before.find(r=>r.selectorText===arrowSelector),label=before.find(r=>r.selectorText===labelSelector);
+  assert.equal(arrow.style.display,'none');assert.equal(arrow.style.getPropertyPriority('display'),'important');assert.equal(label.style.transform,'translate(0px,0px)');
+  c.reasoningStyle.entry.showArrow=true;
+  const visible=styles(entry,body,bg);
+  assert.equal(visible.find(r=>r.selectorText===arrowSelector).style.display,'inline-block');
+  for(let i=0;i<before.length;i++)if(before[i].selectorText!==arrowSelector)assert.equal(visible[i].cssText,before[i].cssText,'arrow toggle changes only the arrow rule');
+  c.reasoningStyle.entry.labelPosition={x:-137,y:49};
+  const moved=styles(entry,body,bg);
+  assert.equal(moved.find(r=>r.selectorText===labelSelector).style.transform,'translate(-137px,49px)');
+  assert.equal(moved.find(r=>r.selectorText===labelSelector).style.getPropertyPriority('transform'),'important');
+  for(let i=0;i<visible.length;i++)if(visible[i].selectorText!==labelSelector)assert.equal(moved[i].cssText,visible[i].cssText,'label offsets leave arrow, background, body, and entry frame untouched');
+  assert.equal(moved.find(r=>r.selectorText===entry).style.transform,'');
+  assert.equal(moved.find(r=>r.selectorText===bg).style.transform,'');
+  assert.equal(moved.find(r=>r.selectorText===arrowSelector).style.transform,'none');
+  assert.equal(moved.filter(r=>r.selectorText.includes('.mes_reasoning_arrow:is(')).length,1,'native open-state arrow rule is retained');
+ }
+});
