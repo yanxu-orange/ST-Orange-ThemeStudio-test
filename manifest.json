@@ -5,8 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.15.8-avatar-area.0",
+  "version": "0.16.0-workbench.0",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }
-

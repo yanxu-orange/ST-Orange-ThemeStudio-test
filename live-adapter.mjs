@@ -1,3 +1,7 @@
+import {avatarArtworkFrameStyle} from './avatar-art.mjs';
+import {regionZ,regionForImage,imageKey} from './region-layers.mjs';
+import {layerSizeStyle} from './shape-assets.mjs';
+import {captionMatchesScope} from './captions.mjs';
 import {updateHeaderArtworkClip} from './header-art-clip.mjs';
 import {avatarDesignRules} from './avatar-design.mjs';
 import {canvasBackgroundRules} from './canvas-background.mjs';
@@ -45,8 +49,8 @@ ${meta} > .timestamp{font-size:var(--ol-timeSize)!important;line-height:1.5!impo
 ${meta} .otl-live-caption{line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;order:0}
 ${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta]{flex-direction:row!important;flex-wrap:wrap!important;align-items:baseline!important;gap:4px 9px!important}
 ${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta] > :is(.otl-live-caption,.otl-live-caption-slot){flex-basis:100%}
-${q} > .mesAvatarWrapper{position:absolute!important;left:24px!important;top:calc(24px + var(--ol-photo-top) + var(--ol-scene-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:2}
-${avatar}{position:relative!important;display:block!important;box-sizing:border-box!important;width:var(--ol-photo-width)!important;height:var(--ol-photo-height)!important;max-width:none!important;min-width:0!important;flex:0 0 100%!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;box-shadow:none!important;overflow:visible!important;transform:translate(var(--ol-photo-x),var(--ol-photo-y)) rotate(var(--ol-photo-rotation)) scale(var(--ol-photo-scale))!important;transform-origin:50% 100%;isolation:isolate;clip-path:polygon(var(--sc-avatar-clip))!important;}
+${q} > .mesAvatarWrapper{position:absolute!important;left:24px!important;top:calc(24px + var(--ol-photo-top) + var(--ol-scene-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:${regionZ(config,'header','avatar')}!important}
+${avatar}{position:relative!important;display:block!important;box-sizing:border-box!important;width:var(--ol-photo-width)!important;height:var(--ol-photo-height)!important;max-width:none!important;min-width:0!important;flex:0 0 100%!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;box-shadow:none!important;overflow:visible!important;transform:translate(var(--ol-photo-x),var(--ol-photo-y)) rotate(var(--ol-photo-rotation))!important;transform-origin:50% 100%;isolation:isolate;clip-path:polygon(var(--sc-avatar-clip))!important;}
 ${avatar} > img:not([${OWN}]){position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;z-index:2}
 ${q} > .mesAvatarWrapper > :is(.mesIDDisplay,.mes_timer,.tokenCounterDisplay){max-width:100%;font:11px/1.5 sans-serif;color:var(--ol-timeColor)}
 ${head} > :is(.mes_buttons,.mes_edit_buttons){position:absolute;right:0;top:0;z-index:6;max-width:100%}
@@ -60,7 +64,7 @@ ${q} .mes_reasoning_actions{flex-shrink:0}
 ${q} .mes_reasoning_header_title[data-otl-live-reasoning]{font-size:0!important}
 ${reasoningRules(`${q} .mes_reasoning_header`,`${q} .mes_reasoning`,`${q} .otl-reasoning-bg`,config,families,interfaceFamily)}
 ${q} .otl-live-art{display:contents}
-${q} .otl-live-art > img{position:absolute!important;max-width:none!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;filter:none!important;object-fit:contain;pointer-events:none!important;transform-origin:center}
+${q} .otl-live-art img{position:absolute!important;max-width:none!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;filter:none!important;object-fit:contain;pointer-events:none!important;transform-origin:center}
 ${q} > .mes_block > .mes_text textarea{max-width:100%;box-sizing:border-box}
 ${q} > :is(.swipe_left,.swipeRightBlock){z-index:5}
 ${q}[data-otl-live-avatar-hidden=true] > .mesAvatarWrapper > .avatar{display:none!important}
@@ -72,6 +76,7 @@ ${nativeRules(q,config)}
 ${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config)}
 ${chatFrameRules('html[data-orange-live] #chat',q,config)}
 ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-id="${cap.id}"]`;return `${node}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important;${cap.visible?'':'display:none!important;'}}`;}).join('\n')}
+${meta} .otl-live-caption[hidden]{display:none!important}
 ${textItemRules(items,selectors,families,tokens,fallbacks,{position:false})}
 ${sceneTextRules(config,selectors)}
 ${sceneFrameRules(q,head)}
@@ -142,7 +147,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       let parent=names;
       if(cap.width!=='auto'){let slot=[...state.nodes].find(n=>n.className==='otl-live-caption-slot'&&n.dataset.captionId===cap.id&&n.parentNode===names);if(!slot){slot=owned(state,'div','otl-live-caption-slot',names);slot.dataset.captionId=cap.id;}parent=slot;}
       let node=[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id&&n.parentNode===parent);if(!node){node=owned(state,'div','otl-live-caption',parent);node.dataset.captionId=cap.id;}
-      if(node.textContent!==cap.content)node.textContent=cap.content;if(cap.visible)captions.push(node);
+      if(node.textContent!==cap.content)node.textContent=cap.content;node.hidden=!cap.visible||!captionMatchesScope(cap,user);if(!node.hidden)captions.push(node);
     }
     const details=block.querySelector('.mes_reasoning_details'),reasonBody=details?.querySelector('.mes_reasoning'),nativeTitle=details?.querySelector('.mes_reasoning_header_title');
     const hasReason=details&&details.dataset.state!=='none'&&reasonBody&&(reasonBody.textContent.trim()||reasonBody.querySelector('img:not([data-otl-live-owned]),video,audio,pre,textarea'));
@@ -163,19 +168,20 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden);
     const {photoWidth,photoHeight,photoTop}=scene;
-    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg','photo-scale':p.scale}))variable(state,msg,'--ol-'+key,value);
-    const destinations={header,avatar:photo,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
+    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg'}))variable(state,msg,'--ol-'+key,value);
+    const destinations={header,avatar:header,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
     for(const anchor of Object.keys(destinations)){
       if(!destinations[anchor])continue;const container=artContainer(state,destinations[anchor],anchor);if(anchor==='header')container.classList.add('otl-scene-art');if(anchor.startsWith('reasoning-'))container.setAttribute('data-otl-reason-owned','');
       const layers=c.layers.filter(l=>l.visible&&l.anchor===anchor&&!(photoHidden&&anchor==='avatar')&&(l.scope==='both'||l.scope===(user?'user':'ai')));
-      const existing=new Map([...container.children].map(e=>[e.getAttribute('data-layer-id'),e]));
+      const existing=new Map([...container.querySelectorAll('[data-layer-id]')].map(e=>[e.getAttribute('data-layer-id'),e]));
       for(const layer of layers){
         const src=resolveArtwork(layer);if(!src)continue;
-        let image=existing.get(layer.id);if(!image){image=owned(state,'img','',container);image.setAttribute('data-layer-id',layer.id);if(anchor==='header')image.onload=schedule;if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
+        let image=existing.get(layer.id);if(!image){let imageParent=container;if(anchor==='avatar'){imageParent=owned(state,'div','otl-avatar-art-frame',container);}image=owned(state,'img','',imageParent);image.setAttribute('data-layer-id',layer.id);if(anchor==='header')image.onload=schedule;if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
         existing.delete(layer.id);if(image.getAttribute('src')!==src)image.setAttribute('src',src);
-        Object.assign(image.style,{width:layer.width+(layer.widthUnit==='percent'?'%':'px'),height:layer.heightPercent?layer.heightPercent+'%':'auto',objectPosition:layer.side+' '+layer.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:layer.z});if(anchor==='header')updateHeaderArtworkClip(image,layer,scene.width,Math.max(0,scene.height-24));
+        if(anchor==='avatar')Object.assign(image.parentElement.style,avatarArtworkFrameStyle(c,user,scene,regionZ(c,'header',imageKey(layer.id))));
+        Object.assign(image.style,{...layerSizeStyle(layer),position:'absolute',objectPosition:layer.side+' '+layer.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:regionZ(c,regionForImage(layer),imageKey(layer.id))});if(anchor==='header')updateHeaderArtworkClip(image,layer,scene.width,Math.max(0,scene.height-24));
       }
-      for(const image of existing.values()){state.nodes.delete(image);image.remove();}
+      for(const image of existing.values()){const frame=image.parentElement;state.nodes.delete(image);image.remove();if(frame.classList.contains('otl-avatar-art-frame')){state.nodes.delete(frame);frame.remove();}}
     }
     const footerSession=session;renderFooter(msg,c,{resolveArtwork,createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},onImageLoad:()=>{if(snapshot&&session===footerSession&&states.get(msg)===state&&msg.isConnected)schedule();}});measureFooter(msg,c);
     renderNative(msg,c,{createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},attribute:(node,key,value)=>attribute(state,node,key,value),variable:(node,key,value)=>variable(state,node,key,value),latest:isLatest});

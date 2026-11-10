@@ -1,3 +1,5 @@
+import {regionZ,imageKey} from './region-layers.mjs';
+import {layerSizeStyle} from './shape-assets.mjs';
 import {DRAWERS,INPUT_ICONS,LIVE_CHROME_SELECTORS,chromeRules,chromeSourceUrl,chromeTopMetrics} from './chrome.mjs';
 import {interfaceFont} from './reasoning.mjs';
 /** Owns only added pictures, private markers and a stylesheet. Never moves host controls or snapshots drafts. */
@@ -27,7 +29,7 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
   if(!layers.length){if(root){for(const n of [...owned])if(root===n||root.contains(n))owned.delete(n);root.remove();}return;}
   if(!root){root=make('div','otl-input-art',form);root.setAttribute('aria-hidden','true');root.dataset.ocZone='input';}
   const existing=new Map([...root.children].map(n=>[n.dataset.layerId,n]));
-  for(const [l,src]of layers){let image=existing.get(l.id);if(!image){image=make('img','',root);image.dataset.layerId=l.id;image.dataset.ocZone='input';image.alt='';}existing.delete(l.id);if(image.getAttribute('src')!==src)image.src=src;Object.assign(image.style,{width:l.width+(l.widthUnit==='percent'?'%':'px'),height:l.heightPercent?l.heightPercent+'%':'auto',left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:l.z});root.append(image);}
+  for(const [l,src]of layers){let image=existing.get(l.id);if(!image){image=make('img','',root);image.dataset.layerId=l.id;image.dataset.ocZone='input';image.alt='';}existing.delete(l.id);if(image.getAttribute('src')!==src)image.src=src;Object.assign(image.style,{...layerSizeStyle(l),left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:regionZ(config,'input',imageKey(l.id))});root.append(image);}
   for(const image of existing.values()){image.remove();owned.delete(image);}
  }
  function render(){

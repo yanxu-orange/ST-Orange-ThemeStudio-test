@@ -4,12 +4,12 @@ import {defaultPhoto,validatePhotos,kittyLayers} from './photos.mjs';
 import {validateLayers,clone} from './layers.mjs';
 
 test('default initialization creates independent disabled borders',()=>{
-  const p=validatePhotos();p.ai.x=50;assert.equal(p.user.x,0);assert.equal(p.user.enabled,false);
+  const p=validatePhotos();p.ai.x=50;assert.equal(p.user.x,0);assert.equal(p.user.enabled,false);assert.equal(Object.hasOwn(p.ai,'scale'),false);assert.equal(Object.hasOwn(p.user,'scale'),false);
 });
 test('photo settings round trip and reject unsafe sources or transforms',()=>{
   const raw={ai:defaultPhoto({enabled:true,rotation:10,asset:'kitty-ai-window'}),user:defaultPhoto({frameWidth:8})};
   assert.deepEqual(validatePhotos(JSON.parse(JSON.stringify(raw))),raw);
-  const bad=clone(raw);bad.ai.image='https://unknown.invalid/tracker';assert.throws(()=>validatePhotos(bad));
+  const bad=clone(raw);bad.ai.image='javascript:alert(1)';assert.throws(()=>validatePhotos(bad));
   bad.ai.image='';bad.ai.scale=99;assert.throws(()=>validatePhotos(bad));
 });
 test('kitty layers use separate scene and photo anchors and registered assets',()=>{
@@ -23,7 +23,7 @@ test('old decoration layers keep pixel and top defaults',()=>{
   const [converted]=validateLayers([old]);assert.equal(converted.widthUnit,'px');assert.equal(converted.vertical,'top');
 });
 test('photo schema rejects removed fields and missing dimensions without migration',()=>{
-  for(const key of ['widthPercent','maxSize','outlineColor','photoRotation']){
+  for(const key of ['scale','widthPercent','maxSize','outlineColor','photoRotation']){
     assert.equal(Object.hasOwn(defaultPhoto(),key),false);
     assert.throws(()=>validatePhotos({ai:defaultPhoto({[key]:1}),user:defaultPhoto()}));
   }

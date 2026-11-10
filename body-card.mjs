@@ -22,4 +22,4 @@ ${paragraphs}{margin-top:0!important;margin-bottom:${c.bodyParagraphGap}px!impor
 
 
 /** The same chat-area gutters and card limit on both surfaces. */
-export function chatFrameRules(chat,card,raw){const c=bodyCardSettings(raw);return `${chat}{box-sizing:border-box!important;padding:20px ${c.cardGutter}px 90px!important;gap:0!important}\n${card}{max-width:${c.cardFullWidth?'none':raw.cardWidth+'px'}!important}`;}
+export function chatFrameRules(chat,card,raw){const c=bodyCardSettings(raw);return `${chat}{box-sizing:border-box!important;padding:20px ${c.cardGutter}px 90px!important;gap:0!important}\n${card}{max-width:${c.cardFullWidth?'none':raw.cardWidth+'px'}!important}\n@media(max-width:700px){${card}{max-width:none!important}}`;}

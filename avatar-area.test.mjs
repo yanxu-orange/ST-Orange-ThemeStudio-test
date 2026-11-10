@@ -4,7 +4,7 @@ import {parseHTML} from 'linkedom';
 import {defaultPhoto} from './photos.mjs';
 import {FILL_DEFAULT} from './avatar-fill.mjs';
 import {sceneGeometry,sceneBounds,avatarClipPolygon,prepareScene,placeScene,sceneFrameRules,sceneTextRules} from './text-scene.mjs';
-const config=()=>({headerHeight:420,cardWidth:680,textAlign:'start',textItems:{name:{x:20,y:-80,width:'auto',z:3,weight:'auto'},time:{x:0,y:600,width:70,z:3,weight:'auto'}},captions:[],photos:{ai:defaultPhoto({size:270,ratio:'0.75',radius:50,x:-70,y:70,rotation:20,scale:1.5}),user:defaultPhoto({size:120,ratio:'1.3333333333333333'})},avatarFill:{ai:{...FILL_DEFAULT},user:{...FILL_DEFAULT}}});
+const config=()=>({headerHeight:420,cardWidth:680,textAlign:'start',textItems:{name:{x:20,y:-80,width:'auto',z:3,weight:'auto'},time:{x:0,y:600,width:70,z:3,weight:'auto'}},captions:[],photos:{ai:defaultPhoto({size:270,ratio:'0.75',radius:50,x:-70,y:70,rotation:20}),user:defaultPhoto({size:120,ratio:'1.3333333333333333'})},avatarFill:{ai:{...FILL_DEFAULT},user:{...FILL_DEFAULT}}});
 test('total header height stays exact for narrow/wide, ordinary/fill, hidden/visible, and large content',()=>{
  for(const width of [240,320,632,1200])for(const fill of [false,true])for(const hidden of [false,true]){
   const c=config();c.avatarFill.ai.enabled=fill;const original=structuredClone(c),p=c.photos.ai;
@@ -13,9 +13,9 @@ test('total header height stays exact for narrow/wide, ordinary/fill, hidden/vis
  }
 });
 test('avatar clipping inverse transform maps exactly to region corners without modifying dimensions',()=>{
- for(const size of [40,120,300])for(const ratio of ['1','0.75','1.3333333333333333'])for(const rotation of [-20,0,20])for(const scale of [.5,1,1.5]){
-  const c=config(),p=defaultPhoto({size,ratio,rotation,scale,x:-70,y:80}),g=sceneGeometry(c,342,p),points=avatarClipPolygon(c,g,p).split(',').map(s=>s.split(' ').map(parseFloat)),rad=rotation*Math.PI/180,ox=size/2,oy=size/Number(ratio);
-  points.forEach(([x,y],i)=>{const px=24+p.x+ox+scale*((x-ox)*Math.cos(rad)-(y-oy)*Math.sin(rad)),py=24-p.y+oy+scale*((x-ox)*Math.sin(rad)+(y-oy)*Math.cos(rad));assert.ok(Math.abs(px-[0,390,390,0][i])<.001);assert.ok(Math.abs(py-[0,0,420,420][i])<.001);});
+ for(const size of [40,120,300])for(const ratio of ['1','0.75','1.3333333333333333'])for(const rotation of [-20,0,20]){
+  const c=config(),p=defaultPhoto({size,ratio,rotation,x:-70,y:80}),g=sceneGeometry(c,342,p),points=avatarClipPolygon(c,g,p).split(',').map(s=>s.split(' ').map(parseFloat)),rad=rotation*Math.PI/180,ox=size/2,oy=size/Number(ratio);
+  points.forEach(([x,y],i)=>{const px=24+p.x+ox+((x-ox)*Math.cos(rad)-(y-oy)*Math.sin(rad)),py=24-p.y+oy+((x-ox)*Math.sin(rad)+(y-oy)*Math.cos(rad));assert.ok(Math.abs(px-[0,390,390,0][i])<.001);assert.ok(Math.abs(py-[0,0,420,420][i])<.001);});
  }
 });
 test('preview and host use same fixed scene, clipping restores after enlarging and long names are not measured',()=>{

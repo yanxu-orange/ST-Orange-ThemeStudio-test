@@ -41,6 +41,6 @@ test('fixed region constrains width without measuring content and maps to real o
 });
 
 test('avatar geometry has a fixed origin independent of local layout presets',()=>{
- const c={...normalize(old()),headerHeight:60},p=defaultPhoto({enabled:true,scale:1.5,size:300});
+ const c={...normalize(old()),headerHeight:60},p=defaultPhoto({enabled:true,size:300});
  const geometries=['top','left','collage'].map(layout=>sceneGeometry({...c,layout},630,p));assert.deepEqual(geometries[0],geometries[1]);assert.deepEqual(geometries[1],geometries[2]);assert.equal(geometries[0].photoTop,0);assert.equal(geometries[0].baseHeight,60);
 });

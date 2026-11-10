@@ -19,9 +19,9 @@ test('mobile toolbar starts as edge entrance and repeatedly expands all six acti
  assert.match(css,/\.bar\[data-toolbar-expanded=false\]\{left:auto;width:54px/);
  assert.match(css,/\.bar\[data-toolbar-expanded=false\]>:not\(\.mobile-toolbar-toggle\)\{display:none!important\}/);
 });
-test('collapse dismisses More and nested menus; outside pointer and Escape dismiss without swallowing preview input',()=>{
+test('flat More closes repeatedly; outside pointer and Escape preserve preview input',()=>{
  const {document,window,shadow,flow,toggle,more}=fixture();
- toggle.click();more.open=true;const nested=more.querySelector('details');nested.open=true;toggle.click();assert.equal(more.open,false);assert.equal(nested.open,false);
+ assert.equal(more.querySelector('details'),null);assert.ok(more.querySelector('#export'));assert.equal(more.querySelector('[aria-label="基础模板"]'),null);assert.equal(more.querySelector('#page-scope'),null);for(let i=0;i<3;i++){toggle.click();more.open=true;toggle.click();assert.equal(more.open,false);}
  toggle.click();more.open=true;more.dispatchEvent(new window.Event('pointerdown',{bubbles:true,composed:true}));assert.equal(flow.isToolbarExpanded(),true);
  const outside=new window.Event('pointerdown',{bubbles:true,cancelable:true});document.body.dispatchEvent(outside);assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.open,false);assert.equal(outside.defaultPrevented,false);
  toggle.click();more.open=true;const escape=new window.Event('keydown',{bubbles:true,cancelable:true});escape.key='Escape';shadow.dispatchEvent(escape);assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.open,false);
@@ -30,9 +30,15 @@ test('desktop stays expanded, restores menu controls, and returning to mobile re
  const {window,shadow,flow,toggle,more,bar}=fixture();toggle.click();more.open=true;
  window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));
  assert.equal(flow.isToolbarExpanded(),true);assert.equal(bar.dataset.toolbarExpanded,'true');assert.equal(more.open,false);assert.equal(shadow.querySelector('#save').textContent,'保存方案');assert.ok(shadow.querySelector('.panel-head #page-scope'));assert.ok(bar.querySelector('[aria-label="基础模板"]'));
- window.innerWidth=390;window.dispatchEvent(new window.Event('resize'));assert.equal(flow.isToolbarExpanded(),false);assert.ok(more.querySelector('#page-scope'));assert.equal(shadow.querySelector('#save').textContent,'保存');
+ window.innerWidth=390;window.dispatchEvent(new window.Event('resize'));assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.querySelector('#page-scope'),null);assert.ok(shadow.querySelector('.scope-label').hidden);assert.equal(shadow.querySelector('#save').textContent,'保存');
 });
 test('opening work settings, exit and reopen leave a clean collapsed toolbar',()=>{
  const {shadow,flow,toggle,more}=fixture();flow.setEditorOpen(true);toggle.click();more.open=true;shadow.querySelector('.mobile-work').click();assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.open,false);assert.equal(shadow.querySelector('.flow-overlay').classList.contains('hidden'),false);
  shadow.querySelector('[data-flow=continue]').click();assert.equal(flow.isToolbarExpanded(),false);toggle.click();more.open=true;flow.setEditorOpen(false);assert.equal(more.open,false);flow.setEditorOpen(true);assert.equal(flow.isToolbarExpanded(),false);
+});
+
+test('repeated mobile and desktop resizes preserve one instance of each control and close action menus',()=>{
+ const {window,shadow,flow,toggle,more,bar}=fixture();const exportButton=shadow.querySelector('#export'),preview=shadow.querySelector('.preview-tools'),scope=shadow.querySelector('#page-scope');let exports=0;exportButton.addEventListener('click',()=>exports++);
+ for(let i=0;i<4;i++){toggle.click();more.open=true;exportButton.click();assert.equal(exports,i+1);assert.equal(more.open,false);assert.equal(flow.isToolbarExpanded(),false);window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(bar.querySelector('.desktop-scheme #export'),exportButton);assert.equal(preview.parentNode,shadow);window.innerWidth=390;window.dispatchEvent(new window.Event('resize'));window.dispatchEvent(new window.Event('resize'));assert.equal(more.querySelector('#export'),exportButton);assert.equal(more.querySelectorAll('#export').length,1);assert.equal(more.querySelector('.preview-tools'),preview);assert.equal(shadow.querySelector('#page-scope'),scope);assert.equal(more.querySelector('details'),null);}
+ assert.equal(shadow.querySelector('#preview-mode').hidden,true);assert.equal(shadow.querySelector('#preview-mode').options.length,1);assert.equal(scope.options.length,1);assert.equal(shadow.querySelector('.preview-tools .hint'),null);
 });

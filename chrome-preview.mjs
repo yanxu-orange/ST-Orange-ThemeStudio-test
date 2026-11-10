@@ -1,3 +1,5 @@
+import {regionZ,imageKey} from './region-layers.mjs';
+import {layerSizeStyle} from './shape-assets.mjs';
 import {DRAWERS,INPUT_ICONS,chromeSourceUrl,chromeTopMetrics} from './chrome.mjs';
 export function createChromePreview({document,ui,onPick,resolveArtwork}={}){
  let top=null,input=null;const nodes=[];const make=(tag,cls,parent,text)=>{const n=document.createElement(tag);n.className=cls;if(text)n.textContent=text;parent?.append(n);return n;};
@@ -21,7 +23,7 @@ export function createChromePreview({document,ui,onPick,resolveArtwork}={}){
    if(zone==='topbar'){button.dataset.demoOpen=String(button.dataset.chromePick===ui.demoDrawer);button.dataset.demoDisconnected=String(button.dataset.chromePick==='sys-settings-button'&&ui.demoState==='disconnected');}
   }
   input.querySelector('.otl-page-file').hidden=ui.demoState!=='attachment';input.querySelector('.otl-page-qr').hidden=ui.demoState!=='qr';input.querySelector('[data-chrome-pick=send_but]').hidden=['disconnected','generating'].includes(ui.demoState);input.querySelector('[data-chrome-pick=mes_stop]').hidden=ui.demoState!=='generating';input.querySelector('textarea').placeholder=ui.demoState==='disconnected'?'未连接 · 虚构状态':'虚构输入，不会发送消息';
-  let art=input.querySelector('.otl-input-art');if(!art)art=make('div','otl-input-art',input);art.replaceChildren();if(c.chromeStyle.input.enabled)for(const layer of c.layers.filter(l=>l.anchor==='input'&&l.visible)){const src=resolveArtwork(layer);if(!src)continue;const image=make('img','',art);image.dataset.layerId=layer.id;image.dataset.pick='decoration';image.src=src;image.alt=layer.name;image.tabIndex=0;image.setAttribute('role','button');Object.assign(image.style,{width:layer.width+(layer.widthUnit==='percent'?'%':'px'),height:layer.heightPercent?layer.heightPercent+'%':'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:layer.z});}
+  let art=input.querySelector('.otl-input-art');if(!art)art=make('div','otl-input-art',input);art.replaceChildren();if(c.chromeStyle.input.enabled)for(const layer of c.layers.filter(l=>l.anchor==='input'&&l.visible)){const src=resolveArtwork(layer);if(!src)continue;const image=make('img','',art);image.dataset.layerId=layer.id;image.dataset.pick='decoration';image.src=src;image.alt=layer.name;image.tabIndex=0;image.setAttribute('role','button');Object.assign(image.style,{...layerSizeStyle(layer),[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:regionZ(c,'input',imageKey(layer.id))});}
   fit();
  }
  function close(){for(const node of nodes)node.remove();nodes.length=0;top=input=null;}

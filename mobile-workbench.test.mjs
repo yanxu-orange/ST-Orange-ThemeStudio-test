@@ -23,3 +23,9 @@ test('safe-area is reserved in preview geometry and mobile crop rule outranks la
  assert.match(workbenchMarkup(),/:host textarea,select\{font-size:16px\}/);
  assert.match(workbenchMarkup(),/:host \.crop-dialog\{max-height:calc\(var\(--wb-vv-height,100dvh\) - 16px\)/);
 });
+
+test('layers has a dedicated mobile and desktop entrance without changing the selected region',()=>{
+ const {document,window}=parseHTML('<html><body></body></html>'),desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});const host=document.createElement('div');document.body.append(host);const sh=host.attachShadow({mode:'open'});sh.innerHTML=workbenchMarkup();const wb=createWorkbench(sh,{onNavigate:()=>wb.render()});wb.render();assert.equal(wb.ui.previewMode,'page');assert.deepEqual([...sh.querySelectorAll('.mobile-dock button')].map(b=>b.textContent),['预览','区域','调整','图层','素材']);
+ sh.querySelector('.mobile-dock [data-mobile-view=layers]').click();assert.equal(wb.ui.mobileView,'layers');assert.equal(wb.ui.region,'header');assert.equal(wb.ui.mode,'edit');assert.equal(sh.querySelector('.panel').dataset.mobileView,'layers');assert.equal(sh.querySelector('#mode-layers').getAttribute('aria-pressed'),'true');assert.equal(sh.querySelector('.wb-main').dataset.simple,'true');wb.render({kinds:[['text','文字']],objects:[['name','名字']],title:'名字'});assert.equal(sh.querySelector('.selection').classList.contains('hidden'),true);
+ sh.querySelector('.mobile-dock [data-mobile-view=layers]').click();assert.equal(wb.ui.mobileView,'preview');sh.querySelector('#mode-layers').click();assert.equal(wb.ui.mobileView,'layers');sh.querySelector('#mode-edit').click();assert.equal(wb.ui.mobileView,'adjust');
+});

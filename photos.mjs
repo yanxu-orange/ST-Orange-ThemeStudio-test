@@ -2,7 +2,7 @@ import {validImage, newLayer} from './layers.mjs';
 import {ASSETS} from './catalog.mjs';
 
 export function defaultPhoto(overrides={}) {
-  return {enabled:false,size:88,radius:16,ratio:'1',frameWidth:3,frameColor:'#fffdf4',shadow:true,x:0,y:0,scale:1,rotation:0,image:'',asset:'',...overrides};
+  return {enabled:false,size:88,radius:16,ratio:'1',frameWidth:3,frameColor:'#fffdf4',shadow:true,x:0,y:0,rotation:0,image:'',asset:'',...overrides};
 }
 export function validatePhotos(raw) {
   if(raw===undefined)return {ai:defaultPhoto(),user:defaultPhoto()};
@@ -12,7 +12,7 @@ export function validatePhotos(raw) {
     const p=raw[scope];if(!p||typeof p!=='object'||Array.isArray(p))throw Error('头像设置无效：'+scope);
     const out=defaultPhoto();
     if(Object.keys(p).some(key=>!Object.hasOwn(out,key)))throw Error('头像设置包含未知参数');
-    for(const [key,min,max] of [['size',40,300],['radius',0,150],['frameWidth',0,15],['x',-80,80],['y',-80,80],['scale',.5,1.5],['rotation',-20,20]]) {
+    for(const [key,min,max] of [['size',40,300],['radius',0,150],['frameWidth',0,15],['x',-80,80],['y',-80,80],['rotation',-20,20]]) {
       if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw Error('头像参数超出范围：'+key);out[key]=p[key];
     }
     for(const key of ['frameColor']) {if(typeof p[key]!=='string'||!/^#[a-f0-9]{6}$/i.test(p[key]))throw Error('头像颜色无效');out[key]=p[key];}

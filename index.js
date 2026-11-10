@@ -1,3 +1,10 @@
+import {createAssetLibrary} from './asset-library.mjs';
+import {normalizeImageUrl} from './image-sources.mjs';
+import {installLauncherDrag} from './launcher-drag.mjs';
+import {avatarArtworkFrameStyle} from './avatar-art.mjs';
+import {regionEntries,regionZ,regionForImage,imageKey,moveRegionItem,canMoveRegionItem,syncRegionOrder,validateRegionOrder} from './region-layers.mjs';
+import {shapeDataUrl,layerSizeStyle,SHAPE_NAMES} from './shape-assets.mjs';
+import {captionMatchesScope} from './captions.mjs';
 import {updateHeaderArtworkClip} from './header-art-clip.mjs';
 import {previewFrameGeometry} from './preview-layout.mjs';
 import {avatarDesignRules,readPreviewAvatars} from './avatar-design.mjs';
@@ -46,6 +53,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
   let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
+  const assetLibrary=createAssetLibrary();
   const host=document.createElement('div'); host.id='orange-theme-lab'; document.body.append(host);
   const shadow=host.attachShadow({mode:'open'});
   const scrollbarVisibility=createScrollbarVisibility({document,ownShadow:shadow});
@@ -83,7 +91,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
     if(Object.hasOwn(templates,raw.template))result.template=raw.template;if(raw.layout!==undefined){if(!['top','left','collage'].includes(raw.layout))throw Error('排版值无效');result.layout=raw.layout;}
     result.avatarDesign=raw.avatarDesign||'separate';Object.assign(result,normalizeCanvasBackground(raw));result.hideScrollbars=hideScrollbars;result.textItems=canonical.textItems;result.captions=canonical.captions;result.layers=migrateLayers(raw);result.photos=validatePhotos(raw.photos);result.reasoningStyle=reasoning.reasoningStyle;result.footerCaptions=footer.footerCaptions;result.nativeStyle=native.nativeStyle;result.version=raw.version>=8?raw.version:7;if(raw.version>=8)delete result.timePosition;result.image='';
     if(raw.surfaceOpacity===undefined&&raw.glass>0)result.surfaceOpacity=.81;
-    for(const key of ['reasoning','reasoningFont','reasoningSize'])delete result[key];const scene=normalizeTextScene(stripLegacyCaptions(result));return normalizeAvatarFill(normalizeChromeConfig({...scene,version:raw.version,...(Object.hasOwn(raw,'chromeStyle')?{chromeStyle:raw.chromeStyle}:{}),...(Object.hasOwn(raw,'avatarFill')?{avatarFill:raw.avatarFill}:{})}));
+    for(const key of ['reasoning','reasoningFont','reasoningSize'])delete result[key];const scene=normalizeTextScene(stripLegacyCaptions(result));if(raw.regionOrder)scene.regionOrder=validateRegionOrder(raw.regionOrder,scene);return syncRegionOrder(normalizeAvatarFill(normalizeChromeConfig({...scene,version:raw.version,...(Object.hasOwn(raw,'chromeStyle')?{chromeStyle:raw.chromeStyle}:{}),...(Object.hasOwn(raw,'avatarFill')?{avatarFill:raw.avatarFill}:{})})));
   }
   try{const raw=localStorage.getItem(KEY);if(raw){saved=validate(JSON.parse(raw));config=clone(saved);selectedLayerId=config.layers[0]?.id;}}catch(error){console.warn('[主题编辑实验] 保存方案未载入',error.message);}
   const decorations={
@@ -161,6 +169,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-meta .name_text{font-weight:
 html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.otl-meta{left:0;top:4px;width:72%}
 `;
   shadow.innerHTML=workbenchMarkup();
+  installLauncherDrag({launcher:shadow.querySelector('.launcher')});
   const colorPicker=createColorPicker({document,root:shadow});
   const numericStyle=make('style');numericStyle.textContent=NUMERIC_STEPPER_CSS;shadow.append(numericStyle);
   const workbench=createWorkbench(shadow,{onNavigate:()=>{invalidateEditing();libraryPurpose='layer';renderFields();},onLayout:()=>{updateWorkbenchLayout();chromePreview.update(config);scheduleFit();}}),ui=workbench.ui;
@@ -183,7 +192,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(item.anchor!=='footer')return {};
     const root=node.closest('.otl-footer'),scene=root.querySelector('.otl-footer-scene'),flow=root.querySelector('.otl-footer-flow'),width=root.clientWidth||root.getBoundingClientRect().width||Math.max(1,config.cardWidth-48);
     const images=[...scene.querySelectorAll('.otl-footer-image')],others=config.layers.filter(l=>l.id!==item.id),fixed=footerBaseHeight(flow.getBoundingClientRect().height,width,others,images),ratio=node.naturalWidth>0&&node.naturalHeight>0?node.naturalHeight/node.naturalWidth:1;
-    const parentHeightForWidth=nextWidth=>Math.max(fixed,(item.widthUnit==='percent'?width*nextWidth/100:nextWidth)*ratio);
+    const parentHeightForWidth=(nextWidth,nextHeight)=>Math.max(fixed,item.kind==='shape'?(item.heightUnit==='px'?(nextHeight??item.height):(item.widthUnit==='percent'?width*nextWidth/100:nextWidth)):(item.widthUnit==='percent'?width*nextWidth/100:nextWidth)*ratio);
     return {parent:scene,height:parentHeightForWidth(item.width),parentHeightForWidth};
   }
   const layerDrag=createLayerDrag({document,getState:()=>({active,...ui,layers:config.layers,regionFor:layerRegion}),getTextTarget:previewTextTarget,getLayerTarget:previewLayerTarget,onCommit:(item,next)=>{remember();Object.assign(item,next);apply();renderFields();notify('位置或大小已更新，尚未保存');}});
@@ -238,7 +247,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   function renderCaptionNodes(){
     for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]')){
       const meta=msg.querySelector('.otl-meta'),old=new Map([...meta.querySelectorAll('.otl-caption')].map(n=>[n.dataset.captionId,n]));
-      for(const cap of config.captions){let node=old.get(cap.id);if(!node){node=make('div','otl-caption');node.dataset.pick='caption';node.dataset.captionId=cap.id;}old.delete(cap.id);node.textContent=cap.content;node.hidden=!cap.visible;meta.append(node);}
+      for(const cap of config.captions){let node=old.get(cap.id);if(!node){node=make('div','otl-caption');node.dataset.pick='caption';node.dataset.captionId=cap.id;}old.delete(cap.id);node.textContent=cap.content;node.hidden=!cap.visible||!captionMatchesScope(cap,msg.getAttribute('is_user')==='true');meta.append(node);}
       for(const node of old.values())node.remove();
     }
   }
@@ -248,6 +257,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]')){
       const header=msg.querySelector('.otl-header'),nodes=previewSceneNodes(msg),g=prepareScene(msg,header,config,nodes,previewSet);
       for(const image of header.querySelectorAll('.otl-scene-art > [data-layer-id]')){const layer=config.layers.find(l=>l.id===image.dataset.layerId);if(layer)updateHeaderArtworkClip(image,layer,g.width,Math.max(0,g.height-24));}
+      for(const frame of header.querySelectorAll('.otl-avatar-art-frame')){const id=frame.querySelector('[data-layer-id]')?.dataset.layerId;if(id)Object.assign(frame.style,avatarArtworkFrameStyle(config,msg.getAttribute('is_user')==='true',g,regionZ(config,'header',imageKey(id))));}
       msg._otlScene=g;msg.style.setProperty('--sc-photo-top',(g.reserveTop+g.photoTop)+'px');
       const photo=header.querySelector('.otl-photo-group');photo.style.setProperty('width',g.photoWidth+'px','important');photo.style.setProperty('max-width','none','important');
     }
@@ -292,60 +302,96 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     select.addEventListener('change',()=>{remember();config.avatarDesign=select.value;if(select.value==='unified'){const other=photoScope==='ai'?'user':'ai';config.photos[other]=clone(config.photos[photoScope]);config.avatarFill[other]=clone(config.avatarFill[photoScope]);}apply();renderFields();});
     if(config.avatarDesign==='separate'){const label=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const o=make('option','',text);o.value=value;scope.append(o);}scope.value=photoScope;label.append(scope);container.append(label);scope.addEventListener('change',()=>{photoScope=scope.value;ui.object='photo-'+photoScope;renderFields();});}
     const p=config.photos[photoScope],fill=config.avatarFill[photoScope];
-    const previewSection=make('details','avatar-preview');previewSection.open=true;previewSection.append(make('summary','','预览图片（仅本次）'),make('p','hint','不保存或导出。应用时使用酒馆头像。'));container.prepend(previewSection);
+    const previewSection=make('details','avatar-preview');previewSection.open=false;previewSection.append(make('summary','','预览图片（仅本次）'),make('p','hint','不保存或导出。应用时使用酒馆头像。'));container.prepend(previewSection);
     for(const [scope,text]of (config.avatarDesign==='unified'?[['ai','AI'],['user','用户']]:[[photoScope,photoScope==='ai'?'AI':'用户']])){
       const label=make('label','field',text+' 预览图片'),upload=make('input');upload.type='file';upload.accept='image/png,image/jpeg,image/webp';upload.setAttribute('aria-label',text+' 预览图片');label.append(upload);previewSection.append(label);
       upload.addEventListener('change',async()=>{const file=upload.files[0];if(!file)return;upload.value='';if(!/^image\/(png|jpeg|webp)$/.test(file.type)){notify('请选择 PNG、JPG 或 WebP 图片');return;}const epoch=editEpoch;try{const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});const image=new Image();image.src=source;await image.decode();if(!active||epoch!==editEpoch)return;previewAvatars[scope]=source;apply();notify('预览图片已显示，可调整取景');}catch{notify('图片读取失败，请重新选择');}});
     }
     propertyHeading(container,'显示方式');editorControl(container,field('铺满卡片顶部','enabled','select',{options:[['false','普通显示'],['true','铺满卡片顶部']]}),fill,()=>renderFields());
-    for(const f of [field('头像取景水平位置','x','range',{min:0,max:100,unit:'%'}),field('头像取景垂直位置','y','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
-    if(fill.enabled){editorControl(container,field('渐变遮罩','gradient','select',{options:[['false','关闭'],['true','开启']]}),fill,()=>renderFields());if(fill.gradient)for(const f of [field('渐变颜色','color','color'),field('渐变强度','opacity','range',{min:0,max:1,step:.05}),field('渐变开始位置','start','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);return;}
-    propertyHeading(container,'形状与尺寸');
-    for(const f of [field('头像大小','size','range',{min:40,max:300,unit:'px'}),field('头像比例','ratio','select',{options:[['1','方形 1:1'],['0.8','竖幅 4:5'],['0.75','竖幅 3:4'],['1.3333333333333333','横幅 4:3']]}),field('头像圆角','radius','range',{min:0,max:150,unit:'px'})])editorControl(container,f,p);
-    editorControl(container,field('头像边框','enabled','select',{options:[['false','关闭'],['true','开启']]}),p,()=>renderFields());
-    if(p.enabled)for(const f of [field('边框宽度','frameWidth','range',{min:0,max:15,step:.25,unit:'px'}),field('边框颜色','frameColor','color')])editorControl(container,f,p);
-    editorControl(container,field('头像阴影','shadow','select',{options:[['true','显示'],['false','隐藏']]}),p);
-    propertyHeading(container,'位置与变换');for(const f of [field('头像横向移动','x','range',{min:-80,max:80,unit:'px'}),field('头像纵向移动','y','range',{min:-80,max:80,unit:'px'}),field('头像缩放','scale','range',{min:.5,max:1.5,step:.05}),field('头像旋转','rotation','range',{min:-20,max:20,step:.1,unit:'°'})])editorControl(container,f,p);
+    if(fill.enabled){
+      editorControl(container,field('渐变遮罩','gradient','select',{options:[['false','关闭'],['true','开启']]}),fill,()=>renderFields());if(fill.gradient)for(const f of [field('渐变颜色','color','color'),field('渐变强度','opacity','range',{min:0,max:1,step:.05}),field('渐变开始位置','start','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
+    }else{
+      propertyHeading(container,'形状与尺寸');
+      for(const f of [field('头像比例','ratio','select',{options:[['1','方形 1:1'],['0.8','竖幅 4:5'],['0.75','竖幅 3:4'],['1.3333333333333333','横幅 4:3']]}),field('头像大小','size','range',{min:40,max:300,unit:'px'}),field('头像圆角','radius','range',{min:0,max:150,unit:'px'})])editorControl(container,f,p);
+      editorControl(container,field('头像边框','enabled','select',{options:[['false','关闭'],['true','开启']]}),p,()=>renderFields());
+      if(p.enabled)for(const f of [field('边框宽度','frameWidth','range',{min:0,max:15,step:.25,unit:'px'}),field('边框颜色','frameColor','color')])editorControl(container,f,p);
+      editorControl(container,field('头像阴影','shadow','select',{options:[['true','显示'],['false','隐藏']]}),p);
+      propertyHeading(container,'位置与旋转');for(const f of [field('头像横向移动','x','range',{min:-80,max:80,unit:'px'}),field('头像纵向移动','y','range',{min:-80,max:80,unit:'px'}),field('头像旋转','rotation','range',{min:-20,max:20,step:.1,unit:'°'})])editorControl(container,f,p);
+    }
+    propertyHeading(container,'取景');for(const f of [field('头像取景水平位置','x','range',{min:0,max:100,unit:'%'}),field('头像取景垂直位置','y','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
   }
-  function artworkUrl(layer){return layer.kind==='asset'?assetUrl(layer.asset):layer.kind==='custom'?layer.image:decorations[layer.kind]?svgUrl(decorations[layer.kind]):'';}
+  function artworkUrl(layer){return layer.kind==='shape'?shapeDataUrl(layer):layer.kind==='asset'?assetUrl(layer.asset):layer.kind==='custom'?layer.image:decorations[layer.kind]?svgUrl(decorations[layer.kind]):'';}
   function renderArtwork(){
-    document.querySelectorAll('[data-orange-lab-fixture] .otl-decoration').forEach(e=>e.remove());
+    document.querySelectorAll('[data-orange-lab-fixture] .otl-avatar-art-frame,[data-orange-lab-fixture] .otl-decoration').forEach(e=>e.remove());
     for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]')){
       const isUser=msg.getAttribute('is_user')==='true';
       for(const layer of config.layers){
         if(['footer','input'].includes(layer.anchor)||!layer.visible||(layer.scope==='ai'&&isUser)||(layer.scope==='user'&&!isUser))continue;
         const src=artworkUrl(layer);if(!src)continue;
         const art=make('img','otl-decoration');art.dataset.pick='decoration';art.dataset.layerId=layer.id;art.src=src;art.alt=layer.name;art.tabIndex=0;art.setAttribute('role','button');art.setAttribute('aria-label','选择素材：'+layer.name);
-        Object.assign(art.style,{width:layer.width+(layer.widthUnit==='percent'?'%':'px'),height:layer.heightPercent?layer.heightPercent+'%':'auto',objectFit:'contain',objectPosition:layer.side+' '+layer.vertical,[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:layer.z});
+        Object.assign(art.style,{...layerSizeStyle(layer),objectPosition:layer.side+' '+layer.vertical,[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:regionZ(config,regionForImage(layer),imageKey(layer.id))});
         if(selected==='decoration'&&selectedLayerId===layer.id)art.classList.add('otl-selected');
         let frame=msg.querySelector('.otl-scene-art');if(layer.anchor==='header'&&!frame){frame=make('div','otl-scene-art');msg.querySelector('.otl-header').append(frame);}
-        const parent=layer.anchor==='reasoning-entry'?msg.querySelector('.mes_reasoning_header'):layer.anchor==='reasoning-body'?msg.querySelector('.mes_reasoning'):layer.anchor==='avatar'?msg.querySelector('.otl-photo-group'):layer.anchor==='header'?frame:msg;if(parent)parent.append(art);if(layer.anchor==='header'){art.onload=()=>{if(active&&art.isConnected)scheduleFit();};updateHeaderArtworkClip(art,layer,sceneWidth(msg,config),Math.max(0,config.headerHeight-24));}
+        let parent=layer.anchor==='reasoning-entry'?msg.querySelector('.mes_reasoning_header'):layer.anchor==='reasoning-body'?msg.querySelector('.mes_reasoning'):layer.anchor==='avatar'?msg.querySelector('.otl-photo-group'):layer.anchor==='header'?frame:msg;if(layer.anchor==='avatar'){parent=make('div','otl-avatar-art-frame');const g=msg._otlScene||prepareScene(msg,msg.querySelector('.otl-header'),config,previewSceneNodes(msg),previewSet);Object.assign(parent.style,avatarArtworkFrameStyle(config,isUser,g,regionZ(config,'header',imageKey(layer.id))));msg.querySelector('.otl-header').append(parent);}if(parent)parent.append(art);if(layer.anchor==='header'){art.onload=()=>{if(active&&art.isConnected)scheduleFit();};updateHeaderArtworkClip(art,layer,sceneWidth(msg,config),Math.max(0,config.headerHeight-24));}
       }
     }
   }
-  function renderSourceLibrary(container){
-    if(libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
-    const isBackground=libraryPurpose==='reasoning-background',isEditIcon=libraryPurpose==='native-edit-icon',isSourceTarget=isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions.edit:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',targetName=isEditIcon?'编辑图标':'背景';
-    propertyHeading(container,'添加目标');if(isSourceTarget){container.append(make('p','hint',isEditIcon?'选择图片作为编辑按钮图标，不新增装饰素材。':'选择图片作为思维入口背景，不新增装饰素材。'));const cancel=make('button','','取消选图');cancel.id=isEditIcon?'native-edit-cancel':'reasoning-bg-cancel';cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';renderFields(targetGroup);});container.append(cancel);}
-    else if(ui.region==='reasoning'){const target=make('select'),label=make('label','field','添加到');target.setAttribute('aria-label','思维图片添加到');for(const [v,t]of [['reasoning-entry','思维入口'],['reasoning-body','思维正文']]){const o=make('option','',t);o.value=v;target.append(o);}target.value=reasoningAnchor;target.addEventListener('change',()=>{invalidateEditing();reasoningAnchor=target.value;});label.append(target);container.append(label);}
+  function renderSourceLibrary(container,chromeTarget=null){
+    if(!chromeTarget&&libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
+    const isBackground=libraryPurpose==='reasoning-background',isEditIcon=libraryPurpose==='native-edit-icon',isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions.edit:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose;
+    propertyHeading(container,'添加目标');
+    if(isSourceTarget){
+      container.append(make('p','hint',chromeTarget?'选择图片作为当前按钮图形，不新增装饰素材。':isEditIcon?'选择图片作为编辑按钮图标，不新增装饰素材。':'选择图片作为思维入口背景，不新增装饰素材。'));
+      const cancel=make('button','','取消选图');if(!chromeTarget)cancel.id=isEditIcon?'native-edit-cancel':'reasoning-bg-cancel';cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='edit';renderFields(chromeTarget?undefined:targetGroup);});container.append(cancel);
+    }else if(ui.region==='reasoning'){
+      const target=make('select'),label=make('label','field','添加到');target.setAttribute('aria-label','思维图片添加到');for(const [v,t]of [['reasoning-entry','思维入口'],['reasoning-body','思维正文']]){const o=make('option','',t);o.value=v;target.append(o);}target.value=reasoningAnchor;target.addEventListener('change',()=>{invalidateEditing();reasoningAnchor=target.value;});label.append(target);container.append(label);
+    }
     const anchor=()=>ui.region==='input'?'input':ui.region==='footer'?'footer':ui.region==='reasoning'?reasoningAnchor:ui.region==='overall'?'message':'header';
-    container.append(make('p','hint','内置图案、素材与上传添加。上传图随当前方案保存导出；尚无持久我的素材库。'));
+    function useSource(source){
+      if(!active||libraryPurpose!==purpose)return;
+      if(!isSourceTarget&&config.layers.length>=LAYER_LIMIT){notify(`最多放置 ${LAYER_LIMIT} 层素材；素材库可继续保存图片。`);return;}
+      invalidateEditing();remember();
+      if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||''});libraryPurpose='layer';ui.mode='edit';apply();renderFields();}
+      else if(isSourceTarget){backgroundTarget.source={kind:source.asset?'asset':'custom',asset:source.asset||'',image:source.image||''};backgroundTarget.mode='image';libraryPurpose='layer';apply();renderFields(targetGroup);}
+      else {const layer=newLayer(source.shape?'shape':source.asset?'asset':'custom',{name:source.name,asset:source.asset||'',image:source.image||'',...(source.shape?{shape:source.shape}:{}),opacity:1,anchor:anchor()});config.layers.push(layer);selectedLayerId=layer.id;apply();renderFields('decoration');}
+      notify('素材已放入当前目标，可撤销；保存方案后记住。');
+    }
+    container.append(make('p','hint','我的素材保存在本浏览器，独立于当前方案。先存入素材库，再点击“使用素材”放入目标；导出只包含已经使用的图片。'));
     propertyHeading(container,'内置素材');
-    const libraryLabel=make('label','field','内置素材库');const library=make('select');library.setAttribute('aria-label','内置素材库');for(const [id,asset]of Object.entries(ASSETS)){const option=make('option','',asset.name);option.value=id;library.append(option);}library.value=Object.keys(ASSETS)[0];const addAsset=make('button','','添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;addAsset.textContent=isSourceTarget?(isEditIcon?'使用所选编辑图标':'使用所选背景'):'添加所选素材';addAsset.addEventListener('click',()=>{remember();const id=library.value;if(isSourceTarget){backgroundTarget.source={kind:'asset',asset:id,image:''};backgroundTarget.mode='image';libraryPurpose='layer';apply();renderFields(targetGroup);return;}const layer=newLayer('asset',{name:ASSETS[id].name,asset:id,opacity:1,anchor:anchor()});config.layers.push(layer);selectedLayerId=layer.id;apply();renderFields('decoration');notify('素材已添加，可设置定位区域和作用对象。');});libraryLabel.append(library,addAsset);container.append(libraryLabel);
-    propertyHeading(container,'自定义素材 · 当前上传');const uploadLabel=make('label','field',isSourceTarget?(isEditIcon?'上传编辑图标':'上传入口背景图片'):'上传图片并添加为新素材'),upload=make('input');upload.type='file';upload.multiple=!isSourceTarget;upload.accept='image/png,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label','上传装饰图片');
-    uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF；单张不超过 2 MiB，选择后自动进入裁剪。'),upload);container.append(uploadLabel);addReselect(uploadLabel,upload);attachUploadFeedback(uploadLabel,'library:');
+    const libraryLabel=make('label','field','内置素材库'),library=make('select');library.setAttribute('aria-label','内置素材库');for(const [id,asset]of Object.entries(ASSETS)){const option=make('option','',asset.name);option.value=id;library.append(option);}library.value=Object.keys(ASSETS)[0];
+    const addAsset=make('button','',chromeTarget?'使用所选按钮图片':isSourceTarget?(isEditIcon?'使用所选编辑图标':'使用所选背景'):'添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;addAsset.addEventListener('click',()=>useSource({asset:library.value,name:ASSETS[library.value].name}));libraryLabel.append(library,addAsset);container.append(libraryLabel);
+    if(!isSourceTarget){propertyHeading(container,'可调色形状');const shapes=make('div','actions');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const button=make('button','','添加'+name);button.type='button';button.dataset.addShape=shape;button.disabled=config.layers.length>=LAYER_LIMIT;button.addEventListener('click',()=>useSource({shape,name}));shapes.append(button);}container.append(shapes);}
+    propertyHeading(container,'上传到我的素材');
+    const uploadLabel=make('label','field','上传图片到素材库'),upload=make('input');upload.type='file';upload.multiple=true;upload.accept='image/png,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',chromeTarget?'上传按钮图片':'上传装饰图片');
+    uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF；单张不超过 2 MiB。保留原图，放入方案后可另行裁剪；上传不会改变当前方案。'),upload);container.append(uploadLabel);addReselect(uploadLabel,upload);
+    const feedbackSource=chromeTarget?'chrome':'library',feedbackTarget=chromeTarget?purpose.slice(7):'';attachUploadFeedback(uploadLabel,feedbackSource+':'+feedbackTarget);
+    propertyHeading(container,'图片链接');
+    const urlLabel=make('label','field','HTTP(S) 图片链接'),urlInput=make('input');urlInput.type='url';urlInput.placeholder='https://example.com/image.png';urlInput.setAttribute('aria-label','图片链接');urlInput.autocomplete='off';const saveUrl=make('button','','保存链接到素材库');saveUrl.type='button';urlLabel.append(urlInput,saveUrl);container.append(urlLabel,make('p','hint','建议使用 HTTPS。链接会原样保存，依赖来源网站可用；不下载或嵌入远程图片。HTTP 图片可能被浏览器拦截。'));
+    const status=make('p','hint');status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.dataset.assetLibraryStatus='';container.append(status);
+    propertyHeading(container,'我的素材');const list=make('div','asset-library-list');list.dataset.assetLibraryList='';container.append(list);let listVersion=0;
+    const visible=()=>active&&list.isConnected&&ui.mode==='library'&&libraryPurpose===purpose;
+    async function refreshLibrary(){
+      const version=++listVersion;list.textContent='正在读取素材库…';
+      try{const records=await assetLibrary.list();if(!visible()||version!==listVersion)return;list.replaceChildren();if(!records.length)list.append(make('p','hint','还没有自定义素材。上传图片或保存图片链接后，可在所有选图入口复用。'));
+        for(const record of records){const card=make('div','asset-library-card');card.dataset.libraryAsset=record.id;Object.assign(card.style,{display:'grid',gridTemplateColumns:'52px minmax(0,1fr)',gap:'8px',padding:'10px',border:'1px solid #d5ded7',borderRadius:'10px',marginBottom:'8px'});const preview=make('img');preview.src=record.image;preview.alt=record.name;preview.loading='lazy';preview.referrerPolicy='no-referrer';Object.assign(preview.style,{width:'52px',height:'52px',objectFit:'contain'});const detail=make('div'),name=make('p','',record.name),source=make('small','',record.kind==='url'?'链接素材':'已保存在本浏览器');Object.assign(name.style,{margin:'0 0 4px',overflowWrap:'anywhere'});const use=make('button','','使用素材');use.type='button';use.setAttribute('aria-label','使用素材：'+record.name);use.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;use.addEventListener('click',()=>useSource(record));preview.addEventListener('error',()=>{source.textContent=record.kind==='url'?'图片加载失败，请检查链接或来源网站限制。':'图片无法预览，请重新上传。';});detail.append(name,source,use);card.append(preview,detail);list.append(card);}
+      }catch(error){if(visible()&&version===listVersion){list.replaceChildren(make('p','hint',error.message));const retry=make('button','','重试读取素材库');retry.type='button';retry.addEventListener('click',refreshLibrary);list.append(retry);}}
+    }
+    saveUrl.addEventListener('click',async()=>{
+      if(saveUrl.disabled)return;let image;try{image=normalizeImageUrl(urlInput.value);urlInput.removeAttribute('aria-invalid');}catch(error){urlInput.setAttribute('aria-invalid','true');status.textContent=error.message;return;}
+      saveUrl.disabled=true;status.textContent='正在保存链接…';
+      try{const parsed=new URL(image),last=parsed.pathname.split('/').filter(Boolean).pop();await assetLibrary.add({name:(last||parsed.hostname).slice(0,80),image});if(visible()){status.textContent='链接已存入素材库。点击“使用素材”放入当前目标。';urlInput.value='';await refreshLibrary();}}
+      catch(error){if(visible())status.textContent=error.message;}finally{saveUrl.disabled=false;}
+    });
     upload.addEventListener('change',async()=>{
-      const files=[...upload.files];if(!files.length)return;upload.value='';invalidateEditing();const epoch=editEpoch,originalConfig=config,destination=anchor(),purpose=libraryPurpose,report=beginUploadFeedback('library','',files),valid=()=>active&&epoch===editEpoch&&config===originalConfig&&uploadFeedback===report&&libraryPurpose===purpose&&(!isSourceTarget||(isEditIcon?config.nativeStyle.actions.edit:config.reasoningStyle.entry.background)===backgroundTarget);
+      const files=[...upload.files];if(!files.length)return;upload.value='';invalidateEditing();const epoch=editEpoch,report=beginUploadFeedback(feedbackSource,feedbackTarget,files),valid=()=>visible()&&epoch===editEpoch&&uploadFeedback===report;
       for(let index=0;index<files.length;index++){
         const file=files[index];if(!valid())break;const rejected=uploadRejected(file);if(rejected){feedbackStatus(report,index,rejected);continue;}
-        if(!isSourceTarget&&config.layers.length>=LAYER_LIMIT){feedbackStatus(report,index,`已达 ${LAYER_LIMIT} 张素材上限，尚未添加。`);continue;}
-        try{feedbackStatus(report,index,'读取中…',true);const original=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});if(!valid())break;feedbackStatus(report,index,'准备裁剪，请在裁剪窗口确认或取消。',true);const image=await cropImage(original,file.type,valid);if(!valid())break;if(!image){feedbackStatus(report,index,'已取消裁剪，尚未添加。');continue;}
-          remember();if(isSourceTarget){backgroundTarget.source={kind:'custom',asset:'',image};backgroundTarget.mode='image';report.added.push(isEditIcon?'native-edit-icon':'reasoning-background');feedbackStatus(report,index,targetName+'已设置，尚未保存方案。');apply();break;}const layer=newLayer('custom',{image,anchor:destination,name:file.name.slice(0,80)});config.layers.push(layer);selectedLayerId=layer.id;report.added.push(layer.id);feedbackStatus(report,index,'已添加，尚未保存方案。');apply();
-        }catch(error){if(valid())feedbackStatus(report,index,uploadFailure(error));}
+        try{feedbackStatus(report,index,'读取中…',true);const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});if(!valid())break;const decoded=new Image();decoded.src=source;await decoded.decode();if(!valid())break;if(!decoded.naturalWidth||!decoded.naturalHeight)throw Error('图片读取失败');if(decoded.naturalWidth*decoded.naturalHeight>40000000)throw Error('图片像素过大');feedbackStatus(report,index,'正在存入素材库…',true);const record=await assetLibrary.add({name:file.name.slice(0,80)||'我的图片',image:source});if(!valid())break;report.added.push(record.id);feedbackStatus(report,index,'已存入素材库；点击“使用素材”放入当前目标。');}
+        catch(error){if(valid())feedbackStatus(report,index,error.code?error.message:uploadFailure(error));}
       }
-      if(valid()&&report.added.length){if(isSourceTarget){libraryPurpose='layer';renderFields(targetGroup);notify(targetName+'已设置，尚未保存方案。');return;}renderFields('decoration');notify(`已添加 ${report.added.length} 张图片，点击保存后记住。`);}
+      if(valid()&&report.added.length){await refreshLibrary();if(valid())notify(`已存入 ${report.added.length} 张图片，当前方案尚未改变。`);}
     });
-
+    refreshLibrary();
   }
   function renderLayers(container){
     container.append(make('p','hint','点选画面中的素材后，单指拖动、双指缩放；空白处和未选中的内容仍可滚动。重叠时从列表选择，数值可精调，保存方案后记住。'));
@@ -355,9 +401,11 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const remove=make('button','','移除素材');remove.type='button';remove.addEventListener('click',()=>{invalidateEditing();remember();const region=ui.region;config.layers=config.layers.filter(l=>l.id!==layer.id);selectedLayerId=matchingLayers(config.layers,region)[0]?.id;workbench.choose(region,'image',selectedLayerId||'');apply();renderFields();notify('已移除素材，可撤销。');});commands.append(duplicate,remove);
     if(layer.kind==='custom'&&layer.image){const crop=make('button','','裁剪此图片');crop.type='button';crop.addEventListener('click',async()=>{invalidateEditing();const epoch=editEpoch,originalConfig=config,report=beginUploadFeedback('crop',layer.id,[{name:layer.name}]),valid=()=>currentTargetValid(epoch,originalConfig,layer)&&uploadFeedback===report;try{feedbackStatus(report,0,'准备裁剪…',true);const output=await cropImage(layer.image,layer.image.startsWith('data:image/gif')?'image/gif':'image/png',valid);if(!valid())return;if(!output){feedbackStatus(report,0,'已取消裁剪，原图未改变。');return;}remember();layer.image=output;apply();feedbackStatus(report,0,'裁剪已应用，尚未保存方案。');renderFields('decoration');notify('裁剪已应用，可撤销；保存后记住。');}catch(error){if(valid())feedbackStatus(report,0,uploadFailure(error));}});commands.append(crop);}container.append(commands);attachUploadFeedback(container,'crop:'+layer.id);attachUploadFeedback(container,'result:'+layer.id);
     if(layer.kind==='asset'){const replacementLabel=make('label','field','替换内置素材');const replacement=make('select');replacement.setAttribute('aria-label','替换内置素材');for(const [id,asset]of Object.entries(ASSETS)){const option=make('option','',asset.name);option.value=id;replacement.append(option);}replacement.value=layer.asset;replacement.addEventListener('change',()=>{remember();layer.asset=replacement.value;layer.name=ASSETS[layer.asset].name;apply();renderFields('decoration');notify('已换素材，位置与层级保持。');});replacementLabel.append(replacement);container.append(replacementLabel);}
+    if(layer.kind==='shape'){propertyHeading(container,'形状');for(const f of [field('形状高度','height','range',{min:1,max:500,unit:'px'}),field('填色','fillMode','select',{options:[['solid','纯色'],['gradient','双色渐变']]}),field('颜色','color','color'),...(layer.fillMode==='gradient'?[field('第二种颜色','color2','color'),field('渐变方向','gradientAngle','range',{min:0,max:360,unit:'°'})]:[]),...(layer.shape==='rectangle'?[field('圆角','cornerRadius','range',{min:0,max:250,unit:'px'})]:[])])editorControl(container,f,layer,f.key==='fillMode'?()=>renderFields():undefined);}
     const fields=[field('素材名称','name'),field('显示素材','visible','select',{options:[['true','显示'],['false','隐藏']]}),field('应用于','scope','select',{options:[['both','AI 和用户'],['ai','仅 AI'],['user','仅用户']]}),field('定位区域','anchor','select',{options:[['header','头像区'],['avatar','头像'],['message','整张消息卡片'],['reasoning-entry','思维入口'],['reasoning-body','思维正文'],['footer','尾部区'],['input','输入区']]}),field('从哪侧定位','side','select',{options:[['right','右侧'],['left','左侧']]}),field('垂直锚点','vertical','select',{options:[['top','顶部'],['bottom','底部']]}),field('大小单位','widthUnit','select',{options:[['px','像素'],['percent','相对区域百分比']]}),field('素材大小','width','range',{min:1,max:500,unit:layer.widthUnit==='percent'?'%':'px'}),field('素材区域高度','heightPercent','range',{min:0,max:100,unit:'%（0 为原比例）'}),field('偏移单位','offsetUnit','select',{options:[['px','像素'],['percent','相对区域百分比']]}),field('侧边偏移','x','range',{min:-300,max:600,unit:layer.offsetUnit==='percent'?'%':'px'}),field('垂直偏移','y','range',{min:-300,max:600,unit:layer.offsetUnit==='percent'?'%':'px'}),field('旋转角度','rotation','range',{min:-180,max:180,unit:'°'}),field('透明度','opacity','range',{min:0,max:1,step:.05}),field('叠放层级','z','range',{min:0,max:20})];
     const order=['name','visible','scope','anchor','side','x','vertical','y','offsetUnit','z','widthUnit','width','heightPercent','rotation','opacity'];fields.sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));let availability;
     for(const f of fields){
+      if(f.key==='z'||(layer.kind==='shape'&&f.key==='heightPercent'))continue;
       if(f.key==='scope'&&layer.anchor==='input')continue;
       if(f.key==='anchor')propertyHeading(container,'位置与叠放');if(f.key==='widthUnit')propertyHeading(container,'尺寸与外观');if(f.key==='visible')availability=pairedFields(container);
       if(f.key==='side'){f.label='水平定位边';f.options=[['left','左边'],['right','右边']];}if(f.key==='vertical'){f.label='垂直定位边';f.options=[['top','顶部'],['bottom','底部']];}if(f.key==='x')f.label=layer.side==='left'?'距左边距离':'距右边距离';if(f.key==='y')f.label=layer.vertical==='top'?'距顶部距离':'距底部距离';
@@ -405,12 +453,11 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const key=textItemKey,cap=selectedCaption(),item=cap||config.textItems[key],labelName=cap?'文案':({name:'名字',time:'时间'})[key];
     propertyHeading(container,cap?'内容与位置':'位置');
     if(cap){
+      editorControl(container,field('应用于','scope','select',{options:[['both','AI 和用户'],['ai','仅 AI'],['user','仅用户']]}),cap);
       const contentRow=pairedFields(container);editorControl(contentRow,field('文案标题','name','text',{notice:'文案标题已更新，尚未保存'}),cap);editorControl(contentRow,field('显示文案','visible','select',{options:[['true','显示'],['false','隐藏']],notice:'文案显隐已更新，尚未保存'}),cap);
       const label=make('label','field','文案内容'),input=make('textarea');input.maxLength=300;input.rows=4;input.setAttribute('aria-label','文案内容');input.value=cap.content;let tracking=false;input.addEventListener('input',()=>{if(!tracking){remember();tracking=true;}cap.content=input.value;apply();});for(const event of ['blur','change'])input.addEventListener(event,()=>tracking=false);label.append(input);container.append(label);renderCaptionWidth(container,cap);
     }else {container.append(make('p','hint','内容由酒馆提供，这里只调整显示样式。'));renderCaptionWidth(container,item,labelName);}
     for(const f of [field(labelName+(ui.region==='footer'?' 左右移动':' 水平位置'),'x','range',{min:-100,max:ui.region==='footer'?100:200,unit:'%'}),field(labelName+(ui.region==='footer'?' 上下移动':' 纵向位置'),'y','range',{min:-400,max:ui.region==='footer'?400:1600,unit:'px'})])editorControl(container,{...f,notice:'文字位置已更新，尚未保存'},item);
-    const order=make('div','actions');for(const [title,delta]of [['下移一层',-1],['上移一层',1]]){const button=make('button','',title);button.type='button';button.disabled=item.z+delta<0||item.z+delta>TEXT_Z_MAX;button.addEventListener('click',()=>{remember();item.z+=delta;apply();renderFields();});order.append(button);}order.append(make('span','hint','叠放层次 '+item.z+'（数值越大越靠上，不改变画面位置）'));container.append(order);
-
     propertyHeading(container,'字体设计');const fontRow=pairedFields(container);
     if(cap)editorControl(fontRow,field('文案字体','font','select',{options:fonts,notice:'字体已更新，尚未保存'}),cap);else renderConfigFields(fontRow,[key==='name'?'nameFont':'timeFont']);
     const weightLabel=make('label','field','字重'),weight=make('select');weight.setAttribute('aria-label',labelName+' 字重');
@@ -532,12 +579,23 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   }
   function renderChromeSourceLibrary(container){
     const [,zone,id]=libraryPurpose.split(':'),target=config.chromeStyle[zone]?.icons[id];if(!target){libraryPurpose='layer';return renderFields();}
-    propertyHeading(container,'按钮图片');container.append(make('p','hint','内置素材和当前上传可共用；尚无持久自定义素材库。'));const cancel=make('button','','取消选图');cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='edit';renderFields();});container.append(cancel);
-    propertyHeading(container,'内置素材');const label=make('label','field','内置素材库'),select=make('select');select.setAttribute('aria-label','内置素材库');for(const [key,a]of Object.entries(ASSETS)){const option=make('option','',a.name);option.value=key;select.append(option);}select.value=Object.keys(ASSETS)[0];const use=make('button','','使用所选按钮图片');use.addEventListener('click',()=>{remember();Object.assign(target,{mode:'image',asset:select.value,image:''});libraryPurpose='layer';ui.mode='edit';apply();renderFields();});label.append(select,use);container.append(label);
-    propertyHeading(container,'自定义素材 · 当前上传');const upload=make('input');upload.type='file';upload.accept='image/png,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label','上传按钮图片');container.append(make('p','hint','单张不超过2 MiB，选择后裁剪；图片随方案导出。'),upload);addReselect(container,upload);const key=zone+':'+id;attachUploadFeedback(container,'chrome:'+key);
-    upload.addEventListener('change',async()=>{const file=upload.files[0];if(!file)return;upload.value='';invalidateEditing();const epoch=editEpoch,original=config,purpose=libraryPurpose,report=beginUploadFeedback('chrome',key,[file]),valid=()=>active&&editEpoch===epoch&&config===original&&libraryPurpose===purpose&&config.chromeStyle[zone].icons[id]===target&&uploadFeedback===report;const rejected=uploadRejected(file);if(rejected){feedbackStatus(report,0,rejected);return;}try{feedbackStatus(report,0,'读取中…',true);const src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});if(!valid())return;feedbackStatus(report,0,'准备裁剪…',true);const image=await cropImage(src,file.type,valid);if(!valid())return;if(!image){feedbackStatus(report,0,'已取消裁剪，原图形未改变。');return;}remember();Object.assign(target,{mode:'image',asset:'',image});feedbackStatus(report,0,'按钮图片已设置，尚未保存。');libraryPurpose='layer';ui.mode='edit';apply();renderFields();}catch(error){if(valid())feedbackStatus(report,0,uploadFailure(error));}});
+    return renderSourceLibrary(container,target);
   }
 
+  function renderRegionLayers(container){
+    const region=ui.region,allowed=['header','overall','reasoning','footer','input'];
+    if(!allowed.includes(region)){container.append(make('p','hint','此区域没有可排序的素材。'));return;}
+    const entries=regionEntries(config,region).reverse();
+    if(!entries.length){container.append(make('p','hint','此区域还没有素材。'));return;}
+    const selectedKey=ui.kind==='image'?imageKey(ui.object):ui.kind==='avatar'?'avatar':ui.object;
+    const list=make('div','region-layer-list');
+    for(const entry of entries){
+      const row=make('div','region-layer-row'+(entry.key===selectedKey?' selected':''));row.dataset.layerKey=entry.key;
+      const choose=make('button','layer-select',entry.label+(entry.visible?'':' · 已隐藏'));choose.type='button';choose.setAttribute('aria-pressed',String(entry.key===selectedKey));
+      choose.addEventListener('click',()=>{ui.kind=entry.kind;ui.object=entry.kind==='avatar'?'photo-'+photoScope:entry.id;if(entry.kind==='image')selectedLayerId=entry.id;else if(entry.kind==='text')textItemKey=entry.id;renderFields();});row.append(choose);
+      if(entry.key===selectedKey){const actions=make('div','actions');for(const [direction,label]of [['top','置顶'],['up','上移'],['down','下移'],['bottom','置底']]){const button=make('button','',label);button.type='button';button.disabled=!canMoveRegionItem(config,region,entry.key,direction);button.addEventListener('click',()=>{remember();config=moveRegionItem(config,region,entry.key,direction);apply();renderFields();});actions.append(button);}const edit=make('button','','编辑');edit.type='button';edit.addEventListener('click',()=>{ui.mobileView='adjust';renderFields();});actions.append(edit);row.append(actions);}list.append(row);
+    }container.append(list);
+  }
   function renderFields(group,{fromPreview=false}={}){
     if(group){ui.mode='edit';ui.page='chat';
       if(group==='decoration'){const layer=config.layers.find(l=>l.id===selectedLayerId);workbench.choose(layerRegion(layer),'image',layer?.id||'');}
@@ -560,12 +618,12 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       kinds=[['card','整体样式'],['image','全局装饰']];if(ui.kind==='image'){objects=matchingLayers(config.layers,'overall').map(l=>[l.id,l.name]);selectedLayerId=ui.object;selected='decoration';title=config.layers.find(l=>l.id===ui.object)?.name||'全局装饰';}else{selected='global';title='当前消息卡片';keys=['surface','accent','radius','glass','surfaceOpacity','cardWidth'];}
     }else if(ui.region==='header'){
       kinds=[['region','区域设置'],['avatar','头像设计'],['name','名字'],['time','时间'],['text','自定义文案'],['image','图片素材']];
-      if(ui.kind==='text'){objects=['name','time'].includes(ui.object)?[]:config.captions.map(c=>[captionKey(c.id),c.name+(c.visible?'':' · 已隐藏')+' · '+c.content.slice(0,8).replace(/\n/g,' ')]);textItemKey=ui.object;selected=selectedCaption()?'caption':'avatar';title=(selectedCaption()?.name||names[ui.object])+' · AI/用户共用';keys=ui.object==='name'?['nameFont','nameColor','nameSize']:ui.object==='time'?['timeFont','timeColor','timeSize']:[];}
+      if(ui.kind==='text'){objects=['name','time'].includes(ui.object)?[]:config.captions.map(c=>[captionKey(c.id),c.name+(c.visible?'':' · 已隐藏')+' · '+c.content.slice(0,8).replace(/\n/g,' ')]);textItemKey=ui.object;selected=selectedCaption()?'caption':'avatar';title=(selectedCaption()?.name||names[ui.object])+'';keys=ui.object==='name'?['nameFont','nameColor','nameSize']:ui.object==='time'?['timeFont','timeColor','timeSize']:[];}
       else if(ui.kind==='avatar'){objects=[];selected='photo';title='';if(ui.object==='photo-user')photoScope='user';else if(ui.object==='photo-ai')photoScope='ai';}
       else if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'header').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'头像区图片';}
       else{selected='avatar';title='头像区设置';keys=['headerHeight'];}
     }else if(ui.region==='body'){selected='body';title='正文阅读样式';keys=['text','font','fontSize','lineHeight'];}
-    else if(ui.region==='footer'){kinds=[['text','自定义文案'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'footer').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'尾部图片';}else{ui.kind='text';objects=config.footerCaptions.map(c=>[footerKey(c.id),c.name+(c.visible?'':' · 已隐藏')+' · '+c.content.slice(0,8).replace(/\n/g,' ')]);textItemKey=ui.object;selected='footer';title=selectedCaption()?selectedCaption().name+' · AI/用户共用':'尾部文案 · 默认空';}}
+    else if(ui.region==='footer'){kinds=[['text','自定义文案'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'footer').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'尾部图片';}else{ui.kind='text';objects=config.footerCaptions.map(c=>[footerKey(c.id),c.name+(c.visible?'':' · 已隐藏')+' · '+c.content.slice(0,8).replace(/\n/g,' ')]);textItemKey=ui.object;selected='footer';title=selectedCaption()?selectedCaption().name+'':'尾部文案 · 默认空';}}
     else if(['input','topbar'].includes(ui.region)){
       kinds=ui.region==='topbar'?[['surface','顶栏整体'],['icons','按钮图标']]:[['surface','输入外框'],['text','输入文字'],['tools','工具与发送'],['image','图片素材']];if(!kinds.some(([k])=>k===ui.kind))ui.kind='surface';
       if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'input').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'输入区图片';}
@@ -580,10 +638,11 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const activeKind=ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
     if(ui.page!=='chat'||!['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)&&ui.mode!=='library')container.append(make('p','hint','此入口仅保留位置，真实功能尚未接入。当前主题和保存未改变。'));
     else if(ui.mode==='library')renderSourceLibrary(container);
+    else if(ui.mobileView==='layers')renderRegionLayers(container);
     else{
 
       if(keys.length&&!['overall','body'].includes(ui.region)&&!(ui.region==='header'&&['text','region'].includes(ui.kind))){if(ui.region==='header'&&ui.kind==='avatar')propertyHeading(container,'形状与尺寸');renderConfigFields(container,keys);}
-      if(ui.region==='overall'&&ui.kind!=='image'){propertyHeading(container,'画布与卡片');editorControl(container,{...field('卡片宽度','cardFullWidth','select',{options:[['false','限制最大宽度'],['true','铺满聊天区']]}),notice:'卡片宽度已更新，尚未保存'},config,()=>renderFields());if(!config.cardFullWidth)renderConfigFields(container,['cardWidth']);editorControl(container,{...field('卡片两侧留白','cardGutter','range',{min:0,max:80,unit:'px'}),notice:'卡片留白已更新，尚未保存'},config);renderConfigFields(container,['radius']);
+      if(ui.region==='overall'&&ui.kind!=='image'){propertyHeading(container,'画布与卡片');const desktopWidth=make('div','desktop-card-width');container.append(desktopWidth);editorControl(desktopWidth,{...field('卡片宽度','cardFullWidth','select',{options:[['false','限制最大宽度'],['true','铺满聊天区']]}),notice:'卡片宽度已更新，尚未保存'},config,()=>renderFields());if(!config.cardFullWidth)renderConfigFields(desktopWidth,['cardWidth']);editorControl(container,{...field('卡片两侧留白','cardGutter','range',{min:0,max:80,unit:'px'}),notice:'卡片留白已更新，尚未保存'},config);renderConfigFields(container,['radius']);
       container.append(make('p','muted','整体背景由酒馆管理；换图请使用酒馆背景设置。'));
       if(config.canvasBackground==='legacy-solid'){const notice=make('p','muted','此旧方案保留原纯色背景。'),migrate=make('button','','改为跟随酒馆背景');migrate.type='button';migrate.addEventListener('click',()=>{remember();config.canvasBackground='tavern';apply();renderFields();notify('已跟随酒馆背景；可撤销，保存后记住');});container.append(notice,migrate);}propertyHeading(container,'配色与透明');renderConfigFields(container,['surface','accent','surfaceOpacity','glass']);}
       if(ui.region==='header'&&ui.kind==='region'){propertyHeading(container,'头像区基础');renderConfigFields(container,['headerHeight']);container.append(make('p','hint','这是从卡片顶部到正文前的总高度。内容可自由移出区域，超出的部分不显示；调高后会重新露出。'));}
@@ -603,6 +662,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     chromePreview.update(config);updateWorkbenchLayout();
   }
   function apply(){
+    config.regionOrder=syncRegionOrder(config).regionOrder;ui.previewMode='page';
     scrollbarVisibility.set(active&&normalizeScrollbars(config.hideScrollbars));if(scrollbarToggle)scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);
     layerDrag.cancel();
     const root=document.documentElement;root.dataset.otlPreviewMode=ui.previewMode;
@@ -617,7 +677,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     for(const cap of config.captions){const selector=`html[data-orange-lab] #chat > .mes[data-orange-lab-fixture] .otl-caption[data-caption-id="${cap.id}"]`;selectors[captionKey(cap.id)]=selector;liveStyle.textContent+=`${selector}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important}${selector}[hidden]{display:none!important}`;}
     liveStyle.textContent+=textItemRules(textEntries(config),selectors,fontSession?.families()||{},textTokens(config),textFallbacks(config),{position:false});
     liveStyle.textContent+=canvasBackgroundRules(config,'html[data-orange-lab]');
-    const sq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=sceneTextRules(config,selectors)+sceneFrameRules(sq,sq+' .otl-header')+`${sq} .otl-header>.otl-photo-group{position:absolute!important;left:24px!important;top:calc(24px + var(--sc-photo-top))!important;bottom:auto!important;clip-path:polygon(var(--sc-avatar-clip))!important;}${sq} .otl-meta,${sq} .otl-name-row{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}`;
+    const sq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=sceneTextRules(config,selectors)+sceneFrameRules(sq,sq+' .otl-header')+`${sq} .otl-header>.otl-photo-group{position:absolute!important;left:24px!important;top:calc(24px + var(--sc-photo-top))!important;bottom:auto!important;z-index:${regionZ(config,'header','avatar')}!important;clip-path:polygon(var(--sc-avatar-clip))!important;}${sq} .otl-meta,${sq} .otl-name-row{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}`;
     liveStyle.textContent+=avatarDesignRules(sq,config,true)+avatarFillRules(sq,config,true);
     liveStyle.textContent+=CHROME_PREVIEW_BASE+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
     chromePreview.update(config);
@@ -639,7 +699,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     shadow.querySelector('[aria-label="基础模板"]').value=config.template;
     shadow.querySelector('#undo').disabled=ui.page!=='chat'||!history.length;
     for(const b of shadow.querySelectorAll('[data-object]')){const layer=config.layers.find(l=>l.id===b.dataset.object),cap=currentCaptions().find(c=>currentCaptionKey(c.id)===b.dataset.object);if(layer)b.textContent=layer.name;if(cap)b.textContent=cap.name+(cap.visible?'':' · 已隐藏')+' · '+cap.content.slice(0,8).replace(/\n/g,' ');}
-    if(ui.mode==='edit'&&ui.kind==='text'&&selectedCaption())shadow.querySelector('.selected-title').textContent=selectedCaption().name+' · AI/用户共用';
+    if(ui.mode==='edit'&&ui.kind==='text'&&selectedCaption())shadow.querySelector('.selected-title').textContent=selectedCaption().name+'';
     if(ui.mode==='edit'&&ui.kind==='image'){const layer=config.layers.find(l=>l.id===ui.object);if(layer)shadow.querySelector('.selected-title').textContent=layer.name;}
   }
   function open(){
@@ -664,8 +724,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   function replaceStart(id){
     if(typeof window.confirm==='function'&&!window.confirm('这会替换当前草稿。原已保存方案不变，替换后可撤销。继续吗？'))return false;
     invalidateEditing();remember();
-    if(id==='blank'){const blank=validate(clone(templates.blank));blank.layers=[];blank.captions=[];blank.footerCaptions=[];blank.photos=validatePhotos();blank.avatarFill.ai.enabled=false;blank.avatarFill.user.enabled=false;blank.reasoningStyle.entry.content='思考过程';config=validate(blank);}else config=validate(clone(templates[id]));
-    selectedLayerId=config.layers[0]?.id;ui.mobileView='preview';ui.previewMode='card';if(active){apply();renderFields();}notify('新起点已载入，尚未保存');return true;
+    if(id==='blank'){const blank=validate(clone(templates.blank));blank.layers=[];blank.captions=[];blank.footerCaptions=[];blank.photos=validatePhotos();blank.avatarFill.ai.enabled=false;blank.avatarFill.user.enabled=false;blank.reasoningStyle.entry.content='思考过程';config=validate(syncRegionOrder(blank));}else config=validate(clone(templates[id]));
+    selectedLayerId=config.layers[0]?.id;ui.mobileView='preview';ui.previewMode='page';if(active){apply();renderFields();}notify('新起点已载入，尚未保存');return true;
   }
   const scrollbarLabel=make('label','field','隐藏滚动条（仍可滚动）'),scrollbarToggle=make('input');scrollbarToggle.type='checkbox';scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);scrollbarToggle.setAttribute('aria-label','隐藏滚动条');scrollbarLabel.append(scrollbarToggle);shadow.querySelector('.bar details .menu').append(scrollbarLabel);scrollbarToggle.addEventListener('change',()=>{remember();config.hideScrollbars=scrollbarToggle.checked;apply();notify('滚动条显示已更新，保存方案后记住');});
   const mobileFlow=installMobileFlow({shadow,onVisibility:visible=>scrollbarVisibility.set((active||visible)&&normalizeScrollbars(config.hideScrollbars)),onContinue:open,onTemplate:replaceStart,onBlank:()=>replaceStart('blank'),onImport:()=>{open();shadow.querySelector('#import-file').click();},onLayout:()=>{if(active)updateWorkbenchLayout();}});

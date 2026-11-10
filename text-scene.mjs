@@ -1,3 +1,4 @@
+import {regionZ} from './region-layers.mjs';
 import {fillSettings} from './avatar-fill.mjs';
 import {clone} from './layers.mjs';
 import {captionKey,newCaption,textEntries,textTokens} from './captions.mjs';
@@ -30,15 +31,15 @@ export function itemWidth(item,width){return item.width==='auto'?width:width*ite
 export function sceneBounds(c,g){return {reserveTop:0,height:c.headerHeight};}
 /** Clip a transformed avatar to the fixed header without moving native DOM nodes. */
 export function avatarClipPolygon(c,g,p,user=false){
- const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,scale=fill?1:p.scale,cos=Math.cos(angle),sin=Math.sin(angle);
+ const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
  const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:CARD_PADDING+p.x,y=fill?0:CARD_PADDING-p.y;
  return [[0,0],[g.width+CARD_PADDING*2,0],[g.width+CARD_PADDING*2,c.headerHeight],[0,c.headerHeight]].map(([px,py])=>{
   const dx=px-x-ox,dy=py-y-oy;
-  return `${Number((ox+(cos*dx+sin*dy)/scale).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)/scale).toFixed(4))}px`;
+  return `${Number((ox+(cos*dx+sin*dy)).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)).toFixed(4))}px`;
  }).join(',');
 }
 
-export function sceneTextRules(c,selectors){const items=textEntries(c),tokens=textTokens(c);return Object.entries(selectors).map(([key,selector])=>{const item=items[key],token=tokens[key];return `${selector}{font-weight:${item.weight==='auto'?400:item.weight}!important;letter-spacing:normal!important;position:absolute!important;left:var(--sc-left-${token},0px)!important;top:var(--sc-top-${token},0px)!important;box-sizing:border-box!important;width:${item.width==='auto'?'max-content':`var(--sc-width-${token})`}!important;min-width:0!important;max-width:var(--sc-width-${token})!important;flex:none!important;margin:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere;text-align:${c.textAlign}!important;z-index:${item.z}!important;clip-path:inset(calc(var(--sc-clip-top-${token}) - var(--sc-drag-y,0px)) calc(100% - var(--sc-clip-right-${token}) + var(--sc-drag-x,0px)) calc(100% - var(--sc-clip-bottom-${token}) + var(--sc-drag-y,0px)) calc(var(--sc-clip-left-${token}) - var(--sc-drag-x,0px)))!important;}`;}).join('\n');}
+export function sceneTextRules(c,selectors){const items=textEntries(c),tokens=textTokens(c);return Object.entries(selectors).map(([key,selector])=>{const item=items[key],token=tokens[key];return `${selector}{font-weight:${item.weight==='auto'?400:item.weight}!important;letter-spacing:normal!important;position:absolute!important;left:var(--sc-left-${token},0px)!important;top:var(--sc-top-${token},0px)!important;box-sizing:border-box!important;width:${item.width==='auto'?'max-content':`var(--sc-width-${token})`}!important;min-width:0!important;max-width:var(--sc-width-${token})!important;flex:none!important;margin:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere;text-align:${c.textAlign}!important;z-index:${regionZ(c,'header',key)}!important;clip-path:inset(calc(var(--sc-clip-top-${token}) - var(--sc-drag-y,0px)) calc(100% - var(--sc-clip-right-${token}) + var(--sc-drag-x,0px)) calc(100% - var(--sc-clip-bottom-${token}) + var(--sc-drag-y,0px)) calc(var(--sc-clip-left-${token}) - var(--sc-drag-x,0px)))!important;}`;}).join('\n');}
 export function sceneFrameRules(q,header){return `${header}{position:relative!important;display:block!important;box-sizing:border-box!important;width:calc(100% + 48px)!important;padding:0!important;height:var(--sc-total-height)!important;min-height:var(--sc-total-height)!important;max-height:var(--sc-total-height)!important;margin-top:-24px!important;margin-bottom:14px!important;margin-left:-24px!important;margin-right:-24px!important;overflow:visible!important;}
 ${q} .otl-scene-art{position:absolute!important;left:24px!important;top:24px!important;width:calc(100% - 48px)!important;height:var(--sc-inner-height)!important;pointer-events:none;}
 `;}

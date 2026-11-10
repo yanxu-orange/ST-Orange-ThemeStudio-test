@@ -1,4 +1,6 @@
-import {CAPTION_LIMIT,newCaption,validateCaptions,captionToken} from './captions.mjs';
+import {layerSizeStyle} from './shape-assets.mjs';
+import {regionZ,imageKey} from './region-layers.mjs';
+import {CAPTION_LIMIT,newCaption,validateCaptions,captionToken,captionMatchesScope} from './captions.mjs';
 import {textItemRules} from './text-layout.mjs';
 export const FOOTER_LIMIT=CAPTION_LIMIT;
 export const footerKey=id=>'footer:'+id;
@@ -16,7 +18,7 @@ export function normalizeFooterConfig(raw){
 }
 export function footerTextEntries(c){return Object.fromEntries(c.footerCaptions.map(v=>[footerKey(v.id),v]));}
 export function footerLayers(c,user){return c.layers.filter(l=>l.anchor==='footer'&&l.visible&&(l.scope==='both'||l.scope===(user?'user':'ai')));}
-export function visibleFooterCaptions(c){return c.footerCaptions.filter(v=>v.visible&&v.content.trim());}
+export function visibleFooterCaptions(c,user=false){return c.footerCaptions.filter(v=>v.visible&&v.content.trim()&&captionMatchesScope(v,user));}
 export function footerRules(q,c,families={},interactive=false){
  const root=q+' .otl-footer',scene=root+' > .otl-footer-scene',cap=root+' .otl-footer-caption';
  const items=footerTextEntries(c),selectors=Object.fromEntries(c.footerCaptions.map(v=>[footerKey(v.id),cap+`[data-footer-caption-id="${v.id}"]`])),tokens=Object.fromEntries(c.footerCaptions.map(v=>[footerKey(v.id),footerToken(v.id)])),fallbacks=Object.fromEntries(c.footerCaptions.map(v=>[footerKey(v.id),v.font]));
@@ -26,14 +28,14 @@ ${scene}{position:absolute!important;left:0!important;right:0!important;width:10
 ${root} .otl-footer-flow{position:relative!important;width:100%!important;min-width:0!important;padding:0!important;margin:0!important;}
 ${cap}{display:block!important;position:relative!important;box-sizing:border-box!important;min-width:0!important;max-width:none!important;flex-shrink:0!important;margin:0!important;padding:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere;line-height:1.6!important;font-weight:400;z-index:3;}
 ${root} .otl-footer-art{display:contents}
-${root} .otl-footer-image{position:absolute!important;display:block!important;max-width:none!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;filter:none!important;object-fit:contain!important;transform-origin:center;pointer-events:${interactive?'auto':'none'}!important;}
+${root} .otl-footer-image{position:absolute!important;display:block!important;max-width:none!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;filter:none!important;object-fit:contain;transform-origin:center;pointer-events:${interactive?'auto':'none'}!important;}
 ${c.footerCaptions.map(v=>`${selectors[footerKey(v.id)]}{width:${v.width==='auto'?100:v.width}%!important;font-family:${v.font}!important;font-size:${v.size}px!important;color:${v.color}!important}`).join('\n')}
-${textItemRules(items,selectors,families,tokens,fallbacks)}`;
+${textItemRules(items,selectors,families,tokens,fallbacks,{zIndices:Object.fromEntries(c.footerCaptions.map(v=>[footerKey(v.id),regionZ(c,'footer',footerKey(v.id))]))})}`;
 }
 /** Only self-owned nodes; the native block and its children are never moved. */
 export function renderFooter(message,c,{createNode,removeNode,resolveArtwork,onImageLoad=()=>{},interactive=false}={}){
  const block=message.querySelector(':scope > .mes_block');if(!block)return null;
- let root=block.querySelector(':scope > .otl-footer');const caps=visibleFooterCaptions(c),layers=footerLayers(c,message.getAttribute('is_user')==='true').filter(l=>resolveArtwork(l));
+ let root=block.querySelector(':scope > .otl-footer');const caps=visibleFooterCaptions(c,message.getAttribute('is_user')==='true'),layers=footerLayers(c,message.getAttribute('is_user')==='true').filter(l=>resolveArtwork(l));
  const remove=removeNode||(n=>n.remove()),create=createNode||((tag,cls,parent)=>{const node=message.ownerDocument.createElement(tag);node.className=cls;parent.append(node);return node;});
  if(!caps.length&&!layers.length){if(root)remove(root);return null;}
  if(!root){root=create('div','otl-footer',block);const scene=create('div','otl-footer-scene',root);create('div','otl-footer-flow',scene);create('div','otl-footer-art',scene);}
@@ -45,13 +47,13 @@ export function renderFooter(message,c,{createNode,removeNode,resolveArtwork,onI
  const oldImages=new Map([...art.children].map(n=>[n.dataset.layerId,n]));
  for(const l of layers){const src=resolveArtwork(l);if(!src)continue;let node=oldImages.get(l.id);oldImages.delete(l.id);if(!node){node=create('img','otl-footer-image'+(interactive?' otl-decoration':''),art);node.dataset.layerId=l.id;node.alt=interactive?l.name:'';node.addEventListener('load',onImageLoad);node.addEventListener('error',onImageLoad);if(interactive){node.dataset.pick='decoration';node.tabIndex=0;node.setAttribute('role','button');}else node.setAttribute('aria-hidden','true');}
   if(interactive){node.alt=l.name;node.setAttribute('aria-label','选择素材：'+l.name);}if(node.getAttribute('src')!==src)node.src=src;
-  Object.assign(node.style,{width:l.width+(l.widthUnit==='percent'?'%':'px'),height:l.heightPercent?l.heightPercent+'%':'auto',objectPosition:l.side+' '+l.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:l.z});art.append(node);
+  Object.assign(node.style,{...layerSizeStyle(l),objectPosition:l.side+' '+l.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:regionZ(c,'footer',imageKey(l.id))});art.append(node);
  }
  for(const node of oldImages.values())remove(node);
  return root;
 }
 export function footerBaseHeight(flowHeight,width,layers,images){
- return Math.max(0,flowHeight,...layers.filter(l=>images.some(n=>n.dataset.layerId===l.id)).map(l=>{const n=images.find(n=>n.dataset.layerId===l.id),ratio=n?.naturalWidth>0&&n?.naturalHeight>0?n.naturalHeight/n.naturalWidth:1;return (l.widthUnit==='percent'?width*l.width/100:l.width)*ratio;}));
+ return Math.max(0,flowHeight,...layers.filter(l=>images.some(n=>n.dataset.layerId===l.id)).map(l=>{const n=images.find(n=>n.dataset.layerId===l.id),ratio=n?.naturalWidth>0&&n?.naturalHeight>0?n.naturalHeight/n.naturalWidth:1;const resolvedWidth=l.widthUnit==='percent'?width*l.width/100:l.width;return l.kind==='shape'?(l.heightUnit==='px'?l.height:resolvedWidth):resolvedWidth*ratio;}));
 }
 export function footerUnion(origin,nodes){let top=0,bottom=0;for(const n of nodes){const r=n.getBoundingClientRect();if(!r.width||!r.height)continue;top=Math.min(top,r.top-origin);bottom=Math.max(bottom,r.bottom-origin);}return {top:Math.max(0,Math.ceil(-top)),height:Math.max(0,Math.ceil(bottom))+Math.max(0,Math.ceil(-top))};}
 export function nativeFooterClearance(message){

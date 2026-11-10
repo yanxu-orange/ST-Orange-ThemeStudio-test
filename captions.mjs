@@ -1,21 +1,25 @@
 import {TIME_FONTS,validateTextItems} from './text-layout.mjs';
 export const CAPTION_LIMIT=20;
+export const CAPTION_SCOPES=Object.freeze(['both','ai','user']);
+export function captionMatchesScope(caption,user=false){return caption.scope==='both'||caption.scope===(user?'user':'ai');}
+export function visibleCaptions(c,user=false){return c.captions.filter(caption=>caption.visible&&caption.content.trim()&&captionMatchesScope(caption,user));}
 export const LEGACY_CAPTION_FIELDS=['caption','captionFont','captionColor','captionSize','captionPosition','captionWidth'];
 export const captionKey=id=>'caption:'+id;
 export const captionToken=id=>'cap-'+id;
 export function styleOf(value={}){return Object.fromEntries(['x','y','weight','z','fontLink'].filter(k=>value[k]!==undefined).map(k=>[k,value[k]]));}
 export function validateCaptionStyle(value,{stable=false}={}){return validateTextItems({caption:styleOf(value)},{stable}).caption;}
-export function newCaption(overrides={}){return {id:crypto.randomUUID(),name:'文案',content:'新的一句文案',font:'serif',size:14,color:'#7e9477',visible:true,position:'below',width:'auto',...validateCaptionStyle({}),...overrides};}
+export function newCaption(overrides={}){return {id:crypto.randomUUID(),name:'文案',content:'新的一句文案',font:'serif',size:14,color:'#7e9477',visible:true,scope:'both',position:'below',width:'auto',...validateCaptionStyle({}),...overrides};}
 export function validateCaptions(raw,{large=false,header=false}={}){
  if(!Array.isArray(raw)||raw.length>CAPTION_LIMIT)throw Error('文案列表无效或超过20条');const ids=new Set();
  return raw.map(c=>{
-  if(!c||typeof c!=='object'||Array.isArray(c)||Object.keys(c).some(k=>!['id','name','content','font','size','color','visible',...(!header?['position']:[]),'width','x','y','weight','z','fontLink'].includes(k)))throw Error('文案字段无效');
+  if(!c||typeof c!=='object'||Array.isArray(c)||Object.keys(c).some(k=>!['id','name','content','font','size','color','visible','scope',...(!header?['position']:[]),'width','x','y','weight','z','fontLink'].includes(k)))throw Error('文案字段无效');
   if(typeof c.id!=='string'||!/^[\w-]{1,80}$/.test(c.id)||ids.has(c.id))throw Error('文案标识无效或重复');ids.add(c.id);
   if(typeof c.name!=='string'||c.name.length>80||typeof c.content!=='string'||c.content.length>300)throw Error('文案名称或内容过长');
   if(!TIME_FONTS.includes(c.font)||!Number.isFinite(c.size)||c.size<(large?8:10)||c.size>(large?200:26)||typeof c.color!=='string'||!/^#[0-9a-f]{6}$/i.test(c.color))throw Error('文案样式无效');
+  if(!CAPTION_SCOPES.includes(c.scope))throw Error('文案显示对象无效');
   if(typeof c.visible!=='boolean'||(!header&&!['above','below'].includes(c.position)))throw Error('文案显示或位置无效');
   if(c.width!=='auto'&&(!Number.isFinite(c.width)||c.width<10||c.width>100))throw Error('文案宽度无效');
-  return {id:c.id,name:c.name,content:c.content,font:c.font,size:c.size,color:c.color,visible:c.visible,...(!header?{position:c.position}:{}),width:c.width,...validateCaptionStyle(c,{stable:header})};
+  return {id:c.id,name:c.name,content:c.content,font:c.font,size:c.size,color:c.color,visible:c.visible,scope:c.scope,...(!header?{position:c.position}:{}),width:c.width,...validateCaptionStyle(c,{stable:header})};
  });
 }
 export function stripLegacyCaptions(config){for(const key of LEGACY_CAPTION_FIELDS)delete config[key];if(config.textItems)delete config.textItems.caption;return config;}

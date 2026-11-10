@@ -14,8 +14,27 @@ export function textDragPosition(item,dx,dy,width,m=[1,0,0,1],{percentX=true,min
  const p=localDelta(dx,dy,m);if(!p||percentX&&!(width>0))return null;
  return {x:clamp(item.x+p.x*(percentX?100/width:1),minX,maxX),y:clamp(item.y+p.y,minY,maxY)};
 }
+// Shapes have a real second dimension, unlike image heightPercent's fitting box.
+function pinchShape(layer,ratio,dx,dy,width,height,renderedWidth,renderedHeight,m,parentHeightForWidth){
+ if(!(layer.height>0)||!['px','percent'].includes(layer.heightUnit))return null;
+ const shapeHeight=scale=>layer.heightUnit==='px'?layer.height*scale:renderedHeight*scale/(parentHeightForWidth?.(layer.width*scale)||height)*100;
+ let low=1/layer.width,high=500/layer.width;
+ if(layer.heightUnit==='px'){low=Math.max(low,1/layer.height);high=Math.min(high,500/layer.height);}
+ else {
+  if(!(height>0))return null;
+  if(shapeHeight(high)<1||shapeHeight(low)>500)return null;
+  if(shapeHeight(low)<1){let a=low,b=high;for(let i=0;i<40;i++){const mid=(a+b)/2;if(shapeHeight(mid)<1)a=mid;else b=mid;}low=b;}
+  if(shapeHeight(high)>500){let a=low,b=high;for(let i=0;i<40;i++){const mid=(a+b)/2;if(shapeHeight(mid)>500)b=mid;else a=mid;}high=a;}
+ }
+ const scale=clamp(ratio,low,high),p=localDelta(dx,dy,m);if(!p)return null;
+ const next=dragPosition(layer,p.x-(layer.side==='right'?-1:1)*renderedWidth*(scale-1)/2,p.y-(layer.vertical==='bottom'?-1:1)*renderedHeight*(scale-1)/2,width,height);if(!next)return null;
+ const nextWidth=clamp(layer.width*scale,1,500),nextShapeHeight=clamp(shapeHeight(scale),1,500),nextHeight=parentHeightForWidth?.(nextWidth,nextShapeHeight)||height;
+ if(parentHeightForWidth){const y=next.y*(layer.offsetUnit==='percent'?height/100:1)+(layer.vertical==='bottom'?nextHeight-height:0);next.y=clamp(y*(layer.offsetUnit==='percent'?100/nextHeight:1),-300,600);}
+ return {...next,width:nextWidth,height:nextShapeHeight};
+}
 export function pinchLayer(layer,ratio,dx,dy,width,height,renderedWidth,renderedHeight,m=[1,0,0,1],parentHeightForWidth=null){
  if(!(ratio>0&&layer.width>0&&renderedWidth>0&&renderedHeight>0))return null;
+ if(layer.kind==='shape')return pinchShape(layer,ratio,dx,dy,width,height,renderedWidth,renderedHeight,m,parentHeightForWidth);
  let max=500/layer.width;
  if(layer.heightPercent>0){
   if(!parentHeightForWidth)max=Math.min(max,100/layer.heightPercent);
@@ -44,7 +63,7 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
   if(chosen)node.style.setProperty('outline','2px dashed #678b70','important');else node.style.removeProperty('outline');
  }}
  function cancel(){const s=session;session=null;if(!s)return;if(s.oldStyle===null)s.node.removeAttribute('style');else s.node.setAttribute('style',s.oldStyle);for(const id of s.points.keys())try{s.node.releasePointerCapture?.(id);}catch{}if(s.changed)suppressUntil=Date.now()+400;}
- function rebase(s){const values=[...s.points.values()];s.base={...s.target.item,...s.next};if(s.target.parentHeightForWidth)s.height=s.target.parentHeightForWidth(s.base.width);s.origin=values.length===2?{x:(values[0].x+values[1].x)/2,y:(values[0].y+values[1].y)/2,distance:Math.hypot(values[1].x-values[0].x,values[1].y-values[0].y)}:{...values[0]};s.renderedWidth=s.initialWidth*(s.base.width/s.target.item.width||1);s.renderedHeight=s.initialHeight*(s.base.width/s.target.item.width||1);}
+ function rebase(s){const values=[...s.points.values()];s.base={...s.target.item,...s.next};if(s.target.parentHeightForWidth)s.height=s.target.parentHeightForWidth(s.base.width,s.base.height);s.origin=values.length===2?{x:(values[0].x+values[1].x)/2,y:(values[0].y+values[1].y)/2,distance:Math.hypot(values[1].x-values[0].x,values[1].y-values[0].y)}:{...values[0]};s.renderedWidth=s.initialWidth*(s.base.width/s.target.item.width||1);s.renderedHeight=s.initialHeight*(s.base.width/s.target.item.width||1);}
  function capture(s,id){try{s.node.setPointerCapture?.(id);return true;}catch{cancel();return false;}}
  function down(e){if(!session)suppressUntil=0;if(e.button!==undefined&&e.button!==0)return;const node=e.target.closest?.(selector);
   if(session){const s=session;if(s.points.has(e.pointerId))return;if(!s.target.image||s.points.size>=2||node!==s.node){cancel();return;}s.points.set(e.pointerId,{x:e.clientX,y:e.clientY});if(capture(s,e.pointerId))rebase(s);return;}
@@ -57,9 +76,9 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
   if(values.length===2){const distance=Math.hypot(values[1].x-values[0].x,values[1].y-values[0].y);if(s.origin.distance<4)return;const dx=(values[0].x+values[1].x)/2-s.origin.x,dy=(values[0].y+values[1].y)/2-s.origin.y;if(Math.abs(distance-s.origin.distance)<4&&Math.hypot(dx,dy)<4&&!s.changed)return;next=pinchLayer(s.base,distance/s.origin.distance,dx,dy,s.width,s.height,s.renderedWidth,s.renderedHeight,s.matrix,s.target.parentHeightForWidth);}
   else {const dx=e.clientX-s.origin.x,dy=e.clientY-s.origin.y;if(Math.hypot(dx,dy)<4&&!s.changed)return;next=s.target.image?dragPosition(s.base,dx,dy,s.width,s.height,s.matrix):textDragPosition(s.base,dx,dy,s.width,s.matrix,s.target);}
   if(!next)return;e.preventDefault();s.changed=true;s.next={...s.next,...next};
-  if(s.target.image){const unit=s.base.offsetUnit==='percent'?'%':'px',parentHeight=s.target.parentHeightForWidth?.(s.next.width??s.base.width);let y=next.y;
+  if(s.target.image){const unit=s.base.offsetUnit==='percent'?'%':'px',parentHeight=s.target.parentHeightForWidth?.(s.next.width??s.base.width,s.next.height??s.base.height);let y=next.y;
    if(parentHeight){const pixels=y*(unit==='%'?parentHeight/100:1)-(s.base.vertical==='bottom'?parentHeight-s.initialParentHeight:0);y=pixels*(unit==='%'?100/s.initialParentHeight:1);}
-   s.node.style[s.base.side]=next.x+unit;s.node.style[s.base.vertical]=y+unit;if(next.width!==undefined)s.node.style.width=next.width+(s.base.widthUnit==='percent'?'%':'px');if(s.next.heightPercent!==undefined)s.node.style.height=parentHeight?(parentHeight*s.next.heightPercent/100)+'px':s.next.heightPercent+'%';s.target.onPreview?.();}
+   s.node.style[s.base.side]=next.x+unit;s.node.style[s.base.vertical]=y+unit;if(next.width!==undefined)s.node.style.width=next.width+(s.base.widthUnit==='percent'?'%':'px');if(s.base.kind==='shape'&&s.next.height!==undefined)s.node.style.height=s.base.heightUnit==='percent'?(parentHeight?(parentHeight*s.next.height/100)+'px':s.next.height+'%'):s.next.height+'px';else if(s.next.heightPercent!==undefined)s.node.style.height=parentHeight?(parentHeight*s.next.heightPercent/100)+'px':s.next.heightPercent+'%';s.target.onPreview?.();}
   else {const dx=(next.x-s.target.item.x)*(s.target.percentX===false?1:s.width/100),dy=next.y-s.target.item.y;s.node.style.setProperty('translate',`${dx}px ${dy}px`,'important');s.node.style.setProperty('--sc-drag-x',dx+'px');s.node.style.setProperty('--sc-drag-y',dy+'px');}
  }
  function up(e){const s=session;if(!s||!s.points.has(e.pointerId))return;if(!valid(s)){cancel();return;}s.points.delete(e.pointerId);try{s.node.releasePointerCapture?.(e.pointerId);}catch{}
