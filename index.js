@@ -1,7 +1,9 @@
+import {createImageDisplay} from './image-display.mjs';
 import {createSchemeStorage} from './scheme-storage.mjs';
 import {createFontLibrary,renderFontLibrary} from './font-library.mjs';
 import {createAssetLibrary} from './asset-library.mjs';
-import {normalizeImageUrl} from './image-sources.mjs';
+import {prepareImageUpload,inspectImageBlob,dataUrlToBlob} from './image-processing.mjs';
+import {normalizeImageUrl,validEmbeddedImage,MAX_IMAGE_DATA_LENGTH} from './image-sources.mjs';
 import {installLauncherDrag} from './launcher-drag.mjs';
 import {avatarArtworkFrameStyle} from './avatar-art.mjs';
 import {regionEntries,regionZ,regionForImage,imageKey,moveRegionItem,canMoveRegionItem,syncRegionOrder,validateRegionOrder} from './region-layers.mjs';
@@ -54,11 +56,12 @@ await (async () => {
   for(const theme of Object.values(templates))if(!theme.photos)theme.photos={ai:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius}),user:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius})};
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
-  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
+  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
   const assetLibrary=createAssetLibrary();
   const fontLibrary=createFontLibrary();
   const host=document.createElement('div'); host.id='orange-theme-lab'; document.body.append(host);
   const shadow=host.attachShadow({mode:'open'});
+  const imageDisplay=createImageDisplay({document,selector:'[data-orange-lab-fixture] img, img[data-layer-id], [data-library-asset] img'});
   const scrollbarVisibility=createScrollbarVisibility({document,ownShadow:shadow});
   const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   const field=(label,key,type='text',extra={})=>({label,key,type,...extra});
@@ -90,7 +93,7 @@ await (async () => {
       else if(typeof v!=='string'||v.length>300)throw Error('文案过长');
       result[f.key]=v;
     }
-    if(raw.image){if(typeof raw.image!=='string'||raw.image.length>2800000||!/^data:image\/(png|jpeg|webp|gif);base64,/.test(raw.image))throw Error('图片格式不支持');result.image=raw.image;}
+    if(raw.image){if(!validEmbeddedImage(raw.image))throw Error('图片格式不支持');result.image=raw.image;}
     if(Object.hasOwn(templates,raw.template))result.template=raw.template;if(raw.layout!==undefined){if(!['top','left','collage'].includes(raw.layout))throw Error('排版值无效');result.layout=raw.layout;}
     result.avatarDesign=raw.avatarDesign||'separate';Object.assign(result,normalizeCanvasBackground(raw));result.hideScrollbars=hideScrollbars;result.textItems=canonical.textItems;result.captions=canonical.captions;result.layers=migrateLayers(raw);result.photos=validatePhotos(raw.photos);result.reasoningStyle=reasoning.reasoningStyle;result.footerCaptions=footer.footerCaptions;result.nativeStyle=native.nativeStyle;result.version=raw.version>=8?raw.version:7;if(raw.version>=8)delete result.timePosition;result.image='';
     if(raw.surfaceOpacity===undefined&&raw.glass>0)result.surfaceOpacity=.81;
@@ -240,10 +243,9 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       if(node.childNodes.length&&node.isConnected){const fields=node.closest('.fields'),box=fields?.getBoundingClientRect(),rect=node.getBoundingClientRect();if(box&&rect.bottom>box.bottom)fields.scrollTop+=rect.bottom-box.bottom+8;}
     }
   }
-  function uploadRejected(file,gif=true){if(!new RegExp('^image/(png|jpeg|webp'+(gif?'|gif':'')+')$').test(file.type))return '格式不支持，请重新选择图片。';if(file.size>2*1024*1024)return '超过单张 2 MiB 上限，尚未添加。请选择较小图片。';return '';}
-  function uploadFailure(error){return error?.message==='图片像素过大'?'图片超过 4000 万像素，请选择较小图片。':'读取或裁剪失败，原图未改变，请重新选择。';}
+  function uploadFailure(error){return error?.code==='IMAGE_INPUT'?error.message:error?.message==='图片像素过大'?'图片超过 4000 万像素，请选择较小图片。':'读取或裁剪失败，原图未改变，请重新选择。';}
   function addReselect(container,input){const button=make('button','','重新选择文件');button.type='button';button.addEventListener('click',()=>input.click());container.append(button);}
-  function invalidateEditing(){colorPicker.cancel();layerDrag?.cancel();editEpoch++;if(uploadFeedback)for(const row of uploadFeedback.rows)if(row.busy){row.status='已取消，编辑对象或会话已改变。';row.busy=false;}refreshUploadFeedback();cancelCrop?.();cancelCrop=null;}
+  function invalidateEditing(){imageUploadAbort?.abort();imageUploadAbort=null;colorPicker.cancel();layerDrag?.cancel();editEpoch++;if(uploadFeedback)for(const row of uploadFeedback.rows)if(row.busy){row.status='已取消，编辑对象或会话已改变。';row.busy=false;}refreshUploadFeedback();cancelCrop?.();cancelCrop=null;}
   function currentTargetValid(epoch,original,target){return active&&editEpoch===epoch&&config===original&&(config.layers.includes(target)||Object.values(config.photos).includes(target));}
   function renderPreviewNative(){const messages=[...document.querySelectorAll('[data-orange-lab-fixture=message]')],last=latestAI(messages);for(const msg of messages)renderNative(msg,config,{headerSelector:'.otl-header',wrapperSelector:'.otl-demo-stat-home',latest:msg===last});}
   function scheduleFit(){if(!active||fitFrame)return;fitFrame=requestAnimationFrame(()=>{fitFrame=0;if(layerDrag.dragging)return;chromePreview.update(config);fitCollage();for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]'))measureFooter(msg,config);renderPreviewNative();placePreviewScenes();layerDrag.refresh();});}
@@ -307,8 +309,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const p=config.photos[photoScope],fill=config.avatarFill[photoScope];
     const previewSection=make('details','avatar-preview');previewSection.open=false;previewSection.append(make('summary','','预览图片（仅本次）'),make('p','hint','不保存或导出。应用时使用酒馆头像。'));container.prepend(previewSection);
     for(const [scope,text]of (config.avatarDesign==='unified'?[['ai','AI'],['user','用户']]:[[photoScope,photoScope==='ai'?'AI':'用户']])){
-      const label=make('label','field',text+' 预览图片'),upload=make('input');upload.type='file';upload.accept='image/png,image/jpeg,image/webp';upload.setAttribute('aria-label',text+' 预览图片');label.append(upload);previewSection.append(label);
-      upload.addEventListener('change',async()=>{const file=upload.files[0];if(!file)return;upload.value='';if(!/^image\/(png|jpeg|webp)$/.test(file.type)){notify('请选择 PNG、JPG 或 WebP 图片');return;}const epoch=editEpoch;try{const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});const image=new Image();image.src=source;await image.decode();if(!active||epoch!==editEpoch)return;previewAvatars[scope]=source;apply();notify('预览图片已显示，可调整取景');}catch{notify('图片读取失败，请重新选择');}});
+      const label=make('label','field',text+' 预览图片'),upload=make('input');upload.type='file';upload.accept='image/png,image/apng,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',text+' 预览图片');label.append(upload);previewSection.append(label);
+      upload.addEventListener('change',async()=>{const file=upload.files[0];if(!file)return;upload.value='';invalidateEditing();imageUploadAbort=new AbortController();const signal=imageUploadAbort.signal,epoch=editEpoch,valid=()=>active&&epoch===editEpoch;notify('正在处理预览图片…');try{const result=await prepareImageUpload(file,{valid,signal});if(!result||!valid())return;previewAvatars[scope]=result.image;apply();notify('预览图片已显示，可调整取景');}catch(error){if(valid())notify(uploadFailure(error));}});
     }
     propertyHeading(container,'显示方式');editorControl(container,field('铺满卡片顶部','enabled','select',{options:[['false','普通显示'],['true','铺满卡片顶部']]}),fill,()=>renderFields());
     if(fill.enabled){
@@ -366,8 +368,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const addAsset=make('button','',chromeTarget?'使用所选按钮图片':isSourceTarget?(isEditIcon?(isMoreIcon?'使用所选更多图标':'使用所选编辑图标'):'使用所选背景'):'添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;addAsset.addEventListener('click',()=>useSource({asset:library.value,name:ASSETS[library.value].name}));libraryLabel.append(library,addAsset);container.append(libraryLabel);
     if(!isSourceTarget){propertyHeading(container,'可调色形状');const shapes=make('div','actions');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const button=make('button','','添加'+name);button.type='button';button.dataset.addShape=shape;button.disabled=config.layers.length>=LAYER_LIMIT;button.addEventListener('click',()=>useSource({shape,name}));shapes.append(button);}container.append(shapes);}
     propertyHeading(container,'上传到我的素材');
-    const uploadLabel=make('label','field','上传图片到素材库'),upload=make('input');upload.type='file';upload.multiple=true;upload.accept='image/png,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',chromeTarget?'上传按钮图片':'上传装饰图片');
-    uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF；单张不超过 2 MiB。保留原图，放入方案后可另行裁剪；上传不会改变当前方案。'),upload);container.append(uploadLabel);addReselect(uploadLabel,upload);
+    const uploadLabel=make('label','field','上传图片到素材库'),upload=make('input');upload.type='file';upload.multiple=true;upload.accept='image/png,image/apng,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',chromeTarget?'上传按钮图片':'上传装饰图片');
+    uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF（含动画）；自动优化较大的静态图，收益小则保留原素材，不另存一份原图。测试版单张最多 16 MiB、1600 万像素；上传不会改变当前方案。'),upload);container.append(uploadLabel);addReselect(uploadLabel,upload);
     const feedbackSource=chromeTarget?'chrome':'library',feedbackTarget=chromeTarget?purpose.slice(7):'';attachUploadFeedback(uploadLabel,feedbackSource+':'+feedbackTarget);
     propertyHeading(container,'图片链接');
     const urlLabel=make('label','field','HTTP(S) 图片链接'),urlInput=make('input');urlInput.type='url';urlInput.placeholder='https://example.com/image.png';urlInput.setAttribute('aria-label','图片链接');urlInput.autocomplete='off';const saveUrl=make('button','','保存链接到素材库');saveUrl.type='button';urlLabel.append(urlInput,saveUrl);container.append(urlLabel,make('p','hint','建议使用 HTTPS。链接会原样保存，依赖来源网站可用；不下载或嵌入远程图片。HTTP 图片可能被浏览器拦截。'));
@@ -396,10 +398,10 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       catch(error){if(visible())status.textContent=error.message;}finally{saveUrl.disabled=false;}
     });
     upload.addEventListener('change',async()=>{
-      const files=[...upload.files];if(!files.length)return;upload.value='';invalidateEditing();const epoch=editEpoch,report=beginUploadFeedback(feedbackSource,feedbackTarget,files),valid=()=>visible()&&epoch===editEpoch&&uploadFeedback===report;
+      const files=[...upload.files];if(!files.length)return;upload.value='';invalidateEditing();imageUploadAbort=new AbortController();const signal=imageUploadAbort.signal,epoch=editEpoch,report=beginUploadFeedback(feedbackSource,feedbackTarget,files),valid=()=>visible()&&epoch===editEpoch&&uploadFeedback===report;
       for(let index=0;index<files.length;index++){
-        const file=files[index];if(!valid())break;const rejected=uploadRejected(file);if(rejected){feedbackStatus(report,index,rejected);continue;}
-        try{feedbackStatus(report,index,'读取中…',true);const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});if(!valid())break;const decoded=new Image();decoded.src=source;await decoded.decode();if(!valid())break;if(!decoded.naturalWidth||!decoded.naturalHeight)throw Error('图片读取失败');if(decoded.naturalWidth*decoded.naturalHeight>40000000)throw Error('图片像素过大');feedbackStatus(report,index,'正在存入素材库…',true);const record=await assetLibrary.add({name:file.name.slice(0,80)||'我的图片',image:source});if(!valid())break;report.added.push(record.id);feedbackStatus(report,index,'已存入素材库；点击“使用素材”放入当前目标。');}
+        const file=files[index];if(!valid())break;
+        try{feedbackStatus(report,index,'读取与自动优化中…',true);const result=await prepareImageUpload(file,{valid,signal});if(!result||!valid())break;feedbackStatus(report,index,'正在存入素材库…',true);const record=await assetLibrary.add({name:file.name.slice(0,80)||'我的图片',image:result.image});if(!valid())break;report.added.push(record.id);const detail=result.optimized?`已优化为 ${(result.bytes/1024).toFixed(0)} KiB，尺寸不变；`:result.animated?'已保留动画原素材；':'已保留原素材；';feedbackStatus(report,index,detail+'已存入素材库；点击“使用素材”放入当前目标。');}
         catch(error){if(valid())feedbackStatus(report,index,error.code?error.message:uploadFailure(error));}
       }
       if(valid()&&report.added.length){await refreshLibrary();if(valid())notify(`已存入 ${report.added.length} 张图片，当前方案尚未改变。`);}
@@ -440,6 +442,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     }
   }
   async function cropImage(source,mime,valid=()=>active){
+    let animated=mime==='image/gif';if(source.startsWith('data:')){animated=(await inspectImageBlob(dataUrlToBlob(source))).animated;}if(animated){notify('动画素材保持原样，暂不支持动画裁剪。');return null;}
     const image=new Image();image.src=source;await image.decode();if(!valid())return null;if(image.naturalWidth*image.naturalHeight>40000000)throw Error('图片像素过大');
     return new Promise(resolve=>{
       const dialog=make('dialog','crop-dialog');const canvas=make('canvas');let zoom=1,panX=50,panY=50,ratio=image.naturalWidth/image.naturalHeight,done=false;
@@ -450,7 +453,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       for(const [key,name,min,max,step,initial]of [['zoom','放大取景',1,4,.05,1],['panX','横向取景',0,100,1,50],['panY','纵向取景',0,100,1,50]]){const label=make('label','field',name),input=make('input'),number=make('input','number-input');input.type='range';number.type='number';for(const node of [input,number]){node.min=min;node.max=max;node.step=step;node.value=initial;}input.setAttribute('aria-label',name);number.setAttribute('aria-label',name+' 数值');const update=value=>{if(!Number.isFinite(value)||value<min||value>max)return false;input.value=number.value=value;if(key==='zoom')zoom=value;else if(key==='panX')panX=value;else panY=value;draw();return true;};input.addEventListener('input',()=>update(Number(input.value)));number.addEventListener('input',()=>{if(number.value==='')return;number.setAttribute('aria-invalid',String(!update(Number(number.value))));});numericRow(label,input,number,key==='zoom'?'×':'%');dialog.append(label);}
       if(mime==='image/gif')dialog.append(make('p','hint','裁剪 GIF 后会成为静态图片；保持原图可保留动画。'));
       const cancel=()=>finish(null);const finish=value=>{if(done)return;done=true;if(cancelCrop===cancel)cancelCrop=null;dialog.close();dialog.remove();resolve(valid()?value:null);};cancelCrop=cancel;
-      const actions=make('div','actions');for(const [name,action]of [['取消',()=>finish(null)],['保持原图',()=>finish(source)],['使用裁剪图',()=>{const output=canvas.toDataURL('image/png');if(output.length>2800000){notice.textContent='裁剪图片过大，请缩小取景或保持原图。';return;}finish(output);}]]){const button=make('button',name==='使用裁剪图'?'primary':'',name);button.type='button';button.addEventListener('click',action);actions.append(button);}const notice=make('p','hint');dialog.append(actions,notice);dialog.addEventListener('cancel',event=>{event.preventDefault();finish(null);});shadow.append(dialog);draw();dialog.showModal();
+      const actions=make('div','actions');for(const [name,action]of [['取消',()=>finish(null)],['保持原图',()=>finish(source)],['使用裁剪图',()=>{const output=canvas.toDataURL('image/png');if(output.length>MAX_IMAGE_DATA_LENGTH){notice.textContent='裁剪图片过大，请缩小取景或保持原图。';return;}finish(output);}]]){const button=make('button',name==='使用裁剪图'?'primary':'',name);button.type='button';button.addEventListener('click',action);actions.append(button);}const notice=make('p','hint');dialog.append(actions,notice);dialog.addEventListener('cancel',event=>{event.preventDefault();finish(null);});shadow.append(dialog);draw();dialog.showModal();
     });
   }
   function selectedCaption(){return ui.region==='footer'?config.footerCaptions.find(c=>footerKey(c.id)===ui.object):config.captions.find(c=>captionKey(c.id)===ui.object);}
@@ -752,7 +755,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(liveAdapter.active){liveAdapter.stop();liveBar.classList.add('hidden');}
     previewAvatars=readPreviewAvatars(document);mobileFlow.setEditorOpen(true);active=true;invalidateEditing();disabledStyle=document.querySelector('#custom-style');wasDisabled=disabledStyle?.disabled||false;if(disabledStyle)disabledStyle.disabled=true;
     document.head.append(liveStyle);document.documentElement.dataset.orangeLab='true';fontSession=createFontSession({document,onChange:()=>{if(active)apply();}});stopInterfaceWatch=watchInterfaceFont(document,()=>{if(active)apply();});
-    chat.append(fixture(false),fixture(true),fixture(false,true));
+    chat.append(fixture(false),fixture(true),fixture(false,true));imageDisplay.watch(chat);imageDisplay.watch(shadow);
     shadow.querySelector('.launcher').classList.add('hidden');shadow.querySelector('.bar').classList.remove('hidden');panel.classList.remove('hidden');shadow.querySelector('.preview-tools').classList.remove('hidden');shadow.querySelector('.splitter').classList.remove('hidden');shadow.querySelector('.mobile-dock').classList.remove('hidden');document.documentElement.dataset.otlNarrow=String(ui.narrow);shadow.querySelector('#narrow').setAttribute('aria-pressed',String(ui.narrow));apply();renderFields();chat.scrollTop=0;
     layoutObserver=new ResizeObserver(scheduleFit);layoutObserver.observe(chat);for(const meta of chat.querySelectorAll('[data-orange-lab-fixture] .otl-meta'))layoutObserver.observe(meta);syncFooterSizes();
     if(loadError)notify('保存的方案未载入：'+loadError.message+' 点击“恢复已保存”重试。',0);
@@ -761,7 +764,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(!layoutObserver)return;const wanted=new Set(document.querySelectorAll('[data-orange-lab-fixture] .otl-footer-flow,[data-orange-lab-fixture] .name_text,[data-orange-lab-fixture] .timestamp,[data-orange-lab-fixture] .otl-caption'));for(const node of previewFooterSizes)if(!wanted.has(node)){layoutObserver.unobserve?.(node);previewFooterSizes.delete(node);}for(const node of wanted)if(!previewFooterSizes.has(node)){layoutObserver.observe(node);previewFooterSizes.add(node);}
   }
   function close(){
-    if(!active)return;active=false;mobileFlow.setEditorOpen(false);previewAvatars={};scrollbarVisibility.stop();chromePreview.close();invalidateEditing();document.getElementById('orange-workbench-layout')?.remove();stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;layoutObserver?.disconnect();layoutObserver=null;previewFooterSizes.clear();cancelAnimationFrame(fitFrame);fitFrame=0;document.documentElement.removeAttribute('data-orange-lab');
+    if(!active)return;imageDisplay.clear();active=false;mobileFlow.setEditorOpen(false);previewAvatars={};scrollbarVisibility.stop();chromePreview.close();invalidateEditing();document.getElementById('orange-workbench-layout')?.remove();stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;layoutObserver?.disconnect();layoutObserver=null;previewFooterSizes.clear();cancelAnimationFrame(fitFrame);fitFrame=0;document.documentElement.removeAttribute('data-orange-lab');
     for(const attr of ['data-otl-layout','data-otl-time','data-otl-caption','data-otl-narrow','data-otl-preview-mode'])document.documentElement.removeAttribute(attr);
     document.querySelectorAll('[data-orange-lab-fixture]').forEach(e=>e.remove());liveStyle.remove();if(disabledStyle?.isConnected)disabledStyle.disabled=wasDisabled;fitInput()?.catch?.(error=>console.warn('[主题输入增高]',error.message));
     shadow.querySelector('.launcher').classList.remove('hidden');shadow.querySelector('.bar').classList.add('hidden');panel.classList.add('hidden');shadow.querySelector('.preview-tools').classList.add('hidden');shadow.querySelector('.splitter').classList.add('hidden');shadow.querySelector('.mobile-dock').classList.add('hidden');

@@ -1,0 +1,2 @@
+export const PNG_DATA='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9/8AAAAASUVORK5CYII=';
+export function imageFile({type='image/png',size=68,name='test.png',...rest}={}){const file=new Blob([Buffer.from(PNG_DATA.split(',')[1],'base64')],{type});Object.defineProperties(file,{size:{value:Math.floor(size)},name:{value:name}});return Object.assign(file,rest);}

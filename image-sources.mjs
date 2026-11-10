@@ -1,4 +1,5 @@
-export const MAX_IMAGE_DATA_LENGTH = 2800000;
+import {MAX_UPLOAD_BYTES} from './image-processing.mjs';
+export const MAX_IMAGE_DATA_LENGTH = 4 * Math.ceil(MAX_UPLOAD_BYTES / 3) + 23;
 export const MAX_IMAGE_URL_LENGTH = 8192;
 
 export function validEmbeddedImage(value) {

@@ -1,3 +1,4 @@
+import {imageFile} from './test-support/image-file.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ test('editor independent controls validate links and preserve settings through s
   // linkedom implements the select getter only; supply the browser setter in this harness.
   const selectValue=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');
   Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:selectValue.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
-  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}disconnect(){}}});
+  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
   const scheme=await editorStorage(null);await import('./index.js');
   const shadow=document.querySelector('#orange-theme-lab').shadowRoot;shadow.querySelector('.launcher').click();
   shadow.querySelector('[data-region="header"]').click();shadow.querySelector('[data-kind="name"]').click();
@@ -57,6 +58,6 @@ test('editor independent controls validate links and preserve settings through s
   setControl('边框范围','none');shadow.querySelector('#undo').click();await saveEditorScheme(shadow,scheme);assert.equal(JSON.parse((await scheme.load())).cardBorderMode,'custom');assert.equal(JSON.parse((await scheme.load())).cardBorderColor,'#123456');
   // A decoded upload from a closed editor cannot commit into the reopened draft.
   const pending=[];globalThis.FileReader=class{readAsDataURL(){this.result='data:image/png;base64,AAAA';this.onload();}};globalThis.Image=class{constructor(){this.naturalWidth=10;this.naturalHeight=10;}decode(){return new Promise(resolve=>pending.push(resolve));}};
-  shadow.querySelector('[data-region="header"]').click();shadow.querySelector('#mode-library').click();const upload=shadow.querySelector('[aria-label="上传装饰图片"]');Object.defineProperty(upload,'files',{value:[{type:'image/png',size:4,name:'fake.png'}]});upload.dispatchEvent(new window.Event('change'));await new Promise(r=>setImmediate(r));assert.equal(pending.length,1);shadow.querySelector('#close').click();pending[0]();await new Promise(r=>setImmediate(r));assert.equal(shadow.querySelector('.crop-dialog'),null);shadow.querySelector('.launcher').click();await saveEditorScheme(shadow,scheme);assert.equal(JSON.parse((await scheme.load())).layers.length,moved.layers.length);
+  shadow.querySelector('[data-region="header"]').click();shadow.querySelector('#mode-library').click();const upload=shadow.querySelector('[aria-label="上传装饰图片"]');Object.defineProperty(upload,'files',{value:[imageFile({type:'image/png',size:4,name:'fake.png'})]});upload.dispatchEvent(new window.Event('change'));await new Promise(r=>setImmediate(r));assert.equal(pending.length,1);shadow.querySelector('#close').click();pending[0]();await new Promise(r=>setImmediate(r));assert.equal(shadow.querySelector('.crop-dialog'),null);shadow.querySelector('.launcher').click();await saveEditorScheme(shadow,scheme);assert.equal(JSON.parse((await scheme.load())).layers.length,moved.layers.length);
   const close=[...shadow.querySelectorAll('button')].find(b=>b.textContent==='退出编辑');close.click();assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
 });
