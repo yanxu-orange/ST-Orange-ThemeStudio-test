@@ -13,9 +13,9 @@ test('only selected fixture decoration drags; release commits once and cancellat
  function event(type,target,x=0,y=0,id=1){const e=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:id,clientX:x,clientY:y,button:0,isPrimary:true});target.dispatchEvent(e);}
  event('pointerdown',node);event('pointermove',node,30,40);assert.equal(node.style.left,'40px');assert.equal(layer.x,10);event('pointerup',node,30,40);assert.deepEqual(commits,[{x:40,y:60}]);assert.equal(node.style.left,'10px');
  event('pointerdown',node);event('pointermove',node,70,80);event('pointercancel',node);assert.equal(commits.length,1);assert.equal(node.style.left,'10px');
- event('pointerdown',node);event('pointermove',node,70,80);event('pointerdown',node,0,0,2);assert.equal(drag.dragging,false);assert.equal(commits.length,1);
+ event('pointerdown',node);event('pointermove',node,70,80);event('pointerdown',node,0,0,2);assert.equal(drag.dragging,true);event('pointercancel',node,0,0,2);assert.equal(drag.dragging,false);assert.equal(commits.length,1);
  event('pointerdown',node);event('pointermove',node,70,80);node.remove();event('pointerup',document,70,80);assert.equal(commits.length,1);document.querySelector('[data-orange-lab-fixture] div').append(node);
  event('pointerdown',node);event('pointermove',node,70,80);state.object='other';event('pointerup',node,70,80);assert.equal(commits.length,1);
  state.object='other';drag.refresh();assert.equal(node.style.touchAction,'auto');event('pointerdown',node);event('pointermove',node,70,80);event('pointerup',node);assert.equal(commits.length,1);
- state.region='body';drag.refresh();assert.equal(node.style.pointerEvents,'none');
+ state.region='body';drag.refresh();assert.equal(node.style.pointerEvents,'auto');assert.equal(node.style.touchAction,'auto');
 });
