@@ -62,3 +62,9 @@ test('preview textarea refits multiline content and shrinks again without rewrit
  for(const [value,height]of [['一行',45],['第一行\n第二行\n第三行',93],['短句',45]]){measured=height;area.value=value;area.dispatchEvent(new window.Event('input'));assert.equal(area.style.height,height+'px');assert.equal(ui.demoText,value);assert.equal(area.value,value);}
  p.close();
 });
+test('input following chat uses loaded body font and falls back without overriding custom font',()=>{
+ const c=config();c.chromeStyle.input.enabled=true;c.chromeStyle.input.fontMode='chat';
+ assert.match(chromeRules(c,PREVIEW_CHROME_SELECTORS,{body:'LoadedBody'}),/font-family:"LoadedBody",serif!important/);
+ assert.match(chromeRules(c,PREVIEW_CHROME_SELECTORS,{}),/font-family:serif!important/);
+ c.chromeStyle.input.fontMode='custom';c.chromeStyle.input.font='monospace';assert.match(chromeRules(c,PREVIEW_CHROME_SELECTORS,{body:'LoadedBody','chrome-input':'CustomInput'}),/font-family:"CustomInput",monospace!important/);
+});

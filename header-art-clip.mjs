@@ -1,3 +1,4 @@
+import {runLayoutPass} from './layout-pass.mjs';
 // Clip each header artwork leaf independently, retaining its existing stacking order.
 const finite=n=>Number.isFinite(n);
 const pixels=(value,basis)=>{
@@ -16,8 +17,10 @@ export function headerArtworkClipPolygon({width,height,x,y,rotation=0},regionWid
  * Region width is the interior width; height is total header height minus 24px.
  * Only the owned image's clip-path changes. No wrappers, model data, or z-index change.
  */
-export function updateHeaderArtworkClip(node,layer,regionWidth,regionHeight){
+export function updateHeaderArtworkClip(...args){return runLayoutPass([headerArtworkClipLayout(...args)])[0];}
+export function* headerArtworkClipLayout(node,layer,regionWidth,regionHeight){
  if(layer.anchor!=='header')return null;
+ const polygon=yield()=>{
  const style=node.style,computed=node.ownerDocument?.defaultView?.getComputedStyle?.(node);
  const dimension=(key,basis)=>{
   const resolved=pixels(computed?.[key],basis),inline=pixels(style[key],basis);
@@ -29,8 +32,9 @@ export function updateHeaderArtworkClip(node,layer,regionWidth,regionHeight){
  const offset=(side,basis,fallback)=>pixels(style[side],basis)??fallback*(layer.offsetUnit==='percent'?basis/100:1);
  const horizontal=offset(layer.side,regionWidth,layer.x),vertical=offset(layer.vertical,regionHeight,layer.y);
  const x=layer.side==='right'?regionWidth-horizontal-width:horizontal,y=layer.vertical==='bottom'?regionHeight-vertical-height:vertical;
- const polygon=headerArtworkClipPolygon({width,height,x,y,rotation:layer.rotation},regionWidth,regionHeight);
+ return headerArtworkClipPolygon({width,height,x,y,rotation:layer.rotation},regionWidth,regionHeight);
+ };
  // Unloaded/zero-sized artwork stays clipped until the caller's load/layout refresh.
- style.setProperty('clip-path',polygon?`polygon(${polygon})`:'inset(50%)','important');
+ node.style.setProperty('clip-path',polygon?`polygon(${polygon})`:'inset(50%)','important');
  return polygon;
 }

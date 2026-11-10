@@ -1,5 +1,6 @@
+import {runLayoutPass} from './layout-pass.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
-import {normalizeNativeConfig,validateNativeStyle,NATIVE_DEFAULTS,nativeRules,renderNative,effectiveNativeMode,latestAI} from './native.mjs';import {normalizeFooterConfig} from './footer.mjs';import {normalizeReasoningConfig} from './reasoning.mjs';import {normalizeCaptionConfig} from './captions.mjs';
+import {normalizeNativeConfig,validateNativeStyle,NATIVE_DEFAULTS,nativeRules,renderNative,nativeLayout,effectiveNativeMode,latestAI} from './native.mjs';import {normalizeFooterConfig} from './footer.mjs';import {normalizeReasoningConfig} from './reasoning.mjs';import {normalizeCaptionConfig} from './captions.mjs';
 const current=()=>normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({version:3,font:'serif',accent:'#123456',timeColor:'#654321',cardWidth:448,layers:[]}))));
 const html='<html><head></head><body><div class="mes" is_user="false"><div class="mesAvatarWrapper"><div class="mesIDDisplay">#1</div><div class="mes_timer">2s</div><div class="tokenCounterDisplay">120t</div></div><div class="swipe_left"></div><div class="mes_block"><div class="ch_name"><div class="mes_buttons"><span class="extraMesButtonsHint">more</span><div class="extraMesButtons"></div><div class="mes_edit"></div></div><div class="mes_edit_buttons" style="display:none"><button class="mes_edit_cancel">cancel</button></div></div><div class="mes_text">虚构正文</div></div><div class="swipeRightBlock"><div class="swipe_right"></div><div class="swipes-counter">2/2</div></div></div></body></html>';
 test('native schema7 defaults migrate real1-6 only in memory and strictly reject invalid fields and sources',()=>{
@@ -96,4 +97,27 @@ test('statistic positions do not depend on sibling text, width, visibility or re
  floor.style.display='none';render();assert.deepEqual(own.map(value),before);floor.textContent='';render();assert.deepEqual(own.map(value),before);
  timer.textContent='10000 seconds';timer.getBoundingClientRect=()=>rect(0,0,180,15);render();assert.deepEqual(own.map(value),before);timer.style.display='none';render();assert.deepEqual(['stat-2-x','stat-2-y'].map(value),before.slice(2));timer.style.display='';render();
  c.nativeStyle.stats.floor.position='header';c.nativeStyle.stats.floor.x=80;render();assert.deepEqual(own.map(value),before);
+});
+
+
+test('batched native placement reads origins after preceding message footer heights settle',()=>{
+ const fixtures=[fixture(),fixture()];
+ const jobs=fixtures.map((f,i)=>{
+  const offset=()=>i?500+(fixtures[0].value('footer-height')||0):0;
+  let headerReads=0;f.header.getBoundingClientRect=()=>{if(++headerReads===2)assert.ok(fixtures.every(node=>node.value('footer-height')===53),'all flow reservations precede viewport origins');return f.rect(24,offset()+50,400,100);};
+  f.wrapper.getBoundingClientRect=()=>f.rect(24,offset()+50,60,60);
+  f.msg.getBoundingClientRect=()=>f.rect(0,offset(),448,500);
+  const createNode=(tag,cls,parent)=>{const node=f.document.createElement(tag);node.className=cls;parent.append(node);node.getBoundingClientRect=()=>f.rect(24,offset()+400,400,f.value('footer-height')||0);return node;};
+  return nativeLayout(f.msg,f.c,{createNode,latest:true});
+ });
+ runLayoutPass(jobs);
+ for(const f of fixtures){assert.equal(f.value('footer-height'),53);assert.equal(f.value('actions-y'),0);assert.equal(f.value('stat-0-y'),77);assert.equal(f.value('swipe-left-y'),400);}
+});
+test('nested edit and tray use the newly positioned actions parent',()=>{
+ const {msg,c,header,rect,render,value}=fixture(),actions=msg.querySelector('.mes_buttons'),edit=msg.querySelector('.mes_edit'),extra=msg.querySelector('.extraMesButtons'),hint=msg.querySelector('.extraMesButtonsHint');
+ actions.getBoundingClientRect=()=>{const r=header.getBoundingClientRect();return rect(r.left+(value('actions-x')||0),r.top+(value('actions-y')||0),30,25);};
+ for(const node of [edit,extra])Object.defineProperty(node,'offsetParent',{value:actions});
+ hint.getBoundingClientRect=()=>rect(0,0,30,25);extra.getBoundingClientRect=()=>rect(0,0,200,60);
+ c.nativeStyle.actions.more.x=5;render();
+ assert.equal(value('actions-x'),359);assert.equal(value('edit-x'),16);assert.equal(value('edit-y'),0);assert.equal(value('tools-x'),-159);assert.equal(value('tools-y'),31);
 });

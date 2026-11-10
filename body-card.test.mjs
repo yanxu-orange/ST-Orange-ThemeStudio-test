@@ -8,7 +8,7 @@ test('body/card defaults and explicit fields survive schema migration without ch
   const saved={...canonical,...settings,bodyWeight:350,bodyParagraphGap:22,bodyPaddingLeft:13,bodyPaddingRight:8,bodyIndent:true,cardBorderMode:'custom',cardBorderTop:true,cardBorderRight:false,cardBorderBottom:true,cardBorderLeft:false,cardBorderColor:'#123456',cardBorderStyle:'dashed',cardBorderWidth:3};
   const restored=JSON.parse(JSON.stringify(saved));assert.deepEqual(bodyCardSettings(restored),bodyCardSettings(saved));assert.deepEqual(normalizeCaptionConfig(restored).captions,canonical.captions);assert.deepEqual(restored.layers,raw.layers);
  }
- for(const key of Object.keys(BODY_CARD_DEFAULTS))assert.throws(()=>bodyCardSettings({[key]:null}),key);
+ for(const key of Object.keys(BODY_CARD_DEFAULTS).filter(k=>k!=='bodyFontLink'))assert.throws(()=>bodyCardSettings({[key]:null}),key);
  for(const raw of [{bodyWeight:99},{bodyWeight:901},{bodyParagraphGap:81},{bodyPaddingLeft:-1},{bodyPaddingRight:101},{bodyIndent:'true'},{cardBorderWidth:13},{cardBorderMode:'around'},{cardBorderStyle:'double'},{cardBorderColor:'#fff'},{cardBorderTop:1}])assert.throws(()=>bodyCardSettings(raw));
 });
 test('border modes zero disabled sides while retaining color style and legacy alpha defaults',()=>{

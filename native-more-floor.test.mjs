@@ -1,0 +1,39 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {parseHTML} from 'linkedom';
+import {NATIVE_DEFAULTS,validateNativeStyle,nativeRules,renderNative} from './native.mjs';
+import {defaultPhoto} from './photos.mjs';
+import {createLiveAdapter} from './live-adapter.mjs';
+import {normalizeCaptionConfig} from './captions.mjs';
+import {normalizeReasoningConfig} from './reasoning.mjs';
+import {normalizeFooterConfig} from './footer.mjs';
+import {normalizeNativeConfig} from './native.mjs';
+const config=()=>normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({version:3,layout:'left',background:'#edf1f8',surface:'#ffffff',surfaceOpacity:1,text:'#28365e',accent:'#7985b6',radius:9,font:'serif',fontSize:15,lineHeight:1.95,nameFont:'serif',nameColor:'#26365f',nameSize:22,timeColor:'#61769c',timeSize:12,caption:'',captionFont:'serif',captionSize:11,captionColor:'#5d70a0',captionPosition:'below',timePosition:'below',reasoning:'',reasoningFont:'serif',reasoningSize:14,glass:0,cardWidth:680,headerHeight:240,avatarSize:56,avatarRadius:8,layers:[],photos:{ai:defaultPhoto(),user:defaultPhoto()}}))));
+const html='<html><head></head><body><div id="chat"><div class="mes" mesid="12" is_user="false"><div class="mesAvatarWrapper"><div class="avatar"><img src="/avatar.png"></div><div class="mesIDDisplay">#12</div></div><div class="mes_block"><div class="ch_name"><span class="name_text">Name</span><div class="mes_buttons"><button class="extraMesButtonsHint mes_button">...</button><div class="extraMesButtons" style="display:none"></div><button class="mes_edit"></button></div></div><div class="mes_text">Text</div></div></div></div></body></html>';
+const source={kind:'custom',asset:'',image:'https://example.com/more.png'};
+test('More and floor new fields default on old schemes without rewriting supplied fields',()=>{
+ const raw=structuredClone(NATIVE_DEFAULTS);raw.actions.more={position:'footer',anchor:'bottom',x:4,y:-8};delete raw.stats.floor.prefix;delete raw.stats.floor.suffix;
+ const before=structuredClone(raw),next=validateNativeStyle(raw);assert.deepEqual(raw,before);assert.deepEqual(next.actions.more,{position:'footer',anchor:'bottom',x:4,y:-8,mode:'default',text:'更多',source:null,imageSize:23});assert.equal(next.stats.floor.prefix,'#');assert.equal(next.stats.floor.suffix,'');assert.deepEqual(validateNativeStyle(next),next);
+ for(const mutate of [s=>s.actions.more.mode='html',s=>s.actions.more.imageSize=121,s=>s.actions.more.text='x'.repeat(41),s=>s.actions.more.source={kind:'custom',asset:'',image:'javascript:alert(1)'},s=>s.stats.floor.prefix=12,s=>s.stats.floor.suffix='x'.repeat(41)]){const bad=structuredClone(next);mutate(bad);assert.throws(()=>validateNativeStyle(bad));}
+});
+test('More replacements retain the native button, tray adjacency and listeners through mode changes',()=>{
+ const {document}=parseHTML(html),msg=document.querySelector('.mes'),hint=msg.querySelector('.extraMesButtonsHint'),tray=msg.querySelector('.extraMesButtons'),parent=hint.parentNode,c=config();let clicks=0;hint.addEventListener('click',()=>{clicks++;tray.style.display='flex';});
+ Object.assign(c.nativeStyle.actions.more,{mode:'text',text:'打开工具'});renderNative(msg,c);renderNative(msg,c);assert.equal(hint.querySelectorAll('.otl-native-label').length,1);assert.equal(hint.querySelector('.otl-native-label').textContent,'打开工具');assert.equal(hint.parentNode,parent);assert.equal(hint.nextElementSibling,tray);hint.click();assert.equal(clicks,1);assert.equal(tray.style.display,'flex');
+ Object.assign(c.nativeStyle.actions.more,{mode:'image',source,imageSize:61});renderNative(msg,c);assert.equal(hint.querySelector('.otl-native-label'),null);assert.equal(hint.dataset.otlNativeMode,'image');assert.match(nativeRules('.mes',c),/\.extraMesButtonsHint\[data-otl-native-mode=image\]\{[^}]*width:61px!important;height:61px!important/);assert.match(nativeRules('.mes',c),/https:\/\/example.com\/more.png/);hint.click();assert.equal(clicks,2);
+ c.nativeStyle.actions.more.source=null;renderNative(msg,c);assert.equal(hint.dataset.otlNativeMode,'default');c.nativeStyle.actions.more.mode='text';c.nativeStyle.actions.more.text=' ';renderNative(msg,c);assert.equal(hint.dataset.otlNativeMode,'default');assert.equal(hint.textContent,'...');
+});
+test('floor decoration uses numeric mesid and literal text, leaving native identifiers and text untouched',()=>{
+ const {document}=parseHTML(html),msg=document.querySelector('.mes'),floor=msg.querySelector('.mesIDDisplay'),original=floor.firstChild,c=config();Object.assign(c.nativeStyle.stats.floor,{prefix:'第 "<b>',suffix:' 层'});renderNative(msg,c);assert.equal(floor.dataset.otlNativeFloorLabel,'第 "<b>12 层');assert.equal(floor.dataset.otlNativeFloorCustom,'true');assert.equal(floor.textContent,'#12');assert.equal(floor.firstChild,original);assert.equal(msg.getAttribute('mesid'),'12');assert.equal(floor.children.length,0);
+ msg.setAttribute('mesid','23');renderNative(msg,c);assert.equal(floor.dataset.otlNativeFloorLabel,'第 "<b>23 层');assert.equal(floor.textContent,'#12');Object.assign(c.nativeStyle.stats.floor,{prefix:'',suffix:''});renderNative(msg,c);assert.equal(floor.dataset.otlNativeFloorLabel,'23');Object.assign(c.nativeStyle.stats.floor,{prefix:'#',suffix:''});renderNative(msg,c);assert.equal(floor.dataset.otlNativeFloorCustom,'false');assert.equal(floor.textContent,'#12');
+ const css=nativeRules('.scope',c);assert.match(css,/\.scope \.mesIDDisplay\[data-otl-native-floor-custom=true\]::after\{content:attr\(data-otl-native-floor-label\)!important/);assert.ok(!css.includes('<b>'));
+});
+test('live teardown restores exact native markup and handlers after More and floor customization',()=>{
+ const {document}=parseHTML(html),msg=document.querySelector('.mes'),hint=msg.querySelector('.extraMesButtonsHint'),floor=msg.querySelector('.mesIDDisplay'),before=msg.outerHTML,c=config();Object.assign(c.nativeStyle.actions.more,{mode:'text',text:'工具'});Object.assign(c.nativeStyle.stats.floor,{prefix:'第',suffix:'层'});let clicks=0;hint.addEventListener('click',()=>clicks++);
+ const adapter=createLiveAdapter({document,requestFrame:()=>1,cancelFrame:()=>{}});adapter.start(c);assert.equal(floor.dataset.otlNativeFloorLabel,'第12层');hint.click();assert.equal(clicks,1);assert.equal(hint.nextElementSibling.className,'extraMesButtons');adapter.stop();assert.equal(msg.outerHTML,before);hint.click();assert.equal(clicks,2);assert.equal(document.querySelector('#orange-theme-live-style'),null);
+ Object.assign(c.nativeStyle.actions.more,{mode:'image',source,imageSize:55});adapter.start(c);assert.equal(hint.dataset.otlNativeMode,'image');assert.equal(floor.textContent,'#12');adapter.stop();assert.equal(msg.outerHTML,before);
+});
+test('live floor display follows host mesid renumbering and keeps host updates after teardown',async()=>{
+ const {document,window}=parseHTML(html),msg=document.querySelector('.mes'),floor=msg.querySelector('.mesIDDisplay'),c=config(),queue=new Map();let next=0;Object.assign(c.nativeStyle.stats.floor,{prefix:'第',suffix:'层'});
+ const adapter=createLiveAdapter({document,MutationObserver:window.MutationObserver,requestFrame:fn=>{const id=++next;queue.set(id,fn);return id;},cancelFrame:id=>queue.delete(id)}),settle=async()=>{await new Promise(r=>setImmediate(r));for(const [id,fn]of [...queue]){queue.delete(id);fn();}await new Promise(r=>setImmediate(r));};
+ adapter.start(c);await settle();msg.setAttribute('mesid','45');await settle();assert.equal(floor.dataset.otlNativeFloorLabel,'第45层');assert.equal(floor.textContent,'#12');floor.textContent='#45';await settle();assert.equal(floor.dataset.otlNativeFloorLabel,'第45层');assert.equal(queue.size,0);adapter.stop();assert.equal(msg.getAttribute('mesid'),'45');assert.equal(floor.textContent,'#45');assert.equal(floor.hasAttribute('data-otl-native-floor-label'),false);
+});

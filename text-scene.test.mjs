@@ -44,3 +44,9 @@ test('avatar geometry has a fixed origin independent of local layout presets',()
  const c={...normalize(old()),headerHeight:60},p=defaultPhoto({enabled:true,size:300});
  const geometries=['top','left','collage'].map(layout=>sceneGeometry({...c,layout},630,p));assert.deepEqual(geometries[0],geometries[1]);assert.deepEqual(geometries[1],geometries[2]);assert.equal(geometries[0].photoTop,0);assert.equal(geometries[0].baseHeight,60);
 });
+
+test('text placement measures shared parents once and completes reads before writes',()=>{
+ const c=normalize(old()),events=[],header={getBoundingClientRect:()=>{events.push('header');return {left:10,top:20};}},parent={getBoundingClientRect:()=>{events.push('parent');return {left:15,top:25};}},nodes={name:{offsetParent:parent},time:{offsetParent:parent}};
+ placeScene({},header,c,nodes,{width:300,height:240,reserveTop:0},()=>events.push('write'));
+ assert.deepEqual(events.slice(0,2),['header','parent']);assert.equal(events.filter(v=>v==='header').length,1);assert.equal(events.filter(v=>v==='parent').length,1);assert.ok(events.slice(2).every(v=>v==='write'));
+});

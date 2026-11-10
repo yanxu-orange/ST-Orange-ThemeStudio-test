@@ -1,3 +1,4 @@
+import {createFontLibrary,renderFontLibrary} from './font-library.mjs';
 import {createAssetLibrary} from './asset-library.mjs';
 import {normalizeImageUrl} from './image-sources.mjs';
 import {installLauncherDrag} from './launcher-drag.mjs';
@@ -54,6 +55,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
   let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
   const assetLibrary=createAssetLibrary();
+  const fontLibrary=createFontLibrary();
   const host=document.createElement('div'); host.id='orange-theme-lab'; document.body.append(host);
   const shadow=host.attachShadow({mode:'open'});
   const scrollbarVisibility=createScrollbarVisibility({document,ownShadow:shadow});
@@ -107,7 +109,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
   function notify(text){const n=shadow.querySelector('#notice');n.textContent=text;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{n.textContent='';},4500);noticeTimer.unref?.();}
   function remember(){shadow.querySelector('#save-state').textContent='未保存的草稿';history.push(clone(config));if(history.length>40)history.shift();}
   function fixture(user,long=false){
-    const msg=make('div','mes');msg.dataset.orangeLabFixture='message';msg.setAttribute('is_user',String(user));msg.setAttribute('is_system','false');
+    const msg=make('div','mes');msg.dataset.orangeLabFixture='message';msg.setAttribute('is_user',String(user));msg.setAttribute('is_system','false');msg.setAttribute('mesid',user?'2':'1');
     const header=make('div','otl-header');header.dataset.pick='avatar';header.tabIndex=0;header.setAttribute('role','button');header.setAttribute('aria-label',user?'选择用户头像区':'选择 AI 头像区');
     const photoGroup=make('div','otl-photo-group');photoGroup.dataset.pick='photo';photoGroup.dataset.scope=user?'user':'ai';photoGroup.tabIndex=0;photoGroup.setAttribute('role','button');photoGroup.setAttribute('aria-label',user?'选择用户头像':'选择 AI 头像');
     const av=make('div','mesAvatarWrapper');const image=make('img');image.src=avatarUrl(user);image.alt=user?'实验用户头像':'实验角色头像';av.append(image);photoGroup.append(av);
@@ -338,11 +340,12 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   }
   function renderSourceLibrary(container,chromeTarget=null){
     if(!chromeTarget&&libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
-    const isBackground=libraryPurpose==='reasoning-background',isEditIcon=libraryPurpose==='native-edit-icon',isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions.edit:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose;
+    const isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose;
+    const fontBox=make('details'),fontTitle=make('summary','','字体库');fontBox.append(fontTitle);const fontURL=make('input');fontURL.type='url';fontURL.placeholder='字体文件直链';fontURL.setAttribute('aria-label','字体库直链');const fontWeight=make('select');fontWeight.setAttribute('aria-label','字体库文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;fontWeight.append(o);}fontBox.append(fontURL,fontWeight);renderFontLibrary(fontBox,{library:fontLibrary,link:fontURL,face:fontWeight,onError:notify});container.append(fontBox);
     propertyHeading(container,'添加目标');
     if(isSourceTarget){
-      container.append(make('p','hint',chromeTarget?'选择图片作为当前按钮图形，不新增装饰素材。':isEditIcon?'选择图片作为编辑按钮图标，不新增装饰素材。':'选择图片作为思维入口背景，不新增装饰素材。'));
-      const cancel=make('button','','取消选图');if(!chromeTarget)cancel.id=isEditIcon?'native-edit-cancel':'reasoning-bg-cancel';cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='edit';renderFields(chromeTarget?undefined:targetGroup);});container.append(cancel);
+      container.append(make('p','hint',chromeTarget?'选择图片作为当前按钮图形，不新增装饰素材。':isEditIcon?`选择图片作为${isMoreIcon?'更多':'编辑'}按钮图标。`:'选择图片作为思维入口背景，不新增装饰素材。'));
+      const cancel=make('button','','取消选图');if(!chromeTarget)cancel.id=isEditIcon?(isMoreIcon?'native-more-cancel':'native-edit-cancel'):'reasoning-bg-cancel';cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='edit';renderFields(chromeTarget?undefined:targetGroup);});container.append(cancel);
     }else if(ui.region==='reasoning'){
       const target=make('select'),label=make('label','field','添加到');target.setAttribute('aria-label','思维图片添加到');for(const [v,t]of [['reasoning-entry','思维入口'],['reasoning-body','思维正文']]){const o=make('option','',t);o.value=v;target.append(o);}target.value=reasoningAnchor;target.addEventListener('change',()=>{invalidateEditing();reasoningAnchor=target.value;});label.append(target);container.append(label);
     }
@@ -359,7 +362,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     container.append(make('p','hint','我的素材保存在本浏览器，独立于当前方案。先存入素材库，再点击“使用素材”放入目标；导出只包含已经使用的图片。'));
     propertyHeading(container,'内置素材');
     const libraryLabel=make('label','field','内置素材库'),library=make('select');library.setAttribute('aria-label','内置素材库');for(const [id,asset]of Object.entries(ASSETS)){const option=make('option','',asset.name);option.value=id;library.append(option);}library.value=Object.keys(ASSETS)[0];
-    const addAsset=make('button','',chromeTarget?'使用所选按钮图片':isSourceTarget?(isEditIcon?'使用所选编辑图标':'使用所选背景'):'添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;addAsset.addEventListener('click',()=>useSource({asset:library.value,name:ASSETS[library.value].name}));libraryLabel.append(library,addAsset);container.append(libraryLabel);
+    const addAsset=make('button','',chromeTarget?'使用所选按钮图片':isSourceTarget?(isEditIcon?(isMoreIcon?'使用所选更多图标':'使用所选编辑图标'):'使用所选背景'):'添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;addAsset.addEventListener('click',()=>useSource({asset:library.value,name:ASSETS[library.value].name}));libraryLabel.append(library,addAsset);container.append(libraryLabel);
     if(!isSourceTarget){propertyHeading(container,'可调色形状');const shapes=make('div','actions');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const button=make('button','','添加'+name);button.type='button';button.dataset.addShape=shape;button.disabled=config.layers.length>=LAYER_LIMIT;button.addEventListener('click',()=>useSource({shape,name}));shapes.append(button);}container.append(shapes);}
     propertyHeading(container,'上传到我的素材');
     const uploadLabel=make('label','field','上传图片到素材库'),upload=make('input');upload.type='file';upload.multiple=true;upload.accept='image/png,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',chromeTarget?'上传按钮图片':'上传装饰图片');
@@ -452,7 +455,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     const linkRow=pairedFields(container);linkRow.classList.add('font-link-row');const linkLabel=make('label','field','字体文件直链（留空用预设）'),link=make('input');link.type='url';link.maxLength=2048;link.value=item.fontLink?.url||'';link.setAttribute('aria-label',labelName+' 字体直链');linkLabel.append(link);
     const faceLabel=make('label','field','链接文件类型'),face=make('select');face.setAttribute('aria-label',labelName+' 链接文件类型');
     for(const [value,title]of [['100','极细字体'],['200','纤细字体'],['300','细体字体'],['400','常规字体'],['500','中等字体'],['600','半粗字体'],['700','粗体字体'],['800','特粗字体'],['900','重体字体'],['100 900','可变字体']]){const option=make('option','',title);option.value=value;face.append(option);}face.value=item.fontLink?.faceWeight||'400';faceLabel.append(face);linkRow.append(faceLabel,linkLabel);
-    const commit=()=>{try{const next=validateCaptionStyle({...item,fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null},{stable:ui.region==='header'});remember();if(key==='chrome-input')item.fontLink=next.fontLink;else Object.assign(item,next);link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};
+    const commit=()=>{try{const next=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null},{stable:ui.region==='header'});remember();item.fontLink=next.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};
+    renderFontLibrary(container,{library:fontLibrary,link,face,onSelect:commit,onError:notify});
     link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});
     const status=make('p','hint');status.dataset.fontStatus=key;container.append(status);updateFontStatuses();
     const retry=make('button','','重新加载链接字体');retry.type='button';retry.addEventListener('click',()=>fontSession?.retry());container.append(retry,make('p','hint','链接须直接返回字体文件并允许跨域。失败沿用预设；导出只携带引用，字重效果取决于字体文件。'));
@@ -506,7 +510,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(item.fontSource==='custom'){propertyHeading(container,'外链字体');const linkRow=pairedFields(container);linkRow.classList.add('font-link-row');
       const label=make('label','field','字体文件直链（留空用预设）'),link=make('input');link.type='url';link.maxLength=2048;link.value=item.fontLink?.url||'';link.setAttribute('aria-label',prefix+' 字体直链');label.append(link);
       const faceLabel=make('label','field','链接文件类型'),face=make('select');face.setAttribute('aria-label',prefix+' 链接文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;face.append(o);}face.value=item.fontLink?.faceWeight||'400';faceLabel.append(face);linkRow.append(faceLabel,label);
-      const commit=()=>{try{const value=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null});remember();item.fontLink=value.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});const status=make('p','hint');status.dataset.fontStatus='reasoning:'+part;container.append(status);const retry=make('button','','重新加载链接字体');retry.addEventListener('click',()=>fontSession?.retry());container.append(retry,make('p','hint','链接须直接返回字体文件并允许跨域；失败使用预设。导出携带链接，不包含字体文件。'));updateFontStatuses();
+      const commit=()=>{try{const value=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null});remember();item.fontLink=value.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};renderFontLibrary(container,{library:fontLibrary,link,face,onSelect:commit,onError:notify});
+    link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});const status=make('p','hint');status.dataset.fontStatus='reasoning:'+part;container.append(status);const retry=make('button','','重新加载链接字体');retry.addEventListener('click',()=>fontSession?.retry());container.append(retry,make('p','hint','链接须直接返回字体文件并允许跨域；失败使用预设。导出携带链接，不包含字体文件。'));updateFontStatuses();
     }
 
     if(part==='entry'){
@@ -554,10 +559,13 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
         nativeControl(container,edit,field('图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
       }
       propertyHeading(container,'更多');nativePositionFields(container,actions.more);
+      nativeControl(container,actions.more,field('更多显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片']]}),()=>renderFields());
+      if(actions.more.mode==='text')nativeControl(container,actions.more,field('更多文字','text','text',{maxLength:40}));
+      if(actions.more.mode==='image'){const pick=make('button','','选择或替换更多图标');pick.id='native-more-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-more-icon';ui.mode='library';renderFields();});container.append(pick);nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));}
       propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
     }else if(ui.kind==='info'){
       const stats=config.nativeStyle.stats;
-      for(const [key,title]of [['floor','楼层号'],['time','生成时长'],['tokens','Token 统计']]){propertyHeading(container,title);nativePositionFields(container,stats[key]);}
+      for(const [key,title]of [['floor','楼层号'],['time','生成时长'],['tokens','Token 统计']]){propertyHeading(container,title);nativePositionFields(container,stats[key]);if(key==='floor'){nativeControl(container,stats.floor,field('前缀','prefix','text',{maxLength:40}));nativeControl(container,stats.floor,field('后缀','suffix','text',{maxLength:40}));}}
       propertyHeading(container,'外观');nativeAppearanceFields(container,stats,true);
     }else{
       const swipe=config.nativeStyle.swipe;
@@ -573,6 +581,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     propertyHeading(container,'字体设计');const fontRow=pairedFields(container);renderConfigFields(fontRow,['font']);
     const label=make('label','field','正文字重'),mode=make('select');mode.setAttribute('aria-label','正文字重模式');for(const [value,name]of [['auto','沿用当前'],['custom','自定义']]){const option=make('option','',name);option.value=value;mode.append(option);}mode.value=config.bodyWeight==='auto'?'auto':'custom';mode.addEventListener('change',()=>{remember();config.bodyWeight=mode.value==='auto'?'auto':400;apply();renderFields();});label.append(mode);fontRow.append(label);
     if(config.bodyWeight!=='auto')editorControl(container,field('正文字重','bodyWeight','range',{min:100,max:900,step:50,notice:'正文排版已更新，尚未保存'}),config);renderConfigFields(container,['fontSize','text']);
+    renderFontLinkFields(container,'body',{get fontLink(){return config.bodyFontLink;},set fontLink(v){config.bodyFontLink=v;}},'正文');
     propertyHeading(container,'段落排版');renderConfigFields(container,['lineHeight']);
     for(const f of [field('段距（含末段下方）','bodyParagraphGap','range',{min:0,max:80,unit:'px'}),field('首行缩进','bodyIndent','select',{options:[['false','关闭'],['true','两个字']]})])editorControl(container,{...f,notice:'正文排版已更新，尚未保存'},config);
     propertyHeading(container,'左右留白');for(const f of [field('正文左侧留白','bodyPaddingLeft','range',{min:0,max:100,unit:'px'}),field('正文右侧留白','bodyPaddingRight','range',{min:0,max:100,unit:'px'})])editorControl(container,{...f,notice:'正文排版已更新，尚未保存'},config);
@@ -638,7 +647,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
     const container=shadow.querySelector('.fields');container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
     if(ui.page!=='chat')title='此范围尚未接入';
-    else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':'添加到：'+(ui.region==='input'?'输入区':ui.region==='footer'?'尾部区':ui.region==='reasoning'?'思维区':ui.region==='overall'?'整张消息':'头像区');
+    else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':'添加到：'+(ui.region==='input'?'输入区':ui.region==='footer'?'尾部区':ui.region==='reasoning'?'思维区':ui.region==='overall'?'整张消息':'头像区');
     else if(ui.region==='overall'){
       kinds=[['card','整体样式'],['image','全局装饰']];if(ui.kind==='image'){objects=matchingLayers(config.layers,'overall').map(l=>[l.id,l.name]);selectedLayerId=ui.object;selected='decoration';title=config.layers.find(l=>l.id===ui.object)?.name||'全局装饰';}else{selected='global';title='当前消息卡片';keys=['surface','accent','radius','glass','surfaceOpacity','cardWidth'];}
     }else if(ui.region==='header'){
@@ -691,7 +700,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     scrollbarVisibility.set(active&&normalizeScrollbars(config.hideScrollbars));if(scrollbarToggle)scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);
     layerDrag.cancel();
     const root=document.documentElement;root.dataset.otlPreviewMode=ui.previewMode;
-    fontSession?.update({...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config)});updateFontStatuses();
+    fontSession?.update({body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config)});updateFontStatuses();
     const lengths=['radius','fontSize','avatarSize','avatarRadius','headerHeight','nameSize','timeSize','captionSize','reasoningSize','decorationWidth','decorationX','decorationY','glass','cardWidth','textTop'];
     // Variables live on this dedicated stylesheet, never on the user's root inline settings.
     const cssKeys=new Set(Object.values(groups).flat().filter(f=>f.type==='color'||f.type==='range'||f.key.endsWith('Font')||f.key==='font').map(f=>f.key));
@@ -707,7 +716,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     liveStyle.textContent+=CHROME_PREVIEW_BASE+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
     chromePreview.update(config);
     liveStyle.textContent+=chatFrameRules('html[data-orange-lab] #chat',sq,config);
-    liveStyle.textContent+=bodyCardRules('html[data-orange-lab] #chat > .mes[data-orange-lab-fixture] > .mes_block > .mes_text','html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]',config,'preview');
+    liveStyle.textContent+=bodyCardRules('html[data-orange-lab] #chat > .mes[data-orange-lab-fixture] > .mes_block > .mes_text','html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]',config,'preview',fontSession?.families()?.body);
     liveStyle.textContent+=footerRules('html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]',config,fontSession?.families()||{},true);
     liveStyle.textContent+=nativeRules('html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]',config,'.otl-header');
     const nq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=`${nq} .otl-native-demo{display:flex!important;visibility:visible!important;opacity:1!important}${nq} .otl-native-demo > :is(.extraMesButtonsHint,.mes_edit){display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}${nq} .otl-demo-stat-home > :is(.mesIDDisplay,.mes_timer,.tokenCounterDisplay){display:block!important}${nq}[is_user=false] > :is(.swipe_left,.swipeRightBlock),${nq}[is_user=false] > .swipeRightBlock > .swipe_right{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;interactivity:auto!important}${nq}[is_user=false]:not([data-otl-native-hide-counter=true]) .swipes-counter{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;interactivity:auto!important}${nq}[is_user=true] > :is(.swipe_left,.swipeRightBlock){display:none!important}`;

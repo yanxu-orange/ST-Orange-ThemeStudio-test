@@ -1,3 +1,4 @@
+import {runLayoutPass} from './layout-pass.mjs';
 import {regionZ} from './region-layers.mjs';
 import {fillSettings} from './avatar-fill.mjs';
 import {clone} from './layers.mjs';
@@ -44,12 +45,29 @@ export function sceneFrameRules(q,header){return `${header}{position:relative!im
 ${q} .otl-scene-art{position:absolute!important;left:24px!important;top:24px!important;width:calc(100% - 48px)!important;height:var(--sc-inner-height)!important;pointer-events:none;}
 `;}
 /** Assign shared geometry without measuring content or changing the saved positions. */
-export function prepareScene(msg,header,c,nodes,set,hidden=false){
- const g=sceneGeometry(c,sceneWidth(msg,c),c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],hidden,msg.getAttribute('is_user')==='true'),items=textEntries(c),tokens=textTokens(c);
+export function prepareScene(msg,header,c,nodes,set,hidden=false,width=sceneWidth(msg,c)){
+ const g=sceneGeometry(c,width,c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],hidden,msg.getAttribute('is_user')==='true'),items=textEntries(c),tokens=textTokens(c);
  for(const [key,item]of Object.entries(items))set(msg,'--sc-width-'+tokens[key],itemWidth(item,g.width)+'px');
  const bounds=sceneBounds(c,g);set(msg,'--sc-avatar-clip',avatarClipPolygon(c,g,c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],msg.getAttribute('is_user')==='true'));for(const [key,value]of Object.entries({'fill-height':g.photoHeight,'base-height':g.baseHeight,'inner-height':Math.max(0,g.baseHeight-CARD_PADDING),'reserve-top':bounds.reserveTop,'total-height':bounds.height}))set(msg,'--sc-'+key,value+'px');return {...g,...bounds};
 }
-export function placeScene(msg,header,c,nodes,g,set){
- const r=header.getBoundingClientRect(),items=textEntries(c),tokens=textTokens(c);for(const [key,node]of Object.entries(nodes)){if(!node)continue;const point=itemPoint(c,items[key],g.width),p={x:point.x+CARD_PADDING,y:point.y+CARD_PADDING},parent=node.offsetParent||node.parentElement,rect=parent.getBoundingClientRect(),ox=rect.left+(parent.clientLeft||0)-(parent.scrollLeft||0),oy=rect.top+(parent.clientTop||0)-(parent.scrollTop||0);for(const [edge,value]of Object.entries({left:-p.x,top:-p.y,right:g.width+CARD_PADDING*2-p.x,bottom:g.height-p.y}))set(msg,'--sc-clip-'+edge+'-'+tokens[key],value+'px');set(msg,'--sc-left-'+tokens[key],(r.left+(header.clientLeft||0)+p.x-ox)+'px');set(msg,'--sc-top-'+tokens[key],(r.top+(header.clientTop||0)+g.reserveTop+p.y-oy)+'px');}
+export function placeScene(...args){return runLayoutPass([placeSceneLayout(...args)])[0];}
+export function* placeSceneLayout(msg,header,c,nodes,g,set){
+ const {r,placements,headerLeft,headerTop}=yield()=>{
+ const r=header.getBoundingClientRect(),rects=new Map([[header,r]]),items=textEntries(c),placements=[];
+ // Read each shared origin once before writing any text positions.
+ for(const [key,node]of Object.entries(nodes)){
+  if(!node)continue;
+  const point=itemPoint(c,items[key],g.width),p={x:point.x+CARD_PADDING,y:point.y+CARD_PADDING},parent=node.offsetParent||node.parentElement;
+  let rect=rects.get(parent);if(!rect){rect=parent.getBoundingClientRect();rects.set(parent,rect);}
+  placements.push({key,p,ox:rect.left+(parent.clientLeft||0)-(parent.scrollLeft||0),oy:rect.top+(parent.clientTop||0)-(parent.scrollTop||0)});
+ }
+ return {r,placements,headerLeft:header.clientLeft||0,headerTop:header.clientTop||0};
+ };
+ const tokens=textTokens(c);
+ for(const {key,p,ox,oy}of placements){
+  for(const [edge,value]of Object.entries({left:-p.x,top:-p.y,right:g.width+CARD_PADDING*2-p.x,bottom:g.height-p.y}))set(msg,'--sc-clip-'+edge+'-'+tokens[key],value+'px');
+  set(msg,'--sc-left-'+tokens[key],(r.left+headerLeft+p.x-ox)+'px');
+  set(msg,'--sc-top-'+tokens[key],(r.top+headerTop+g.reserveTop+p.y-oy)+'px');
+ }
 }
 export function sceneSelectors(prefix,meta,c){return {name:prefix+' .name_text',time:prefix+' .timestamp',...Object.fromEntries(c.captions.map(v=>[captionKey(v.id),meta+` [data-caption-id="${v.id}"]`]))};}

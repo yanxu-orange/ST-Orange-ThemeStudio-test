@@ -87,3 +87,9 @@ test('preview/live arrow switching and label-only positioning share CSS without 
   assert.equal(moved.filter(r=>r.selectorText.includes('.mes_reasoning_arrow:is(')).length,1,'native open-state arrow rule is retained');
  }
 });
+test('reasoning follows loaded body external font with preset fallback while custom fonts stay independent',()=>{
+ const c=current();c.reasoningStyle.entry.fontSource='body';c.reasoningStyle.body.fontSource='body';
+ const loaded=reasoningRules('.entry','.thought','.bg',c,{body:'LoadedBody'});assert.ok((loaded.match(/font-family:"LoadedBody",serif!important/g)||[]).length>=2);
+ const fallback=reasoningRules('.entry','.thought','.bg',c,{});assert.ok((fallback.match(/font-family:serif!important/g)||[]).length>=2);
+ c.reasoningStyle.entry.fontSource='custom';c.reasoningStyle.entry.font='monospace';assert.match(reasoningRules('.entry','.thought','.bg',c,{body:'LoadedBody','reasoning:entry':'CustomEntry'}),/font-family:"CustomEntry",monospace!important/);
+});

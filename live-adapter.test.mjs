@@ -1,3 +1,4 @@
+import {mutationObserverFor} from './test-support/mutation-observer.mjs';
 import {normalizeCaptionConfig,newCaption} from './captions.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ function environment(options={}){
   const {document,window}=parseHTML(`<!doctype html><html><head><style id="custom-style">.original{color:red}</style></head><body><div id="chat">${markup()}${markup(1,true)}</div></body></html>`);
   document.getElementById('custom-style').disabled=false;
   let next=0;const queue=new Map();
-  const adapter=createLiveAdapter({document,MutationObserver:window.MutationObserver,requestFrame:fn=>{const id=++next;queue.set(id,fn);return id;},cancelFrame:id=>queue.delete(id),resolveArtwork:l=>l.kind==='asset'?'/local/'+l.asset+'.webp':'data:image/svg+xml,test',...options});
+  const adapter=createLiveAdapter({document,MutationObserver:mutationObserverFor(document),requestFrame:fn=>{const id=++next;queue.set(id,fn);return id;},cancelFrame:id=>queue.delete(id),resolveArtwork:l=>l.kind==='asset'?'/local/'+l.asset+'.webp':'data:image/svg+xml,test',...options});
   const settle=async()=>{await new Promise(r=>setImmediate(r));for(const [id,fn]of [...queue]){queue.delete(id);fn();}await new Promise(r=>setImmediate(r));};
   return {document,window,adapter,queue,settle};
 }
@@ -235,4 +236,58 @@ test('independent edit observes its dimensions and restores roles on host replac
  const replacement=document.createElement('button');replacement.className='mes_edit';replacement.textContent='宿主重建按钮';edit.replaceWith(replacement);await settle();
  assert.equal(edit.getAttribute('data-otl-native-role'),'host-original');assert.equal(edit.hasAttribute('data-otl-native-mode'),false);assert.ok(unobserved.has(edit));assert.ok(observed.has(replacement));assert.equal(replacement.getAttribute('data-otl-native-role'),'edit');replacement.click();assert.equal(clicks,2);
  adapter.stop();assert.equal(replacement.hasAttribute('data-otl-native-role'),false);assert.equal(replacement.hasAttribute('data-otl-native-mode'),false);assert.equal(replacement.parentNode,buttons);assert.equal(replacement.textContent,'宿主重建按钮');replacement.click();assert.equal(clicks,3);assert.equal(observed.size,0);assert.equal(queue.size,0);
+});
+
+test('single-message and batched native changes never measure untouched messages',async()=>{
+ const {document,adapter,settle,queue}=environment(),chat=document.querySelector('#chat');
+ for(let i=2;i<60;i++)chat.insertAdjacentHTML('beforeend',markup(i,Boolean(i%2)));
+ const measured=new Set();for(const msg of chat.children)for(const node of [msg,...msg.querySelectorAll('*')]){node.getBoundingClientRect=()=>{measured.add(msg.getAttribute('mesid'));return {left:0,top:0,width:120,height:20};};}
+ adapter.start(config());await settle();measured.clear();
+ chat.children[30].querySelector('.mes_text p').textContent+=' 流式片段';await settle();assert.deepEqual([...measured],['30']);assert.equal(queue.size,0);
+ measured.clear();chat.children[12].querySelector('.mes_reasoning_header_title').dataset.duration='8';chat.children[30].querySelector('.name_text').textContent='新名字';await settle();assert.deepEqual(new Set(measured),new Set(['12','30']));
+ measured.clear();document.body.classList.add('documentstyle');await settle();assert.equal(measured.size,60,'global host mode changes update every message');adapter.stop();
+});
+
+test('structure updates refresh only added messages and previous/next latest AI',async()=>{
+ const {document,adapter,settle}=environment(),chat=document.querySelector('#chat'),measured=new Set();
+ const watch=msg=>{for(const node of [msg,...msg.querySelectorAll('*')])node.getBoundingClientRect=()=>{measured.add(msg.getAttribute('mesid'));return {left:0,top:0,width:120,height:20};};};
+ [...chat.children].forEach(watch);adapter.start(config());await settle();measured.clear();
+ chat.insertAdjacentHTML('beforeend',markup(2));watch(chat.lastElementChild);await settle();assert.deepEqual(measured,new Set(['0','2']));
+ measured.clear();chat.insertAdjacentHTML('beforeend',markup(3,true));watch(chat.lastElementChild);await settle();assert.deepEqual(measured,new Set(['3']));
+ measured.clear();chat.children[2].setAttribute('is_user','true');await settle();assert.deepEqual(measured,new Set(['0','2']));assert.equal(chat.firstElementChild.dataset.otlNativeLatestAi,'true');
+ measured.clear();chat.children[2].setAttribute('is_system','true');await settle();assert.equal(measured.size,0);assert.equal(chat.children[2].hasAttribute('data-otl-live'),false);
+ measured.clear();chat.children[3].remove();await settle();assert.equal(measured.size,0);adapter.stop();
+});
+
+test('resize entries target one message, ignore chat-height-only changes and apply chat-width changes globally',async()=>{
+ const instances=[];class Resize{constructor(fn){this.fn=fn;instances.push(this);}observe(){}unobserve(){}disconnect(){}}
+ const {document,adapter,settle,queue}=environment({ResizeObserver:Resize}),chat=document.querySelector('#chat'),measured=new Set();
+ for(const msg of chat.children)for(const node of [msg,...msg.querySelectorAll('*')])node.getBoundingClientRect=()=>{measured.add(msg.getAttribute('mesid'));return {left:0,top:0,width:120,height:20};};
+ adapter.start(config());await settle();const resize=instances[0],msg=chat.firstElementChild,entry=(target,width,height)=>({target,contentRect:{width,height}});
+ measured.clear();resize.fn([entry(msg,360,300)]);await settle();assert.deepEqual(measured,new Set(['0']),'initial size delivery includes late media layout');resize.fn([entry(chat,390,844)]);await settle();measured.clear();resize.fn([entry(msg,360,340)]);await settle();assert.deepEqual(measured,new Set(['0']));
+ measured.clear();resize.fn([entry(chat,390,900)]);await settle();assert.equal(measured.size,0);assert.equal(queue.size,0);
+ resize.fn([entry(chat,600,900)]);await settle();assert.equal(measured.size,2);adapter.stop();
+});
+
+test('streaming ignored system/fixture messages stays ignored and nested host markup targets its real message',async()=>{
+ const {document,adapter,settle}=environment(),chat=document.querySelector('#chat');chat.insertAdjacentHTML('beforeend',markup(2)+markup(3));chat.children[2].setAttribute('is_system','true');chat.children[3].setAttribute('data-orange-lab-fixture','message');
+ adapter.start(config());await settle();chat.children[2].querySelector('.mes_text').textContent='系统更新';chat.children[3].querySelector('.mes_text').textContent='预览更新';await settle();assert.equal(adapter.messageCount,2);assert.equal(chat.children[2].hasAttribute('data-otl-live'),false);assert.equal(chat.children[3].hasAttribute('data-otl-live'),false);
+ const msg=chat.firstElementChild,body=msg.querySelector('.mes_text');body.innerHTML='<div class="mes"><span>宿主嵌套内容</span></div>';await settle();msg.querySelector('.otl-live-caption').remove();body.querySelector('span').textContent='新内容';await settle();assert.equal(msg.querySelectorAll('.otl-live-caption').length,1);adapter.stop();
+});
+
+test('removing and restoring the host message class releases and rebuilds its state and size observations',async()=>{
+ const observed=new Set();class Resize{observe(node){observed.add(node);}unobserve(node){observed.delete(node);}disconnect(){observed.clear();}}
+ const {document,adapter,settle,queue}=environment({ResizeObserver:Resize}),msg=document.querySelector('.mes'),names=msg.querySelector('.alignItemsBaseline');
+ adapter.start(config());await settle();assert.equal(adapter.messageCount,2);assert.ok(observed.has(msg));
+ msg.classList.remove('mes');await settle();assert.equal(adapter.messageCount,1);assert.equal(msg.hasAttribute('data-otl-live'),false);assert.equal(msg.querySelector('[data-otl-live-owned]'),null);assert.equal(observed.has(msg),false);assert.equal(observed.has(names),false);assert.equal(queue.size,0);
+ msg.classList.add('mes');await settle();assert.equal(adapter.messageCount,2);assert.equal(msg.hasAttribute('data-otl-live'),true);assert.equal(msg.querySelectorAll('.otl-live-caption').length,1);assert.ok(observed.has(msg));assert.equal(msg.dataset.otlNativeLatestAi,'true');adapter.stop();
+});
+
+test('first apply prepares every message before measuring width and positions text after all native layouts',()=>{
+ const {document,adapter}=environment(),messages=[...document.querySelectorAll('#chat > .mes')];let widths=0,headerReads=0;
+ for(const msg of messages){
+  Object.defineProperty(msg,'clientWidth',{get(){widths++;assert.ok(messages.every(node=>node.hasAttribute('data-otl-live')));return 680;}});
+  const header=msg.querySelector('.ch_name');header.getBoundingClientRect=()=>{headerReads++;assert.ok(messages.every(node=>node.style.getPropertyValue('--sc-total-height')==='240px'));return {left:0,top:0,width:680,height:240};};
+ }
+ assert.deepEqual(adapter.start(config()),{messages:2});assert.equal(widths,2);assert.ok(headerReads>=4);adapter.stop();
 });

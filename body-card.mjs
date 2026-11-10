@@ -1,6 +1,8 @@
-export const BODY_CARD_DEFAULTS=Object.freeze({cardGutter:12,cardFullWidth:false,bodyWeight:'auto',bodyParagraphGap:12,bodyPaddingLeft:0,bodyPaddingRight:0,bodyIndent:false,cardBorderMode:'all',cardBorderColor:'auto',cardBorderWidth:1,cardBorderStyle:'solid',cardBorderTop:true,cardBorderRight:true,cardBorderBottom:true,cardBorderLeft:true});
+import {validateCaptionStyle} from './captions.mjs';
+export const BODY_CARD_DEFAULTS=Object.freeze({bodyFontLink:null,cardGutter:12,cardFullWidth:false,bodyWeight:'auto',bodyParagraphGap:12,bodyPaddingLeft:0,bodyPaddingRight:0,bodyIndent:false,cardBorderMode:'all',cardBorderColor:'auto',cardBorderWidth:1,cardBorderStyle:'solid',cardBorderTop:true,cardBorderRight:true,cardBorderBottom:true,cardBorderLeft:true});
 export function bodyCardSettings(raw={}){
  const value={...BODY_CARD_DEFAULTS};for(const key of Object.keys(value))if(raw[key]!==undefined)value[key]=raw[key];
+ value.bodyFontLink=validateCaptionStyle({fontLink:value.bodyFontLink}).fontLink;
  if(value.bodyWeight!=='auto'&&(!Number.isFinite(value.bodyWeight)||value.bodyWeight<100||value.bodyWeight>900))throw Error('正文字重超出范围');
  for(const [key,max]of [['cardGutter',80],['bodyParagraphGap',80],['bodyPaddingLeft',100],['bodyPaddingRight',100],['cardBorderWidth',12]])if(!Number.isFinite(value[key])||value[key]<0||value[key]>max)throw Error('排版数值超出范围：'+key);
  for(const key of ['cardFullWidth','bodyIndent','cardBorderTop','cardBorderRight','cardBorderBottom','cardBorderLeft'])if(typeof value[key]!=='boolean')throw Error('排版开关无效：'+key);
@@ -14,10 +16,10 @@ const EMBEDDED='pre,code,ul,ol,li,blockquote,details,summary,table,img,picture,v
 /** Only ordinary paragraphs; neither content nor host nodes are rewritten. */
 export function ordinaryParagraphSelector(body){const filter=`:not(:empty):not(:is(${SPECIAL.map(parent=>parent+' p').join(',')})):not(:has(${EMBEDDED}))`;return `${body} > p${filter},${body} > :is(.text_segment,.custom-text_segment) p${filter}`;}
 /** Extend only the body over the card’s shared 24px inset; header/avatar/footer keep it. */
-export function bodyCardRules(body,card,raw,surface='live'){
+export function bodyCardRules(body,card,raw,surface='live',bodyFamily){
  const c=bodyCardSettings(raw),paragraphs=ordinaryParagraphSelector(body);
  return `${card}{border-color:${borderColor(c,surface)}!important;border-style:${c.cardBorderStyle}!important;border-width:${borderWidths(c).map(n=>n+'px').join(' ')}!important}
-${body}{box-sizing:border-box!important;width:calc(100% + 48px)!important;max-width:none!important;margin-left:-24px!important;margin-right:-24px!important;padding-left:${c.bodyPaddingLeft}px!important;padding-right:${c.bodyPaddingRight}px!important;${c.bodyWeight==='auto'?'':`font-weight:${c.bodyWeight}!important;`}}
+${body}{${bodyFamily?`font-family:${JSON.stringify(bodyFamily)}!important;`:""}box-sizing:border-box!important;width:calc(100% + 48px)!important;max-width:none!important;margin-left:-24px!important;margin-right:-24px!important;padding-left:${c.bodyPaddingLeft}px!important;padding-right:${c.bodyPaddingRight}px!important;${c.bodyWeight==='auto'?'':`font-weight:${c.bodyWeight}!important;`}}
 ${paragraphs}{margin-top:0!important;margin-bottom:${c.bodyParagraphGap}px!important;text-indent:${c.bodyIndent?'2em':'0'}!important}`;
 }
 

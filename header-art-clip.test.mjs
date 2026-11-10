@@ -1,7 +1,8 @@
+import {runLayoutPass} from './layout-pass.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
-import {headerArtworkClipPolygon,updateHeaderArtworkClip} from './header-art-clip.mjs';
+import {headerArtworkClipPolygon,updateHeaderArtworkClip,headerArtworkClipLayout} from './header-art-clip.mjs';
 const points=s=>s.split(',').map(v=>v.split(' ').map(parseFloat));
 function roundTrip(polygon,geometry,rw,rh){const {width:w,height:h,x,y,rotation}=geometry,a=rotation*Math.PI/180,expected=[[-24,-24],[rw+24,-24],[rw+24,rh],[-24,rh]];points(polygon).forEach(([u,v],i)=>{const dx=u-w/2,dy=v-h/2;for(const [actual,want]of [[x+w/2+Math.cos(a)*dx-Math.sin(a)*dy,expected[i][0]],[y+h/2+Math.sin(a)*dx+Math.cos(a)*dy,expected[i][1]]])assert.ok(Math.abs(actual-want)<.00002,`${actual} != ${want}`);});}
 test('individual artwork clip inverse maps fixed header corners for rotations, sizes and positions',()=>{
@@ -30,4 +31,12 @@ test('auto height uses actual loaded dimensions, then natural aspect ratio on lo
 test('non-header artwork remains untouched and invalid geometry never emits NaN',()=>{
  const node=image();node.style.setProperty('clip-path','inset(3px)');assert.equal(updateHeaderArtworkClip(node,{...layer,anchor:'avatar'},300,100),null);assert.equal(node.style.getPropertyValue('clip-path'),'inset(3px)');
  assert.equal(headerArtworkClipPolygon({width:0,height:10,x:0,y:0},300,100),null);assert.equal(headerArtworkClipPolygon({width:10,height:10,x:NaN,y:0},300,100),null);
+});
+
+
+test('header artwork batches computed dimensions before assigning any clip paths',()=>{
+ const {document,window}=parseHTML('<img><img>'),nodes=[...document.querySelectorAll('img')];let reads=0;
+ window.getComputedStyle=()=>{reads++;assert.ok(nodes.every(node=>!node.style.getPropertyValue('clip-path')));return {width:'120px',height:'80px'};};
+ const polygons=runLayoutPass(nodes.map(node=>headerArtworkClipLayout(node,layer,300,100)));
+ assert.equal(reads,2);assert.equal(polygons[0],polygons[1]);assert.ok(nodes.every(node=>node.style.getPropertyValue('clip-path')==='polygon('+polygons[0]+')'));
 });

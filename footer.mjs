@@ -1,3 +1,4 @@
+import {runLayoutPass} from './layout-pass.mjs';
 import {layerSizeStyle} from './shape-assets.mjs';
 import {regionZ,imageKey} from './region-layers.mjs';
 import {CAPTION_LIMIT,newCaption,validateCaptions,captionToken,captionMatchesScope} from './captions.mjs';
@@ -61,10 +62,13 @@ export function nativeFooterClearance(message){
  for(const node of message.querySelectorAll(':scope > .swipe_left,:scope > .swipeRightBlock')){const r=node.getBoundingClientRect();if(!r.width||!r.height||node.hidden||node.style.display==='none')continue;if(getStyle){const style=getStyle.call(message.ownerDocument.defaultView,node);if(style.display==='none'||style.visibility==='hidden')continue;}height=Math.max(height,r.height);}
  return height?Math.ceil(height+8):0;
 }
-export function measureFooter(message,c){
+export function measureFooter(...args){return runLayoutPass([footerLayout(...args)])[0];}
+export function* footerLayout(message,c){
  const root=message.querySelector(':scope > .mes_block > .otl-footer');if(!root)return;
- const scene=root.querySelector('.otl-footer-scene'),flow=scene.querySelector('.otl-footer-flow'),images=[...scene.querySelectorAll('.otl-footer-image')],width=root.clientWidth||root.getBoundingClientRect().width||Math.max(1,c.cardWidth-48);
- for(const cap of c.footerCaptions)root.style.setProperty('--otx-'+footerToken(cap.id),cap.x*width/100+'px');
- scene.style.top='0px';scene.style.height='auto';const base=footerBaseHeight(flow.getBoundingClientRect().height,width,footerLayers(c,message.getAttribute('is_user')==='true'),images);scene.style.height=base+'px';
- const bounds=footerUnion(scene.getBoundingClientRect().top,[...flow.children,...images]);scene.style.top=bounds.top+'px';root.style.height=(bounds.height+(c.nativeStyle?0:nativeFooterClearance(message)))+'px';
+ const scene=root.querySelector('.otl-footer-scene'),flow=scene.querySelector('.otl-footer-flow'),images=[...scene.querySelectorAll('.otl-footer-image')];
+ const width=yield()=>root.clientWidth||root.getBoundingClientRect().width||Math.max(1,c.cardWidth-48);
+ const set=(node,key,value)=>{if(node.style.getPropertyValue(key)!==value)node.style.setProperty(key,value);};
+ for(const cap of c.footerCaptions)set(root,'--otx-'+footerToken(cap.id),cap.x*width/100+'px');
+ const base=yield()=>footerBaseHeight(flow.getBoundingClientRect().height,width,footerLayers(c,message.getAttribute('is_user')==='true'),images);set(scene,'height',base+'px');
+ const {bounds,clearance}=yield()=>({bounds:footerUnion(scene.getBoundingClientRect().top,[...flow.children,...images]),clearance:c.nativeStyle?0:nativeFooterClearance(message)});set(scene,'top',bounds.top+'px');set(root,'height',(bounds.height+clearance)+'px');
 }

@@ -1,23 +1,24 @@
+import {runLayoutPass} from './layout-pass.mjs';
 import {avatarArtworkFrameStyle} from './avatar-art.mjs';
 import {regionZ,regionForImage,imageKey} from './region-layers.mjs';
 import {layerSizeStyle} from './shape-assets.mjs';
 import {captionMatchesScope} from './captions.mjs';
-import {updateHeaderArtworkClip} from './header-art-clip.mjs';
+import {headerArtworkClipLayout} from './header-art-clip.mjs';
 import {avatarDesignRules} from './avatar-design.mjs';
 import {canvasBackgroundRules} from './canvas-background.mjs';
 import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
 import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
 import {normalizeChromeConfig,chromeFontEntries} from './chrome.mjs';
 import {createChromeAdapter} from './chrome-adapter.mjs';
-import {normalizeTextScene,prepareScene,placeScene,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
-import {normalizeNativeConfig,nativeRules,renderNative,latestAI,nativeControlNodes} from './native.mjs';
-import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,measureFooter} from './footer.mjs';
+import {normalizeTextScene,prepareScene,placeSceneLayout,sceneWidth,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
+import {normalizeNativeConfig,nativeRules,nativeLayout,latestAI,nativeControlNodes} from './native.mjs';
+import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,footerLayout} from './footer.mjs';
 import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
 import {bodyCardSettings,bodyCardRules,chatFrameRules} from './body-card.mjs';
-import {normalizeCaptionConfig,captionKey,captionToken,textEntries,textTokens,textFallbacks} from './captions.mjs';
+import {normalizeCaptionConfig,captionKey,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
 import {createFontSession} from './font-sources.mjs';
-import {textSettings,captionWidthPixels,metadataPadding,customTextLayout,validateTextItems,freeText,sceneReserves,textItemRules} from './text-layout.mjs';
+import {textSettings,customTextLayout,textItemRules} from './text-layout.mjs';
 
 const OWN = 'data-otl-live-owned';
 const FLAG = 'data-otl-live';
@@ -28,7 +29,7 @@ const meta = `${head} [data-otl-live-meta]`;
 const captionHost = `${meta} > :is(.otl-live-caption,.otl-live-caption-slot)`;
 
 function styleText(config,families={},interfaceFamily='sans-serif') {
-  const items=textEntries(config),moving=freeText(items),tokens=textTokens(config);
+  const items=textEntries(config),tokens=textTokens(config);
   const settings=textSettings(config),custom=customTextLayout(settings);
   const alignment={start:'flex-start',center:'center',end:'flex-end'}[settings.textAlign];
   const opacity=Math.round((config.surfaceOpacity??1)*255).toString(16).padStart(2,'0');
@@ -40,16 +41,13 @@ html[data-orange-live] #chat{${Object.entries(vars).map(([k,v])=>`--ol-${k}:${v}
 ${q}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;max-width:var(--ol-cardWidth)!important;min-width:0!important;height:auto!important;max-height:none!important;margin:0 auto 18px!important;padding:24px!important;background:var(--ol-surface)!important;color:var(--ol-text)!important;border:1px solid #ffffff88!important;border-radius:var(--ol-radius)!important;box-shadow:0 5px 25px #344b4210!important;backdrop-filter:blur(var(--ol-glass))!important;text-shadow:none!important;overflow:visible!important;container-type:inline-size}
 ${q} > .mes_block{position:static!important;display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;min-width:0!important;overflow:visible!important}
 ${head}{position:relative!important;display:block!important;box-sizing:border-box!important;min-height:var(--ol-header-height)!important;width:100%!important;margin:0 0 14px!important;padding:0!important;border-bottom:1px solid color-mix(in srgb,var(--ol-accent) 22%,transparent)}
-${meta}{position:absolute!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;left:var(--ol-meta-left)!important;top:var(--ol-meta-top)!important;width:var(--ol-meta-width)!important;min-width:0!important;z-index:3}
+${meta}{position:static!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;width:auto!important;min-width:0!important;padding:0!important;z-index:auto!important;transform:none!important}
 ${settings.timeFont==='auto'?'':`${meta} > .timestamp{font-family:${settings.timeFont}!important}`}
-${custom?`${meta}{box-sizing:border-box!important;padding:var(--ol-text-top) var(--ol-text-inset) 0!important;align-items:${alignment}!important;text-align:${settings.textAlign}!important}
-${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta]{justify-content:${alignment}!important}`:''}
+${custom?`${meta}{box-sizing:border-box!important;align-items:${alignment}!important;text-align:${settings.textAlign}!important}`:''}
 ${meta} > .name_text{font-family:var(--ol-nameFont)!important;font-size:var(--ol-nameSize)!important;font-weight:400!important;line-height:1.4!important;color:var(--ol-nameColor)!important;overflow-wrap:anywhere;order:1}
 ${meta} > .timestamp{font-size:var(--ol-timeSize)!important;line-height:1.5!important;color:var(--ol-timeColor)!important;white-space:normal!important;order:2}
 ${meta} .otl-live-caption{line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;order:0}
-${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta]{flex-direction:row!important;flex-wrap:wrap!important;align-items:baseline!important;gap:4px 9px!important}
-${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta] > :is(.otl-live-caption,.otl-live-caption-slot){flex-basis:100%}
-${q} > .mesAvatarWrapper{position:absolute!important;left:24px!important;top:calc(24px + var(--ol-photo-top) + var(--ol-scene-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:${regionZ(config,'header','avatar')}!important}
+${q} > .mesAvatarWrapper{position:absolute!important;left:24px!important;top:calc(24px + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:${regionZ(config,'header','avatar')}!important}
 ${avatar}{position:relative!important;display:block!important;box-sizing:border-box!important;width:var(--ol-photo-width)!important;height:var(--ol-photo-height)!important;max-width:none!important;min-width:0!important;flex:0 0 100%!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;box-shadow:none!important;overflow:visible!important;transform:translate(var(--ol-photo-x),var(--ol-photo-y)) rotate(var(--ol-photo-rotation))!important;transform-origin:50% 100%;isolation:isolate;clip-path:polygon(var(--sc-avatar-clip))!important;}
 ${avatar} > img:not([${OWN}]){position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;z-index:2}
 ${q} > .mesAvatarWrapper > :is(.mesIDDisplay,.mes_timer,.tokenCounterDisplay){max-width:100%;font:11px/1.5 sans-serif;color:var(--ol-timeColor)}
@@ -73,16 +71,14 @@ body.documentstyle ${q} > .mesAvatarWrapper,body.documentstyle ${captionHost}{di
 body.no-blur ${q}{backdrop-filter:none!important}
 ${footerRules(q,config,families)}
 ${nativeRules(q,config)}
-${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config)}
+${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config,'live',families.body)}
 ${chatFrameRules('html[data-orange-live] #chat',q,config)}
 ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-id="${cap.id}"]`;return `${node}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important;${cap.visible?'':'display:none!important;'}}`;}).join('\n')}
 ${meta} .otl-live-caption[hidden]{display:none!important}
 ${textItemRules(items,selectors,families,tokens,fallbacks,{position:false})}
 ${sceneTextRules(config,selectors)}
 ${sceneFrameRules(q,head)}
-${meta}{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}
 ${meta} > .otl-live-caption-slot{position:static!important;display:contents!important}
-${q} > .mesAvatarWrapper{top:calc(24px + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important}
 ${q} .otl-live-art.otl-scene-art{display:block!important}
 ${avatarDesignRules(q,config)}
 ${avatarFillRules(q,config)}
@@ -102,7 +98,18 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   const scrollbarVisibility=createScrollbarVisibility({document});
   let snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
-  const observedSizes=new Set();
+  const observedSizes=new Map(),dirtyMessages=new Set();
+  let chat=null,messages=[],latest=null,fullPending=false,structurePending=false;
+  function unobserveMessage(msg){
+    for(const node of states.get(msg)?.observed||[]){resizer?.unobserve(node);observedSizes.delete(node);}
+  }
+  function observeMessage(msg){
+    if(!resizer)return;
+    const state=states.get(msg),wanted=new Set([msg,msg.querySelector('[data-otl-live-meta]'),...msg.querySelectorAll('[data-otl-live-meta] .name_text,[data-otl-live-meta] .timestamp,[data-otl-live-meta] .otl-live-caption'),msg.querySelector('.mes_reasoning_header'),msg.querySelector('.mes_reasoning'),msg.querySelector('.otl-footer'),msg.querySelector('.otl-footer-flow'),...nativeControlNodes(msg)].filter(Boolean));
+    for(const node of state.observed||[])if(!wanted.has(node)){resizer.unobserve(node);observedSizes.delete(node);}
+    for(const node of wanted)if(!observedSizes.has(node)){observedSizes.set(node,{message:msg,size:null});resizer.observe(node);}
+    state.observed=wanted;
+  }
   function attribute(state,node,key,value){
     let record=state.attributes.find(r=>r.node===node&&r.key===key);
     if(!record){record={node,key,old:node.getAttribute(key),last:null};state.attributes.push(record);}
@@ -134,20 +141,19 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(!node){node=owned(state,'div','otl-live-art',parent);node.setAttribute('data-otl-live-role',role);}
     return node;
   }
-  function renderMessage(msg,isLatest=false){
+  function* prepareMessage(msg){
     const block=msg.querySelector(':scope > .mes_block'),header=block?.querySelector(':scope > .ch_name'),photo=msg.querySelector(':scope > .mesAvatarWrapper > .avatar'),nativeImage=photo?.querySelector(':scope > img:not([data-otl-live-owned])'),name=header?.querySelector('.name_text');
     if(!header||!photo||!nativeImage||!name)return false;
-    let state=states.get(msg);if(!state){const knownHidden=document.body.classList.contains('hideChatAvatars')||document.body.classList.contains('documentstyle');const getStyle=win?.getComputedStyle;const nativeHidden=!knownHidden&&typeof getStyle==='function'&&(getStyle.call(win,photo).display==='none'||getStyle.call(win,photo.parentElement).display==='none');state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden};states.set(msg,state);}
+    let state=states.get(msg);const nativeHidden=yield()=>{if(state)return state.nativeHidden;const knownHidden=document.body.classList.contains('hideChatAvatars')||document.body.classList.contains('documentstyle'),getStyle=win?.getComputedStyle;return !knownHidden&&typeof getStyle==='function'&&(getStyle.call(win,photo).display==='none'||getStyle.call(win,photo.parentElement).display==='none');};if(!state){state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden};states.set(msg,state);}
     releaseDetached(state,msg);
-    const c=snapshot,settings=textSettings(c),items=textEntries(c),tokens=textTokens(c),moving=freeText(items),user=msg.getAttribute('is_user')==='true',p=c.photos[user?'user':'ai'],names=name.parentElement;
-    if(state.meta&&state.meta!==names){const hidden=state.nativeHidden;clearState(state);state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden:hidden};states.set(msg,state);}state.meta=names;
-    attribute(state,msg,FLAG,'');attribute(state,msg,'data-otl-live-layout',c.layout);attribute(state,msg,'data-otl-live-time',c.timePosition);attribute(state,names,'data-otl-live-meta','');
-    const captions=[];
+    const c=snapshot,user=msg.getAttribute('is_user')==='true',p=c.photos[user?'user':'ai'],names=name.parentElement;
+    if(state.meta&&state.meta!==names){const hidden=state.nativeHidden;unobserveMessage(msg);clearState(state);state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden:hidden};states.set(msg,state);}state.meta=names;
+    attribute(state,msg,FLAG,'');attribute(state,msg,'data-otl-live-layout',c.layout);attribute(state,names,'data-otl-live-meta','');
     for(const cap of c.captions){
       let parent=names;
       if(cap.width!=='auto'){let slot=[...state.nodes].find(n=>n.className==='otl-live-caption-slot'&&n.dataset.captionId===cap.id&&n.parentNode===names);if(!slot){slot=owned(state,'div','otl-live-caption-slot',names);slot.dataset.captionId=cap.id;}parent=slot;}
       let node=[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id&&n.parentNode===parent);if(!node){node=owned(state,'div','otl-live-caption',parent);node.dataset.captionId=cap.id;}
-      if(node.textContent!==cap.content)node.textContent=cap.content;node.hidden=!cap.visible||!captionMatchesScope(cap,user);if(!node.hidden)captions.push(node);
+      if(node.textContent!==cap.content)node.textContent=cap.content;node.hidden=!cap.visible||!captionMatchesScope(cap,user);
     }
     const details=block.querySelector('.mes_reasoning_details'),reasonBody=details?.querySelector('.mes_reasoning'),nativeTitle=details?.querySelector('.mes_reasoning_header_title');
     const hasReason=details&&details.dataset.state!=='none'&&reasonBody&&(reasonBody.textContent.trim()||reasonBody.querySelector('img:not([data-otl-live-owned]),video,audio,pre,textarea'));
@@ -166,56 +172,102 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const photoHidden=state.nativeHidden||photo.hidden||photo.parentElement.hidden||photo.style.display==='none'||photo.parentElement.style.display==='none'||documentMode||document.body.classList.contains('hideChatAvatars');
     attribute(state,msg,'data-otl-live-avatar-hidden',photoHidden?'true':'false');
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
-    const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden);
+    const width=yield()=>sceneWidth(msg,c);
+    const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden,width);
     const {photoWidth,photoHeight,photoTop}=scene;
     for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg'}))variable(state,msg,'--ol-'+key,value);
-    const destinations={header,avatar:header,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
+    const headerArtwork=[],destinations={header,avatar:header,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
     for(const anchor of Object.keys(destinations)){
       if(!destinations[anchor])continue;const container=artContainer(state,destinations[anchor],anchor);if(anchor==='header')container.classList.add('otl-scene-art');if(anchor.startsWith('reasoning-'))container.setAttribute('data-otl-reason-owned','');
       const layers=c.layers.filter(l=>l.visible&&l.anchor===anchor&&!(photoHidden&&anchor==='avatar')&&(l.scope==='both'||l.scope===(user?'user':'ai')));
       const existing=new Map([...container.querySelectorAll('[data-layer-id]')].map(e=>[e.getAttribute('data-layer-id'),e]));
       for(const layer of layers){
         const src=resolveArtwork(layer);if(!src)continue;
-        let image=existing.get(layer.id);if(!image){let imageParent=container;if(anchor==='avatar'){imageParent=owned(state,'div','otl-avatar-art-frame',container);}image=owned(state,'img','',imageParent);image.setAttribute('data-layer-id',layer.id);if(anchor==='header')image.onload=schedule;if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
+        let image=existing.get(layer.id);if(!image){let imageParent=container;if(anchor==='avatar'){imageParent=owned(state,'div','otl-avatar-art-frame',container);}image=owned(state,'img','',imageParent);image.setAttribute('data-layer-id',layer.id);if(anchor==='header')image.onload=()=>scheduleMessage(msg);if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
         existing.delete(layer.id);if(image.getAttribute('src')!==src)image.setAttribute('src',src);
         if(anchor==='avatar')Object.assign(image.parentElement.style,avatarArtworkFrameStyle(c,user,scene,regionZ(c,'header',imageKey(layer.id))));
-        Object.assign(image.style,{...layerSizeStyle(layer),position:'absolute',objectPosition:layer.side+' '+layer.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:regionZ(c,regionForImage(layer),imageKey(layer.id))});if(anchor==='header')updateHeaderArtworkClip(image,layer,scene.width,Math.max(0,scene.height-24));
+        Object.assign(image.style,{...layerSizeStyle(layer),position:'absolute',objectPosition:layer.side+' '+layer.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:regionZ(c,regionForImage(layer),imageKey(layer.id))});if(anchor==='header')headerArtwork.push({image,layer});
       }
       for(const image of existing.values()){const frame=image.parentElement;state.nodes.delete(image);image.remove();if(frame.classList.contains('otl-avatar-art-frame')){state.nodes.delete(frame);frame.remove();}}
     }
-    const footerSession=session;renderFooter(msg,c,{resolveArtwork,createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},onImageLoad:()=>{if(snapshot&&session===footerSession&&states.get(msg)===state&&msg.isConnected)schedule();}});measureFooter(msg,c);
-    renderNative(msg,c,{createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},attribute:(node,key,value)=>attribute(state,node,key,value),variable:(node,key,value)=>variable(state,node,key,value),latest:isLatest});
-    placeScene(msg,header,c,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value));
-    return true;
+    const footerSession=session;renderFooter(msg,c,{resolveArtwork,createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},onImageLoad:()=>{if(snapshot&&session===footerSession&&states.get(msg)===state&&msg.isConnected)scheduleMessage(msg);}});
+    return {msg,header,sceneNodes,scene,headerArtwork,state};
   }
-  function reconcile(){
-    if(!snapshot)return 0;
-    const nextInterface=interfaceFont(document);if(currentInterface!==nextInterface){currentInterface=nextInterface;if(style)style.textContent=styleText(snapshot,fontSession?.families()||{},currentInterface);}
-    chrome.update(snapshot,fontSession?.families()||{});
-    const messages=[...document.querySelectorAll('#chat > .mes:not([data-orange-lab-fixture])')].filter(m=>m.getAttribute('is_system')!=='true'&&!m.classList.contains('smallSysMes'));
-    const live=new Set(messages);
-    for(const [msg,state]of states)if(!live.has(msg)){clearState(state);states.delete(msg);}
-    const latest=latestAI(messages);let count=0;for(const msg of messages)if(renderMessage(msg,msg===latest))count++;
-    if(resizer){const wanted=new Set([document.querySelector('#chat'),...[...states.keys()].flatMap(msg=>[msg.querySelector('[data-otl-live-meta]'),...msg.querySelectorAll('[data-otl-live-meta] .name_text,[data-otl-live-meta] .timestamp,[data-otl-live-meta] .otl-live-caption'),msg.querySelector('.mes_reasoning_header'),msg.querySelector('.mes_reasoning'),msg.querySelector('.otl-footer'),msg.querySelector('.otl-footer-flow'),msg.querySelector(':scope > .swipe_left'),msg.querySelector(':scope > .swipeRightBlock'),...nativeControlNodes(msg)])].filter(Boolean));for(const node of observedSizes)if(!wanted.has(node)){resizer.unobserve(node);observedSizes.delete(node);}for(const node of wanted)if(!observedSizes.has(node)){resizer.observe(node);observedSizes.add(node);}}
-    return count;
-  }
-  function schedule(){if(!snapshot||frame!==null)return;frame=raf(()=>{frame=null;reconcile();});}
-  function isOwned(node){return node?.nodeType===1&&(node.hasAttribute(OWN)||!!node.closest?.(`[${OWN}]`));}
-  function relevant(records){return records.some(record=>{
-    if(isOwned(record.target))return false;
-    if(record.type==='childList'){
-      const changed=[...record.addedNodes,...record.removedNodes];
-      if(changed.length&&changed.every(isOwned))return false;
-      if(record.target.closest?.('#chat'))return true;
-      return changed.some(node=>node.nodeType===1&&(!!node.closest?.('#chat')||node.id==='chat'||!!node.querySelector?.('#chat')||node.matches?.('.mes')));
+  function nativeOptions(msg,state,isLatest){return {createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},attribute:(node,key,value)=>attribute(state,node,key,value),variable:(node,key,value)=>variable(state,node,key,value),latest:isLatest};}
+  function isMessage(msg){return msg?.parentElement===chat&&msg.matches('.mes:not([data-orange-lab-fixture])')&&msg.getAttribute('is_system')!=='true'&&!msg.classList.contains('smallSysMes');}
+  function syncMessages(){
+    const nextChat=document.querySelector('#chat');
+    if(nextChat!==chat){
+      if(chat){resizer?.unobserve(chat);observedSizes.delete(chat);}
+      chat=nextChat;
+      if(chat&&resizer){observedSizes.set(chat,{message:null,size:null});resizer.observe(chat);}
     }
-    if(record.attributeName==='style'&&record.target!==document.body&&record.target!==document.documentElement)return record.target.matches?.('.mes_buttons,.mes_edit_buttons,.mesIDDisplay,.mes_timer,.tokenCounterDisplay,.swipe_left,.swipeRightBlock,.swipe_right,.swipes-counter,.extraMesButtonsHint,.extraMesButtons')||false;
-    if((record.target===document.body||record.target===document.documentElement)&&['class','style'].includes(record.attributeName))return true;
-    return !!(record.target.nodeType===1?record.target:record.target.parentElement)?.closest?.('#chat');
-  });}
+    messages=[...(chat?.children||[])].filter(isMessage);
+    const live=new Set(messages);
+    for(const [msg,state]of states)if(!live.has(msg)){unobserveMessage(msg);clearState(state);states.delete(msg);dirtyMessages.delete(msg);}
+    for(const msg of dirtyMessages)if(!live.has(msg))dirtyMessages.delete(msg);
+    for(const msg of messages)if(!states.has(msg))dirtyMessages.add(msg);
+    const nextLatest=latestAI(messages);
+    if(nextLatest!==latest){if(live.has(latest))dirtyMessages.add(latest);if(nextLatest)dirtyMessages.add(nextLatest);latest=nextLatest;}
+  }
+  function flush(){
+    if(!snapshot)return 0;
+    const full=fullPending;
+    if(full||structurePending)syncMessages();
+    fullPending=false;structurePending=false;
+    if(full){
+      const nextInterface=interfaceFont(document);if(currentInterface!==nextInterface){currentInterface=nextInterface;if(style)style.textContent=styleText(snapshot,fontSession?.families()||{},currentInterface);}
+      chrome.update(snapshot,fontSession?.families()||{});
+      for(const msg of messages)dirtyMessages.add(msg);
+    }
+    const pending=[...dirtyMessages].filter(isMessage);dirtyMessages.clear();
+    const prepared=runLayoutPass(pending.map(prepareMessage)).filter(Boolean);
+    runLayoutPass(prepared.flatMap(({headerArtwork,scene})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-24)))));
+    runLayoutPass(prepared.map(({msg})=>footerLayout(msg,snapshot)));
+    runLayoutPass(prepared.map(({msg,state})=>nativeLayout(msg,snapshot,nativeOptions(msg,state,msg===latest))));
+    runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
+    for(const {msg}of prepared)observeMessage(msg);
+    return prepared.length;
+  }
+  function reconcile(){fullPending=true;return flush();}
+  function requestFlush(){if(!snapshot||frame!==null)return;frame=raf(()=>{frame=null;flush();});}
+  function schedule(){fullPending=true;requestFlush();}
+  function scheduleMessage(msg){if(!snapshot||msg?.parentElement!==chat)return;dirtyMessages.add(msg);requestFlush();}
+  function messageFor(node){const element=node?.nodeType===1?node:node?.parentElement,msg=element?.closest?.('#chat > .mes');return msg?.parentElement===chat?msg:null;}
+  function isOwned(node){return node?.nodeType===1&&(node.hasAttribute(OWN)||!!node.closest?.(`[${OWN}]`));}
+  function changed(records){
+    for(const record of records){
+      const target=record.target.nodeType===1?record.target:record.target.parentElement;
+      if(isOwned(target))continue;
+      if(record.type==='childList'){
+        const nodes=[...record.addedNodes,...record.removedNodes];
+        if(nodes.length&&nodes.every(isOwned))continue;
+        if(target===chat){structurePending=true;requestFlush();continue;}
+        const msg=messageFor(target);
+        if(msg){scheduleMessage(msg);continue;}
+        if(nodes.some(node=>node.nodeType===1&&(node.id==='chat'||node.querySelector?.('#chat'))))schedule();
+        continue;
+      }
+      if((target===document.body||target===document.documentElement)&&['class','style'].includes(record.attributeName)){schedule();continue;}
+      if(record.attributeName==='style'&&!target.matches?.('.mes_buttons,.mes_edit_buttons,.mesIDDisplay,.mes_timer,.tokenCounterDisplay,.swipe_left,.swipeRightBlock,.swipe_right,.swipes-counter,.extraMesButtonsHint,.extraMesButtons,.avatar,.mesAvatarWrapper'))continue;
+      if(target.parentElement===chat&&(states.has(target)||target.matches('.mes'))&&['class','is_user','is_system','data-orange-lab-fixture'].includes(record.attributeName)){structurePending=true;scheduleMessage(target);continue;}
+      const msg=messageFor(target);
+      if(msg)scheduleMessage(msg);
+      else if(target===chat)schedule();
+    }
+  }
+  function resized(entries){
+    for(const entry of entries){
+      const observed=observedSizes.get(entry.target);if(!observed)continue;
+      const size=entry.contentRect,previous=observed.size;observed.size={width:size.width,height:size.height};
+      // Initial delivery can include media loaded after renderMessage; reconcile it too.
+      if(!observed.message){if(!previous||size.width!==previous.width)schedule();}
+      else if(!previous||size.width!==previous.width||size.height!==previous.height)scheduleMessage(observed.message);
+    }
+  }
   function stop(){
     if(!snapshot)return;
-    scrollbarVisibility.stop();snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();if(frame!==null)caf(frame);frame=null;
+    scrollbarVisibility.stop();snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
     if(rootOriginal===null)document.documentElement.removeAttribute('data-orange-live');else document.documentElement.setAttribute('data-orange-live',rootOriginal);
@@ -229,10 +281,10 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
-      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update({...textEntries(snapshot),...reasoningFontEntries(snapshot),...footerTextEntries(snapshot),...chromeFontEntries(snapshot)});stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
-      if(ResizeObs)resizer=new ResizeObs(schedule);
+      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update({body:{fontLink:snapshot.bodyFontLink},...textEntries(snapshot),...reasoningFontEntries(snapshot),...footerTextEntries(snapshot),...chromeFontEntries(snapshot)});stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
+      if(ResizeObs)resizer=new ResizeObs(resized);
       const token=++session;const count=reconcile();
-      if(Observer){observer=new Observer(records=>{if(relevant(records))schedule();});observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['is_user','is_system','class','src','data-duration','data-state','open','style','hidden']});}
+      if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['mesid','is_user','is_system','data-orange-lab-fixture','class','src','data-duration','data-state','open','style','hidden']});}
       fontHandler=()=>{if(snapshot&&session===token){chrome.refreshInput();schedule();}};document.fonts?.addEventListener?.('loadingdone',fontHandler);document.fonts?.ready?.then?.(fontHandler,()=>{});
       return {messages:count};
     }catch(error){stop();throw error;}
