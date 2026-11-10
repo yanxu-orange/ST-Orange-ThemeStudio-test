@@ -19,7 +19,7 @@ export function latestAI(messages){return [...messages].reverse().find(m=>m.getA
 export function nativeRules(q,c,header='.ch_name'){
  const s=c.nativeStyle,actions=s.actions,stats=s.stats,swipe=s.swipe,ac=actions.color==='auto'?c.accent:actions.color,sc=stats.color==='auto'?c.timeColor:stats.color,wc=swipe.color==='auto'?c.accent:swipe.color;
  const role=k=>`${q} [data-otl-native-role="${k}"]`;
- return `${q} ${header}{height:var(--on-header-height,auto)!important;overflow:visible!important}
+ return `${q} ${header}{overflow:visible!important}
 ${q}[data-otl-native-stats-footer=true] > .mesAvatarWrapper,${q} > .mes_block:has(.otl-native-footer){overflow:visible!important}
 ${q} :is(.otl-native-head,.otl-native-footer){box-sizing:border-box!important;pointer-events:none!important;min-width:0!important;padding:0!important;border:0!important;margin:0!important;overflow:visible!important;}
 ${q} .otl-native-head{position:absolute!important;left:0!important;right:0!important;top:var(--on-head-top,0px)!important;width:100%!important;height:var(--on-head-height,0px)!important;}
@@ -53,16 +53,19 @@ export function renderNative(msg,c,{createNode,removeNode,attribute,variable,lat
  attr(msg,'data-otl-native-latest-ai',latest?'true':'false');attr(msg,'data-otl-native-hide-counter',(latest?s.swipe.hideLatest:s.swipe.hideHistory)?'true':'false');attr(msg,'data-otl-native-stats-footer',s.stats.position==='footer'?'true':'false');
  for(const n of [normal,editing])if(n)attr(n,'data-otl-native-role','actions');for(const [i,n]of stats.entries())if(n)attr(n,'data-otl-native-role','stat-'+i);if(left)attr(left,'data-otl-native-role','swipe-left');if(right)attr(right,'data-otl-native-role','swipe-right');
  for(const [node,style]of [[normal?.querySelector('.mes_edit'),s.actions.edit],[left,s.swipe.left],[rightArrow,s.swipe.right]]){if(!node)continue;const mode=effectiveNativeMode(style);attr(node,'data-otl-native-mode',mode);let label=node.querySelector(':scope > .otl-native-label');if(mode==='text'){if(!label)label=create('span','otl-native-label',node);if(label.textContent!==style.text)label.textContent=style.text;label.setAttribute('aria-hidden','true');}else if(label)remove(label);}
- // Reset only private height variables: measure the base once, never feed the expanded dock back.
- set('--on-header-height','auto');set('--on-head-height','0px');set('--on-footer-height','0px');
+ // Docks never change the fixed header height. Only the footer reserves flow space.
+ set('--on-head-height','0px');set('--on-footer-height','0px');
  const headerRect=header.getBoundingClientRect(),regionWidth=headerRect.width||Math.max(1,c.cardWidth-48);set('--on-region-width',regionWidth+'px');
  const ns=[box(normal),box(editing)],sd=stats.map(n=>n?.textContent.trim()?box(n):{width:0,height:0}),ld=box(left),rd=box(rightArrow),cd=counter?.textContent.trim()?box(counter):{width:0,height:0};
  const dimensions={actions:{width:Math.max(...ns.map(d=>d.width)),height:Math.max(...ns.map(d=>d.height))},stats:{width:sd.filter(exists).reduce((v,d)=>v+d.width,0)+Math.max(0,sd.filter(exists).length-1)*s.stats.gap,height:Math.max(0,...sd.map(d=>d.height))},swipe:{width:[ld,rd,cd].filter(exists).reduce((v,d)=>v+d.width,0)+Math.max(0,[ld,rd,cd].filter(exists).length-1)*s.swipe.gap,height:Math.max(ld.height,rd.height,cd.height)}};
  const groups={head:[],footer:[]};for(const key of ['actions','stats','swipe'])if(exists(dimensions[key])&&!(key==='actions'&&s.actions.position==='header'))groups[s[key].position==='footer'?'footer':'head'].push(key);
  const slots={};for(const [area,keys]of Object.entries(groups)){let slot=(area==='head'?header:block).querySelector(':scope > .otl-native-'+area);if(!keys.length){if(slot)remove(slot);continue;}if(!slot)slot=create('div','otl-native-'+area,area==='head'?header:block);slot.setAttribute('aria-hidden','true');if(area==='footer'&&block.lastElementChild!==slot)block.append(slot);slots[area]=slot;}
- // Row stacking and offsets use stable group sizes; reserve union in each native dock.
- const placements={};for(const [area,keys]of Object.entries(groups)){let cursor=0,top=0,bottom=0;for(const key of keys){const v=s[key],d=dimensions[key],y=cursor+v.y;placements[key]={x:v.x*regionWidth/100,y};top=Math.min(top,y);bottom=Math.max(bottom,y+d.height);cursor+=d.height+v.gap;}const shift=Math.max(0,-top),height=keys.length?Math.ceil(bottom+shift+8):0;set('--on-'+(area==='head'?'head':'footer')+'-height',height+'px');for(const key of keys)placements[key].y+=shift;}
- const css=msg.ownerDocument.defaultView?.getComputedStyle?.(header),extra=css?.boxSizing==='border-box'?0:['paddingTop','paddingBottom','borderTopWidth','borderBottomWidth'].reduce((n,k)=>n+(parseFloat(css?.[k])||0),0);const headHeight=parseFloat(msg.style.getPropertyValue('--on-head-height'))||0;set('--on-head-top',headerRect.height+'px');if(headHeight)set('--on-header-height',Math.max(0,headerRect.height+headHeight-extra)+'px');
+ // Header rows bottom-align inside the existing rectangle. User offsets remain literal;
+ // only the footer expands and shifts its reserved union to contain displaced controls.
+ const placements={};for(const [area,keys]of Object.entries(groups)){let cursor=0,top=0,bottom=0;for(const key of keys){const v=s[key],d=dimensions[key],y=cursor+v.y;placements[key]={x:v.x*regionWidth/100,y};top=Math.min(top,y);bottom=Math.max(bottom,y+d.height);cursor+=d.height+v.gap;}
+  if(area==='head'){const height=keys.length?cursor-s[keys.at(-1)].gap+8:0;set('--on-head-height',height+'px');set('--on-head-top',Math.max(0,headerRect.height-height)+'px');}
+  else {const shift=Math.max(0,-top),height=keys.length?Math.ceil(bottom+shift+8):0;set('--on-footer-height',height+'px');for(const key of keys)placements[key].y+=shift;}
+ }
  const target=key=>{if(key==='actions'&&s.actions.position==='header')return {left:headerRect.right-dimensions.actions.width+s.actions.x*regionWidth/100,top:headerRect.top+Math.max(0,headerRect.height-dimensions.actions.height)*({top:0,center:.5,bottom:1}[s.actions.anchor])+s.actions.y};const area=s[key].position==='footer'?'footer':'head',r=slots[area]?.getBoundingClientRect()||headerRect,p=placements[key]||{x:0,y:0};return {left:r.left+p.x,top:r.top+p.y};};
  const position=(node,key,point,parent)=>{if(!node||!parent)return;const offset=node.offsetParent||parent,r=offset.getBoundingClientRect(),originX=r.left+(offset.clientLeft||0)-(offset.scrollLeft||0),originY=r.top+(offset.clientTop||0)-(offset.scrollTop||0);set('--on-'+key+'-x',(point.left-originX)+'px');set('--on-'+key+'-y',(point.top-originY)+'px');};
  const ap=target('actions');position(normal||editing,'actions',ap,header);

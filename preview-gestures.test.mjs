@@ -49,7 +49,7 @@ test('unselected content and real messages do not consume movement; unrelated ca
  state.kind='image';drag.refresh();event('pointerdown');event('pointermove',node,10,20);event('pointercancel',document,0,0,9);assert.equal(drag.dragging,true);event('pointerup',node,10,20);assert.equal(commits.length,1);
 });
 test('text gestures translate only preview and store one bounded position; second pointer cancels',()=>{
- const {node,textItem,commits,event}=setup(true);event('pointerdown');event('pointermove',node,20,30);assert.equal(node.style.translate,'20px 30px');assert.deepEqual(textItem,{x:10,y:20});event('pointerup',node,20,30);assert.equal(commits.length,1);assert.deepEqual(commits[0].next,{x:20,y:50});assert.equal(node.style.translate,'');
+ const {node,textItem,commits,event}=setup(true);event('pointerdown');event('pointermove',node,20,30);assert.equal(node.style.translate,'20px 30px');assert.equal(node.style.getPropertyValue('--sc-drag-x'),'20px');assert.equal(node.style.getPropertyValue('--sc-drag-y'),'30px');assert.deepEqual(textItem,{x:10,y:20});event('pointerup',node,20,30);assert.equal(commits.length,1);assert.deepEqual(commits[0].next,{x:20,y:50});assert.equal(node.style.translate,'');assert.equal(node.style.getPropertyValue('--sc-drag-x'),'');
  event('pointerdown');event('pointermove',node,40,60);event('pointerdown',node,100,0,2);assert.equal(node.style.translate,'');assert.equal(commits.length,1);
 });
 test('footer pinch recomputes dynamic parent height once and preserves center for top/bottom and percent offsets',async()=>{

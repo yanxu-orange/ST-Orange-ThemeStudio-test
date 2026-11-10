@@ -1,3 +1,4 @@
+import {updateHeaderArtworkClip} from './header-art-clip.mjs';
 import {previewFrameGeometry} from './preview-layout.mjs';
 import {avatarDesignRules,readPreviewAvatars} from './avatar-design.mjs';
 import {addNumericStepper,NUMERIC_STEPPER_CSS} from './numeric-stepper.mjs';
@@ -19,7 +20,7 @@ import {CAPTION_LIMIT,captionKey,captionToken,newCaption,normalizeCaptionConfig,
 import {workbenchMarkup,createWorkbench,matchingLayers,normalizeSelection,layerRegion,layoutWidths,mobileGeometry} from './workbench-ui.mjs';
 import {newLayer, migrateLayers, clone, cropRect, LAYER_LIMIT} from './layers.mjs';
 import {ASSETS,assetUrl} from './catalog.mjs';
-import {defaultPhoto,validatePhotos,collageMetrics,kittyLayers} from './photos.mjs';
+import {defaultPhoto,validatePhotos,kittyLayers} from './photos.mjs';
 import {createLiveAdapter} from './live-adapter.mjs';
 import {createFontSession} from './font-sources.mjs';
 import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customTextLayout,TEXT_Z_MAX,validateTextItems,freeText,sceneReserves,textItemRules} from './text-layout.mjs';
@@ -29,17 +30,17 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
   if (document.getElementById('orange-theme-lab')) return;
   const KEY = 'orange.theme-lab.mobile-test.v1';
   const fonts = [['serif','宋体风格'],['sans-serif','黑体风格'],['Georgia, serif','英文衬线'],['monospace','等宽字体']];
-  const base = { ...TEXT_DEFAULTS, ...BODY_CARD_DEFAULTS, textItems:validateTextItems(), version:1, template:'letter', avatarDesign:'unified', canvasBackground:'tavern', background:'#e8ece6', surface:'#fffdf8', text:'#354b42', accent:'#6f8973', radius:20, font:'serif', fontSize:17, lineHeight:1.9, layout:'top', avatarSize:88, headerHeight:150, avatarRadius:16, nameColor:'#354b42', nameSize:23, nameFont:'serif', timeColor:'#89958b', timeSize:12, timePosition:'below', caption:'今日也有一封来信', captionColor:'#7e9477', captionSize:14, captionFont:'serif', captionPosition:'above', reasoning:'展开这页思绪', reasoningSize:14, reasoningFont:'serif', decoration:'flower', decorationWidth:90, decorationX:8, decorationY:8, decorationOpacity:0.8, glass:0, image:'' };
+  const base = { ...TEXT_DEFAULTS, ...BODY_CARD_DEFAULTS, textItems:validateTextItems(), version:1, template:'letter', avatarDesign:'unified', canvasBackground:'tavern', background:'#e8ece6', surface:'#fffdf8', text:'#354b42', accent:'#6f8973', radius:20, font:'serif', fontSize:17, lineHeight:1.9, layout:'top', avatarSize:88, headerHeight:240, avatarRadius:16, nameColor:'#354b42', nameSize:23, nameFont:'serif', timeColor:'#89958b', timeSize:12, timePosition:'below', caption:'今日也有一封来信', captionColor:'#7e9477', captionSize:14, captionFont:'serif', captionPosition:'above', reasoning:'展开这页思绪', reasoningSize:14, reasoningFont:'serif', decoration:'flower', decorationWidth:90, decorationX:8, decorationY:8, decorationOpacity:0.8, glass:0, image:'' };
   const templates = {
     letter:{...base},
-    clear:{...base,template:'clear',background:'#eaf0f6',surface:'#ffffff',text:'#344963',accent:'#7893b3',radius:8,font:'sans-serif',layout:'left',avatarSize:56,headerHeight:80,nameSize:18,caption:'一个普通而清新的日子',decoration:'none'},
-    scrapbook:{...base,template:'scrapbook',background:'#f0e9e0',surface:'#fffaf0',text:'#645243',accent:'#aa8562',radius:3,avatarSize:112,headerHeight:175,caption:'把今天收进这一页',captionColor:'#a07d60',decoration:'star',decorationWidth:110}
+    clear:{...base,template:'clear',background:'#eaf0f6',surface:'#ffffff',text:'#344963',accent:'#7893b3',radius:8,font:'sans-serif',layout:'left',avatarSize:56,headerHeight:140,nameSize:18,caption:'一个普通而清新的日子',decoration:'none'},
+    scrapbook:{...base,template:'scrapbook',background:'#f0e9e0',surface:'#fffaf0',text:'#645243',accent:'#aa8562',radius:3,avatarSize:112,headerHeight:265,caption:'把今天收进这一页',captionColor:'#a07d60',decoration:'star',decorationWidth:110}
   };
   base.surfaceOpacity=1;
   for(const theme of Object.values(templates))theme.surfaceOpacity=1;
   base.cardWidth=760;
   for(const theme of Object.values(templates))theme.cardWidth=760;
-  templates.kitty={...base,template:'kitty',avatarDesign:'separate',background:'#edf1f8',surface:'#ffffff',text:'#28365e',accent:'#7985b6',radius:9,font:'"LabSongti",serif',fontSize:15,lineHeight:1.95,layout:'collage',headerHeight:240,nameFont:'serif',nameColor:'#26365f',nameSize:22,timeColor:'#61769c',caption:'今夜有一点魔法',captionColor:'#5d70a0',captionSize:11,captionPosition:'below',reasoning:'Kitty Gets to Work',reasoningFont:'Georgia, serif',cardWidth:680,layers:kittyLayers(),photos:{ai:defaultPhoto({enabled:true,photoRotation:-.6,asset:'kitty-header-garden'}),user:defaultPhoto({enabled:true,photoRotation:.45,asset:'kitty-user-window'})}};
+  templates.kitty={...base,template:'kitty',avatarDesign:'separate',background:'#edf1f8',surface:'#ffffff',text:'#28365e',accent:'#7985b6',radius:9,font:'"LabSongti",serif',fontSize:15,lineHeight:1.95,layout:'collage',headerHeight:240,nameFont:'serif',nameColor:'#26365f',nameSize:22,timeColor:'#61769c',caption:'今夜有一点魔法',captionColor:'#5d70a0',captionSize:11,captionPosition:'below',reasoning:'Kitty Gets to Work',reasoningFont:'Georgia, serif',cardWidth:680,layers:kittyLayers(),photos:{ai:defaultPhoto({enabled:true,size:190,rotation:-.6,asset:'kitty-header-garden'}),user:defaultPhoto({enabled:true,size:190,rotation:.45,asset:'kitty-user-window'})}};
   templates.blank={...templates.clear,template:'blank',caption:'',decoration:'none',layers:[]};
   for(const theme of Object.values(templates))if(!theme.photos)theme.photos={ai:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius}),user:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius})};
   fonts.push(['"LabSongti",serif','随包思源宋体']);
@@ -52,7 +53,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
   const field=(label,key,type='text',extra={})=>({label,key,type,...extra});
   const groups={
     global:[field('卡片底色','surface','color'),field('文字颜色','text','color'),field('强调颜色','accent','color'),field('公共圆角','radius','range',{min:0,max:40,unit:'px'}),field('正文字体','font','select',{options:fonts}),field('正文字号','fontSize','range',{min:12,max:28,unit:'px'}),field('正文行高','lineHeight','range',{min:1.2,max:2.6,step:.05}),field('玻璃模糊','glass','range',{min:0,max:20,unit:'px'})],
-    avatar:[field('头像大小','avatarSize','range',{min:40,max:150,unit:'px'}),field('头像圆角','avatarRadius','range',{min:0,max:80,unit:'px'}),field('头像区最小高度','headerHeight','range',{min:60,max:240,unit:'px'}),field('名字字体','nameFont','select',{options:fonts}),field('名字颜色','nameColor','color'),field('名字字号','nameSize','range',{min:8,max:200,unit:'px'}),field('时间颜色','timeColor','color'),field('时间字号','timeSize','range',{min:8,max:200,unit:'px'}),field('时间位置','timePosition','select',{options:[['below','名字下面'],['beside','名字旁边']]} )],
+    avatar:[field('头像大小','avatarSize','range',{min:40,max:150,unit:'px'}),field('头像圆角','avatarRadius','range',{min:0,max:80,unit:'px'}),field('头像区总高度','headerHeight','range',{min:60,max:240,unit:'px'}),field('名字字体','nameFont','select',{options:fonts}),field('名字颜色','nameColor','color'),field('名字字号','nameSize','range',{min:8,max:200,unit:'px'}),field('时间颜色','timeColor','color'),field('时间字号','timeSize','range',{min:8,max:200,unit:'px'}),field('时间位置','timePosition','select',{options:[['below','名字下面'],['beside','名字旁边']]} )],
     caption:[field('自定义文案','caption','textarea'),field('文案位置','captionPosition','select',{options:[['above','名字上方'],['below','名字下方'],['hidden','隐藏']]}),field('文案字体','captionFont','select',{options:fonts}),field('文案颜色','captionColor','color'),field('文案字号','captionSize','range',{min:10,max:26,unit:'px'})],
     reasoning:[field('入口文字','reasoning'),field('思维字体','reasoningFont','select',{options:fonts}),field('入口字号','reasoningSize','range',{min:12,max:24,unit:'px'})],
     decoration:[field('装饰图案','decoration','select',{options:[['flower','花朵'],['star','星星'],['custom','我的图片'],['none','不显示']]}),field('装饰大小','decorationWidth','range',{min:20,max:180,unit:'px'}),field('距右边','decorationX','range',{min:0,max:100,unit:'px'}),field('距顶部','decorationY','range',{min:0,max:160,unit:'px'}),field('装饰透明度','decorationOpacity','range',{min:0,max:1,step:.05})]
@@ -135,7 +136,7 @@ html[data-orange-lab][data-otl-caption=below] .otl-caption{order:2}
 html[data-orange-lab][data-otl-caption=hidden] .otl-caption{display:none}
 html[data-orange-lab] .otl-decoration{position:absolute;height:auto;max-width:none;cursor:pointer;transform-origin:center;isolation:isolate}
 html[data-orange-lab] .mes[data-orange-lab-fixture] .mes_block{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;overflow:visible!important}
-html[data-orange-lab] .mes[data-orange-lab-fixture] .mes_text{padding:12px 0 0!important;margin:0!important;line-height:var(--otl-lineHeight)!important;font-family:var(--otl-font)!important;font-size:var(--otl-fontSize)!important;color:var(--otl-text)!important;overflow-wrap:anywhere}
+html[data-orange-lab] .mes[data-orange-lab-fixture] .mes_text{padding:0!important;margin:0!important;line-height:var(--otl-lineHeight)!important;font-family:var(--otl-font)!important;font-size:var(--otl-fontSize)!important;color:var(--otl-text)!important;overflow-wrap:anywhere}
 html[data-orange-lab] .mes[data-orange-lab-fixture] .mes_text p{margin:0 0 12px!important;line-height:inherit!important;color:inherit!important}
 html[data-orange-lab] .mes[data-orange-lab-fixture] .mes_reasoning_details{display:block!important;margin:14px 0 0!important;padding:0!important;border:0!important;background:none!important}
 html[data-orange-lab] .mes[data-orange-lab-fixture] .mes_reasoning_summary{display:flex!important;cursor:pointer;box-sizing:border-box!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;gap:8px}
@@ -153,9 +154,6 @@ html[data-orange-lab] #chat>.mes[data-orange-lab-fixture]{max-width:var(--otl-ca
 html[data-orange-lab] .otl-photo-group{position:relative;width:var(--otl-avatarSize);aspect-ratio:1;flex-shrink:0;transform-origin:50% 100%;cursor:pointer;z-index:2}
 html[data-orange-lab] .mes[data-orange-lab-fixture] .otl-photo-group>.mesAvatarWrapper{position:relative!important;width:100%!important;height:100%!important;box-sizing:border-box!important;z-index:2;flex-basis:auto!important}
 html[data-orange-lab] .mes[data-orange-lab-fixture] .otl-photo-group>.mesAvatarWrapper>img{width:100%!important;height:100%!important;object-fit:cover}
-html[data-orange-lab] .otl-photo-group[data-enabled=true]{width:clamp(70px,var(--photo-width),var(--photo-max));aspect-ratio:var(--photo-ratio);transform:translate(var(--photo-x),var(--photo-y)) rotate(var(--photo-rotation)) scale(var(--photo-scale))}
-html[data-orange-lab] .mes[data-orange-lab-fixture] .otl-photo-group[data-enabled=true]>.mesAvatarWrapper{border:var(--photo-frame-width) solid var(--photo-frame-color)!important;outline:1px solid var(--photo-outline);box-shadow:var(--photo-shadow);border-radius:1px!important;transform:rotate(var(--photo-tilt))}
-html[data-orange-lab] .mes[data-orange-lab-fixture] .otl-photo-group[data-enabled=true]>.mesAvatarWrapper>img{border-radius:0!important}
 html[data-orange-lab][data-otl-layout=collage] .otl-header{display:block;min-height:230px;isolation:isolate;border-bottom:1px solid #d9e1f0;padding:0 0 24px;margin-bottom:6px}
 html[data-orange-lab][data-otl-layout=collage] .otl-header>.otl-photo-group{position:absolute;left:0;bottom:24px}
 html[data-orange-lab][data-otl-layout=collage] .otl-header>.otl-meta{position:absolute;left:49%;top:20%;width:23%;padding:0;z-index:3;gap:6px}
@@ -181,6 +179,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     return {item,selected:ui.region===region&&ui.kind==='text'&&ui.object===object,maxX:footerId?100:200,maxY:footerId?400:1600,parent,width:footerId?(parent.clientWidth||parent.getBoundingClientRect().width||Math.max(1,config.cardWidth-48)):sceneWidth(node.closest('[data-orange-lab-fixture=message]'),config)};
   }
   function previewLayerTarget(node,item){
+    if(item.anchor==='header')return {onPreview:()=>updateHeaderArtworkClip(node,item,sceneWidth(node.closest('[data-orange-lab-fixture=message]'),config),Math.max(0,config.headerHeight-24))};
     if(item.anchor!=='footer')return {};
     const root=node.closest('.otl-footer'),scene=root.querySelector('.otl-footer-scene'),flow=root.querySelector('.otl-footer-flow'),width=root.clientWidth||root.getBoundingClientRect().width||Math.max(1,config.cardWidth-48);
     const images=[...scene.querySelectorAll('.otl-footer-image')],others=config.layers.filter(l=>l.id!==item.id),fixed=footerBaseHeight(flow.getBoundingClientRect().height,width,others,images),ratio=node.naturalWidth>0&&node.naturalHeight>0?node.naturalHeight/node.naturalWidth:1;
@@ -248,6 +247,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   function fitCollage(){
     for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]')){
       const header=msg.querySelector('.otl-header'),nodes=previewSceneNodes(msg),g=prepareScene(msg,header,config,nodes,previewSet);
+      for(const image of header.querySelectorAll('.otl-scene-art > [data-layer-id]')){const layer=config.layers.find(l=>l.id===image.dataset.layerId);if(layer)updateHeaderArtworkClip(image,layer,g.width,Math.max(0,g.height-24));}
       msg._otlScene=g;msg.style.setProperty('--sc-photo-top',(g.reserveTop+g.photoTop)+'px');
       const photo=header.querySelector('.otl-photo-group');photo.style.setProperty('width',g.photoWidth+'px','important');photo.style.setProperty('max-width','none','important');
     }
@@ -255,9 +255,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   function placePreviewScenes(){for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]'))if(msg._otlScene)placeScene(msg,msg.querySelector('.otl-header'),config,previewSceneNodes(msg),msg._otlScene,previewSet);}
   function renderPhotos(){
     for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]')){
-      const user=msg.getAttribute('is_user')==='true',scope=user?'user':'ai',p=config.photos[scope],group=msg.querySelector('.otl-photo-group');
-      group.dataset.enabled=String(p.enabled);
-      for(const [key,value]of Object.entries({'width':p.widthPercent+'%','max':p.maxSize+'px','ratio':p.ratio,'frame-width':p.frameWidth+'px','frame-color':p.frameColor,'outline':p.outlineColor,'shadow':p.shadow?'1px 2px 3px #6c7b962b':'none','tilt':p.photoRotation+'deg','x':p.x+'px','y':-p.y+'px','scale':p.scale,'rotation':p.rotation+'deg'}))group.style.setProperty('--photo-'+key,value);
+      const user=msg.getAttribute('is_user')==='true',scope=user?'user':'ai',group=msg.querySelector('.otl-photo-group');
       const image=group.querySelector('.mesAvatarWrapper>img');image.src=previewAvatars[scope]||avatarUrl(user);image.onerror=()=>{image.onerror=null;image.src=avatarUrl(user);};
     }
   }
@@ -294,7 +292,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     select.addEventListener('change',()=>{remember();config.avatarDesign=select.value;if(select.value==='unified'){const other=photoScope==='ai'?'user':'ai';config.photos[other]=clone(config.photos[photoScope]);config.avatarFill[other]=clone(config.avatarFill[photoScope]);}apply();renderFields();});
     if(config.avatarDesign==='separate'){const label=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const o=make('option','',text);o.value=value;scope.append(o);}scope.value=photoScope;label.append(scope);container.append(label);scope.addEventListener('change',()=>{photoScope=scope.value;ui.object='photo-'+photoScope;renderFields();});}
     const p=config.photos[photoScope],fill=config.avatarFill[photoScope];
-    const previewSection=make('details','avatar-preview');previewSection.append(make('summary','','预览图片（仅本次）'),make('p','hint','不保存或导出。应用时使用酒馆头像。'));container.append(previewSection);
+    const previewSection=make('details','avatar-preview');previewSection.open=true;previewSection.append(make('summary','','预览图片（仅本次）'),make('p','hint','不保存或导出。应用时使用酒馆头像。'));container.prepend(previewSection);
     for(const [scope,text]of (config.avatarDesign==='unified'?[['ai','AI'],['user','用户']]:[[photoScope,photoScope==='ai'?'AI':'用户']])){
       const label=make('label','field',text+' 预览图片'),upload=make('input');upload.type='file';upload.accept='image/png,image/jpeg,image/webp';upload.setAttribute('aria-label',text+' 预览图片');label.append(upload);previewSection.append(label);
       upload.addEventListener('change',async()=>{const file=upload.files[0];if(!file)return;upload.value='';if(!/^image\/(png|jpeg|webp)$/.test(file.type)){notify('请选择 PNG、JPG 或 WebP 图片');return;}const epoch=editEpoch;try{const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});const image=new Image();image.src=source;await image.decode();if(!active||epoch!==editEpoch)return;previewAvatars[scope]=source;apply();notify('预览图片已显示，可调整取景');}catch{notify('图片读取失败，请重新选择');}});
@@ -302,9 +300,12 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     propertyHeading(container,'显示方式');editorControl(container,field('铺满卡片顶部','enabled','select',{options:[['false','普通显示'],['true','铺满卡片顶部']]}),fill,()=>renderFields());
     for(const f of [field('头像取景水平位置','x','range',{min:0,max:100,unit:'%'}),field('头像取景垂直位置','y','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
     if(fill.enabled){editorControl(container,field('渐变遮罩','gradient','select',{options:[['false','关闭'],['true','开启']]}),fill,()=>renderFields());if(fill.gradient)for(const f of [field('渐变颜色','color','color'),field('渐变强度','opacity','range',{min:0,max:1,step:.05}),field('渐变开始位置','start','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);return;}
-    for(const f of [field('头像大小','size','range',{min:40,max:300,unit:'px'}),field('头像圆角','radius','range',{min:0,max:150,unit:'px'}),field('头像边框','enabled','select',{options:[['false','关闭'],['true','开启']]} )])if(f.key==='enabled'||!p.enabled)editorControl(container,f,p,f.key==='enabled'?()=>renderFields():undefined);
-    if(p.enabled){for(const f of [field('头像宽度占比','widthPercent','range',{min:20,max:65,unit:'%'}),field('头像最大尺寸','maxSize','range',{min:80,max:300,unit:'px'}),field('头像比例','ratio','select',{options:[['1','方形 1:1'],['0.8','竖幅 4:5'],['0.75','竖幅 3:4'],['1.3333333333333333','横幅 4:3']]}),field('边框宽度','frameWidth','range',{min:0,max:15,step:.25,unit:'px'}),field('边框颜色','frameColor','color'),field('轮廓颜色','outlineColor','color'),field('头像阴影','shadow','select',{options:[['true','显示'],['false','隐藏']]}),field('头像倾斜','photoRotation','range',{min:-20,max:20,step:.1,unit:'°'})])editorControl(container,f,p);}
-    propertyHeading(container,'位置与变换');for(const f of [field('头像横向移动','x','range',{min:-80,max:80,unit:'px'}),field('头像纵向移动','y','range',{min:-80,max:80,unit:'px'}),field('头像缩放','scale','range',{min:.5,max:1.5,step:.05}),field('头像旋转','rotation','range',{min:-20,max:20,step:.5,unit:'°'})])editorControl(container,f,p);
+    propertyHeading(container,'形状与尺寸');
+    for(const f of [field('头像大小','size','range',{min:40,max:300,unit:'px'}),field('头像比例','ratio','select',{options:[['1','方形 1:1'],['0.8','竖幅 4:5'],['0.75','竖幅 3:4'],['1.3333333333333333','横幅 4:3']]}),field('头像圆角','radius','range',{min:0,max:150,unit:'px'})])editorControl(container,f,p);
+    editorControl(container,field('头像边框','enabled','select',{options:[['false','关闭'],['true','开启']]}),p,()=>renderFields());
+    if(p.enabled)for(const f of [field('边框宽度','frameWidth','range',{min:0,max:15,step:.25,unit:'px'}),field('边框颜色','frameColor','color')])editorControl(container,f,p);
+    editorControl(container,field('头像阴影','shadow','select',{options:[['true','显示'],['false','隐藏']]}),p);
+    propertyHeading(container,'位置与变换');for(const f of [field('头像横向移动','x','range',{min:-80,max:80,unit:'px'}),field('头像纵向移动','y','range',{min:-80,max:80,unit:'px'}),field('头像缩放','scale','range',{min:.5,max:1.5,step:.05}),field('头像旋转','rotation','range',{min:-20,max:20,step:.1,unit:'°'})])editorControl(container,f,p);
   }
   function artworkUrl(layer){return layer.kind==='asset'?assetUrl(layer.asset):layer.kind==='custom'?layer.image:decorations[layer.kind]?svgUrl(decorations[layer.kind]):'';}
   function renderArtwork(){
@@ -318,7 +319,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
         Object.assign(art.style,{width:layer.width+(layer.widthUnit==='percent'?'%':'px'),height:layer.heightPercent?layer.heightPercent+'%':'auto',objectFit:'contain',objectPosition:layer.side+' '+layer.vertical,[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:layer.z});
         if(selected==='decoration'&&selectedLayerId===layer.id)art.classList.add('otl-selected');
         let frame=msg.querySelector('.otl-scene-art');if(layer.anchor==='header'&&!frame){frame=make('div','otl-scene-art');msg.querySelector('.otl-header').append(frame);}
-        const parent=layer.anchor==='reasoning-entry'?msg.querySelector('.mes_reasoning_header'):layer.anchor==='reasoning-body'?msg.querySelector('.mes_reasoning'):layer.anchor==='avatar'?msg.querySelector('.otl-photo-group'):layer.anchor==='header'?frame:msg;if(parent)parent.append(art);
+        const parent=layer.anchor==='reasoning-entry'?msg.querySelector('.mes_reasoning_header'):layer.anchor==='reasoning-body'?msg.querySelector('.mes_reasoning'):layer.anchor==='avatar'?msg.querySelector('.otl-photo-group'):layer.anchor==='header'?frame:msg;if(parent)parent.append(art);if(layer.anchor==='header'){art.onload=()=>{if(active&&art.isConnected)scheduleFit();};updateHeaderArtworkClip(art,layer,sceneWidth(msg,config),Math.max(0,config.headerHeight-24));}
       }
     }
   }
@@ -585,7 +586,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       if(ui.region==='overall'&&ui.kind!=='image'){propertyHeading(container,'画布与卡片');editorControl(container,{...field('卡片宽度','cardFullWidth','select',{options:[['false','限制最大宽度'],['true','铺满聊天区']]}),notice:'卡片宽度已更新，尚未保存'},config,()=>renderFields());if(!config.cardFullWidth)renderConfigFields(container,['cardWidth']);editorControl(container,{...field('卡片两侧留白','cardGutter','range',{min:0,max:80,unit:'px'}),notice:'卡片留白已更新，尚未保存'},config);renderConfigFields(container,['radius']);
       container.append(make('p','muted','整体背景由酒馆管理；换图请使用酒馆背景设置。'));
       if(config.canvasBackground==='legacy-solid'){const notice=make('p','muted','此旧方案保留原纯色背景。'),migrate=make('button','','改为跟随酒馆背景');migrate.type='button';migrate.addEventListener('click',()=>{remember();config.canvasBackground='tavern';apply();renderFields();notify('已跟随酒馆背景；可撤销，保存后记住');});container.append(notice,migrate);}propertyHeading(container,'配色与透明');renderConfigFields(container,['surface','accent','surfaceOpacity','glass']);}
-      if(ui.region==='header'&&ui.kind==='region'){propertyHeading(container,'头像区基础');renderConfigFields(container,['headerHeight']);/* Legacy group offsets/alignment remain in config and rendering; edit text elements individually here. */}
+      if(ui.region==='header'&&ui.kind==='region'){propertyHeading(container,'头像区基础');renderConfigFields(container,['headerHeight']);container.append(make('p','hint','这是从卡片顶部到正文前的总高度。内容可自由移出区域，超出的部分不显示；调高后会重新露出。'));}
       if(['input','topbar'].includes(ui.region)&&ui.kind!=='image')renderChromeFields(container);
       if(ui.region==='native')renderNativeFields(container);if(ui.region==='body')renderBodySettings(container);if(ui.region==='reasoning'&&ui.kind!=='image')renderReasoningFields(container,ui.kind==='reason-body'?'body':'entry');
       if(ui.region==='overall'&&ui.kind!=='image')renderCardBorderSettings(container);
@@ -616,7 +617,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     for(const cap of config.captions){const selector=`html[data-orange-lab] #chat > .mes[data-orange-lab-fixture] .otl-caption[data-caption-id="${cap.id}"]`;selectors[captionKey(cap.id)]=selector;liveStyle.textContent+=`${selector}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important}${selector}[hidden]{display:none!important}`;}
     liveStyle.textContent+=textItemRules(textEntries(config),selectors,fontSession?.families()||{},textTokens(config),textFallbacks(config),{position:false});
     liveStyle.textContent+=canvasBackgroundRules(config,'html[data-orange-lab]');
-    const sq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=sceneTextRules(config,selectors)+sceneFrameRules(sq,sq+' .otl-header')+`${sq} .otl-header>.otl-photo-group{position:absolute!important;left:0!important;top:var(--sc-photo-top)!important;bottom:auto!important}${sq} .otl-meta,${sq} .otl-name-row{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}`;
+    const sq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=sceneTextRules(config,selectors)+sceneFrameRules(sq,sq+' .otl-header')+`${sq} .otl-header>.otl-photo-group{position:absolute!important;left:24px!important;top:calc(24px + var(--sc-photo-top))!important;bottom:auto!important;clip-path:polygon(var(--sc-avatar-clip))!important;}${sq} .otl-meta,${sq} .otl-name-row{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}`;
     liveStyle.textContent+=avatarDesignRules(sq,config,true)+avatarFillRules(sq,config,true);
     liveStyle.textContent+=CHROME_PREVIEW_BASE+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
     chromePreview.update(config);

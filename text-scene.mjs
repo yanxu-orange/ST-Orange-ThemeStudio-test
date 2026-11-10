@@ -19,30 +19,36 @@ export function newSceneCaption(c,overrides={}){const v=newCaption({font:c.font,
 export function resetSceneLayout(c,layout){return seedTextPositions({...clone(c),layout,timePosition:'below'},{offsets:false});}
 export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-CARD_PADDING*2);}
 export function sceneGeometry(c,width,p,hidden=false,user=false){
- const fill=fillSettings(c,user);if(fill.enabled&&!hidden)return {width,baseHeight:c.headerHeight,photoWidth:width+CARD_PADDING*2,photoHeight:c.headerHeight+CARD_PADDING,photoTop:-CARD_PADDING};
- const photoWidth=hidden?0:p.enabled?Math.max(70,Math.min(width*p.widthPercent/100,p.maxSize)):(p.size??c.avatarSize),photoHeight=p.enabled?photoWidth/Number(p.ratio):photoWidth;
- const baseHeight=hidden?Math.max(4,c.headerHeight):Math.max(c.headerHeight,photoHeight+30);
- return {width,baseHeight,photoWidth,photoHeight,photoTop:0};
+ const fill=fillSettings(c,user),areaWidth=width+CARD_PADDING*2;
+ if(fill.enabled&&!hidden)return {width,baseHeight:c.headerHeight,photoWidth:areaWidth,photoHeight:c.headerHeight,photoTop:-CARD_PADDING};
+ const photoWidth=hidden?0:p.size,photoHeight=photoWidth/Number(p.ratio);
+ return {width,baseHeight:c.headerHeight,photoWidth,photoHeight,photoTop:0};
 }
 export function itemPoint(c,item,width){return {x:width*(item.x+(c.textInset??0))/100,y:item.y+(c.textTop??0)};}
 export function itemWidth(item,width){return item.width==='auto'?width:width*item.width/100;}
-export function sceneBounds(c,g,measurements){
- let top=0,bottom=g.baseHeight;for(const {item,width,height,visible=true}of measurements){if(!visible||!width||!height)continue;const p=itemPoint(c,item,g.width);top=Math.min(top,p.y);bottom=Math.max(bottom,p.y+height);}
- const reserveTop=Math.max(0,Math.ceil(-top));return {reserveTop,height:reserveTop+Math.ceil(bottom)};
+// Region height is the user's total height. Content never reserves extra space.
+export function sceneBounds(c,g){return {reserveTop:0,height:c.headerHeight};}
+/** Clip a transformed avatar to the fixed header without moving native DOM nodes. */
+export function avatarClipPolygon(c,g,p,user=false){
+ const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,scale=fill?1:p.scale,cos=Math.cos(angle),sin=Math.sin(angle);
+ const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:CARD_PADDING+p.x,y=fill?0:CARD_PADDING-p.y;
+ return [[0,0],[g.width+CARD_PADDING*2,0],[g.width+CARD_PADDING*2,c.headerHeight],[0,c.headerHeight]].map(([px,py])=>{
+  const dx=px-x-ox,dy=py-y-oy;
+  return `${Number((ox+(cos*dx+sin*dy)/scale).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)/scale).toFixed(4))}px`;
+ }).join(',');
 }
-export function sceneTextRules(c,selectors){const items=textEntries(c),tokens=textTokens(c);return Object.entries(selectors).map(([key,selector])=>{const item=items[key],token=tokens[key];return `${selector}{font-weight:${item.weight==='auto'?400:item.weight}!important;letter-spacing:normal!important;position:absolute!important;left:var(--sc-left-${token},0px)!important;top:var(--sc-top-${token},0px)!important;box-sizing:border-box!important;width:${item.width==='auto'?'max-content':`var(--sc-width-${token})`}!important;min-width:0!important;max-width:var(--sc-width-${token})!important;flex:none!important;margin:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere;text-align:${c.textAlign}!important;z-index:${item.z}!important;}`;}).join('\n');}
-export function sceneFrameRules(q,header){return `${header}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;padding:0!important;min-height:var(--sc-total-height,0px)!important;margin-top:0!important;overflow:visible!important;}
-${q} .otl-scene-art{position:absolute!important;left:0!important;top:var(--sc-reserve-top,0px)!important;width:100%!important;height:var(--sc-base-height,0px)!important;pointer-events:none;}
 
+export function sceneTextRules(c,selectors){const items=textEntries(c),tokens=textTokens(c);return Object.entries(selectors).map(([key,selector])=>{const item=items[key],token=tokens[key];return `${selector}{font-weight:${item.weight==='auto'?400:item.weight}!important;letter-spacing:normal!important;position:absolute!important;left:var(--sc-left-${token},0px)!important;top:var(--sc-top-${token},0px)!important;box-sizing:border-box!important;width:${item.width==='auto'?'max-content':`var(--sc-width-${token})`}!important;min-width:0!important;max-width:var(--sc-width-${token})!important;flex:none!important;margin:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere;text-align:${c.textAlign}!important;z-index:${item.z}!important;clip-path:inset(calc(var(--sc-clip-top-${token}) - var(--sc-drag-y,0px)) calc(100% - var(--sc-clip-right-${token}) + var(--sc-drag-x,0px)) calc(100% - var(--sc-clip-bottom-${token}) + var(--sc-drag-y,0px)) calc(var(--sc-clip-left-${token}) - var(--sc-drag-x,0px)))!important;}`;}).join('\n');}
+export function sceneFrameRules(q,header){return `${header}{position:relative!important;display:block!important;box-sizing:border-box!important;width:calc(100% + 48px)!important;padding:0!important;height:var(--sc-total-height)!important;min-height:var(--sc-total-height)!important;max-height:var(--sc-total-height)!important;margin-top:-24px!important;margin-bottom:14px!important;margin-left:-24px!important;margin-right:-24px!important;overflow:visible!important;}
+${q} .otl-scene-art{position:absolute!important;left:24px!important;top:24px!important;width:calc(100% - 48px)!important;height:var(--sc-inner-height)!important;pointer-events:none;}
 `;}
-/** Width first, then font-driven dimensions; position never becomes stored model data. */
+/** Assign shared geometry without measuring content or changing the saved positions. */
 export function prepareScene(msg,header,c,nodes,set,hidden=false){
  const g=sceneGeometry(c,sceneWidth(msg,c),c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],hidden,msg.getAttribute('is_user')==='true'),items=textEntries(c),tokens=textTokens(c);
  for(const [key,item]of Object.entries(items))set(msg,'--sc-width-'+tokens[key],itemWidth(item,g.width)+'px');
- const measurements=Object.entries(nodes).filter(([,node])=>node).map(([key,node])=>{const r=node.getBoundingClientRect(),css=node.ownerDocument.defaultView?.getComputedStyle?.(node);return {item:items[key],width:r.width,height:r.height,visible:!node.hidden&&css?.display!=='none'&&!(key.startsWith('caption:')&&!items[key].visible)};});
- const bounds=sceneBounds(c,g,measurements);for(const [key,value]of Object.entries({'fill-height':g.photoHeight,'base-height':g.baseHeight,'reserve-top':bounds.reserveTop,'total-height':bounds.height}))set(msg,'--sc-'+key,value+'px');return {...g,...bounds};
+ const bounds=sceneBounds(c,g);set(msg,'--sc-avatar-clip',avatarClipPolygon(c,g,c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],msg.getAttribute('is_user')==='true'));for(const [key,value]of Object.entries({'fill-height':g.photoHeight,'base-height':g.baseHeight,'inner-height':Math.max(0,g.baseHeight-CARD_PADDING),'reserve-top':bounds.reserveTop,'total-height':bounds.height}))set(msg,'--sc-'+key,value+'px');return {...g,...bounds};
 }
 export function placeScene(msg,header,c,nodes,g,set){
- const r=header.getBoundingClientRect(),items=textEntries(c),tokens=textTokens(c);for(const [key,node]of Object.entries(nodes)){if(!node)continue;const p=itemPoint(c,items[key],g.width),parent=node.offsetParent||node.parentElement,rect=parent.getBoundingClientRect(),ox=rect.left+(parent.clientLeft||0)-(parent.scrollLeft||0),oy=rect.top+(parent.clientTop||0)-(parent.scrollTop||0);set(msg,'--sc-left-'+tokens[key],(r.left+(header.clientLeft||0)+p.x-ox)+'px');set(msg,'--sc-top-'+tokens[key],(r.top+(header.clientTop||0)+g.reserveTop+p.y-oy)+'px');}
+ const r=header.getBoundingClientRect(),items=textEntries(c),tokens=textTokens(c);for(const [key,node]of Object.entries(nodes)){if(!node)continue;const point=itemPoint(c,items[key],g.width),p={x:point.x+CARD_PADDING,y:point.y+CARD_PADDING},parent=node.offsetParent||node.parentElement,rect=parent.getBoundingClientRect(),ox=rect.left+(parent.clientLeft||0)-(parent.scrollLeft||0),oy=rect.top+(parent.clientTop||0)-(parent.scrollTop||0);for(const [edge,value]of Object.entries({left:-p.x,top:-p.y,right:g.width+CARD_PADDING*2-p.x,bottom:g.height-p.y}))set(msg,'--sc-clip-'+edge+'-'+tokens[key],value+'px');set(msg,'--sc-left-'+tokens[key],(r.left+(header.clientLeft||0)+p.x-ox)+'px');set(msg,'--sc-top-'+tokens[key],(r.top+(header.clientTop||0)+g.reserveTop+p.y-oy)+'px');}
 }
 export function sceneSelectors(prefix,meta,c){return {name:prefix+' .name_text',time:prefix+' .timestamp',...Object.fromEntries(c.captions.map(v=>[captionKey(v.id),meta+` [data-caption-id="${v.id}"]`]))};}

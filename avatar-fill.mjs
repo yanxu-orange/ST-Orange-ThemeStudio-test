@@ -27,7 +27,7 @@ export function avatarFillRules(q,c,preview=false){
   return ['ai','user'].map(scope=>{
     const v=fillSettings(c,scope==='user');if(!v.enabled)return '';
     const s=q+(preview?'':'[data-otl-live-avatar-hidden=false]')+`[is_user="${scope==='user'}"]`,group=preview?s+' .otl-header>.otl-photo-group':s+'>.mesAvatarWrapper',photo=preview?group+'>.mesAvatarWrapper':group+'>.avatar',img=photo+'>img';
-    return `${group}{left:${preview?-24:0}px!important;top:${preview?'-24px':'0px'}!important;transform:none!important;aspect-ratio:auto!important;}
+    return `${group}{left:0!important;top:0!important;transform:none!important;aspect-ratio:auto!important;}
 ${photo}{width:100%!important;height:var(--sc-fill-height)!important;aspect-ratio:auto!important;border:0!important;outline:0!important;box-shadow:none!important;transform:none!important;border-radius:0!important;}
 ${preview?group:photo}{height:var(--sc-fill-height)!important;}
 ${fillImageRules(img,photo,v,c.radius)}`;

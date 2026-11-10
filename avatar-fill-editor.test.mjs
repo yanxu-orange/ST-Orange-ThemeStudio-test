@@ -12,7 +12,7 @@ test('workbench fill and gradient save, restore, undo and keep independent norma
  assert.match([...document.querySelectorAll('style')].map(n=>n.textContent).join('\n'),/object-position:25% 50%/);
  edit('铺满卡片顶部','false');sh.querySelector('#restore').click();c=save();assert.equal(c.avatarFill.ai.enabled,true);
  edit('铺满卡片顶部','false');sh.querySelector('#undo').click();assert.equal(save().avatarFill.ai.enabled,true);
- const importer=sh.querySelector('#import-file');let good=save();const positions=structuredClone(good.textItems);sh.querySelector('[data-kind="region"]').click();edit('头像区最小高度 数值',1000);assert.equal(save().headerHeight,1000);assert.deepEqual(save().textItems,positions);
+ const importer=sh.querySelector('#import-file');let good=save();const positions=structuredClone(good.textItems);sh.querySelector('[data-kind="region"]').click();edit('头像区总高度 数值',1000);assert.equal(save().headerHeight,1000);assert.deepEqual(save().textItems,positions);
  for(const version of [9,10]){const bad=structuredClone(good);bad.version=version;bad.headerHeight=version===9?361:1001;if(version===9)delete bad.avatarFill;Object.defineProperty(importer,'files',{value:[{size:100,text:async()=>JSON.stringify(bad)}],configurable:true});const event=new window.Event('change');importer.dispatchEvent(event);Object.defineProperty(event,'target',{value:importer});await new Promise(r=>setImmediate(r));assert.equal(save().headerHeight,1000);}
  sh.querySelector('#close').click();assert.equal(document.querySelector('[data-orange-lab-fixture]'),null);
 });

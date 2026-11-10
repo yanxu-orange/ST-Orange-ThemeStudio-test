@@ -1,3 +1,4 @@
+import {updateHeaderArtworkClip} from './header-art-clip.mjs';
 import {avatarDesignRules} from './avatar-design.mjs';
 import {canvasBackgroundRules} from './canvas-background.mjs';
 import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
@@ -11,7 +12,6 @@ import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningSh
 import {bodyCardSettings,bodyCardRules,chatFrameRules} from './body-card.mjs';
 import {normalizeCaptionConfig,captionKey,captionToken,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
-import {collageMetrics} from './photos.mjs';
 import {createFontSession} from './font-sources.mjs';
 import {textSettings,captionWidthPixels,metadataPadding,customTextLayout,validateTextItems,freeText,sceneReserves,textItemRules} from './text-layout.mjs';
 
@@ -46,8 +46,8 @@ ${meta} .otl-live-caption{line-height:1.6;white-space:pre-wrap;overflow-wrap:any
 ${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta]{flex-direction:row!important;flex-wrap:wrap!important;align-items:baseline!important;gap:4px 9px!important}
 ${q}[data-otl-live-time=beside] > .mes_block > .ch_name [data-otl-live-meta] > :is(.otl-live-caption,.otl-live-caption-slot){flex-basis:100%}
 ${q} > .mesAvatarWrapper{position:absolute!important;left:24px!important;top:calc(24px + var(--ol-photo-top) + var(--ol-scene-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:2}
-${avatar}{position:relative!important;display:block!important;box-sizing:border-box!important;width:var(--ol-photo-width)!important;height:var(--ol-photo-height)!important;max-width:none!important;min-width:0!important;flex:0 0 100%!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;box-shadow:none!important;overflow:visible!important;transform:translate(var(--ol-photo-x),var(--ol-photo-y)) rotate(var(--ol-photo-rotation)) scale(var(--ol-photo-scale))!important;transform-origin:50% 100%;isolation:isolate}
-${avatar} > img:not([${OWN}]){position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;border:var(--ol-photo-frame-width) solid var(--ol-photo-frame-color)!important;outline:var(--ol-photo-outline)!important;border-radius:var(--ol-photo-radius)!important;box-shadow:var(--ol-photo-shadow)!important;transform:rotate(var(--ol-photo-tilt))!important;z-index:2}
+${avatar}{position:relative!important;display:block!important;box-sizing:border-box!important;width:var(--ol-photo-width)!important;height:var(--ol-photo-height)!important;max-width:none!important;min-width:0!important;flex:0 0 100%!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;box-shadow:none!important;overflow:visible!important;transform:translate(var(--ol-photo-x),var(--ol-photo-y)) rotate(var(--ol-photo-rotation)) scale(var(--ol-photo-scale))!important;transform-origin:50% 100%;isolation:isolate;clip-path:polygon(var(--sc-avatar-clip))!important;}
+${avatar} > img:not([${OWN}]){position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;z-index:2}
 ${q} > .mesAvatarWrapper > :is(.mesIDDisplay,.mes_timer,.tokenCounterDisplay){max-width:100%;font:11px/1.5 sans-serif;color:var(--ol-timeColor)}
 ${head} > :is(.mes_buttons,.mes_edit_buttons){position:absolute;right:0;top:0;z-index:6;max-width:100%}
 ${head} .mes_button{min-width:24px;min-height:24px}
@@ -163,7 +163,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden);
     const {photoWidth,photoHeight,photoTop}=scene;
-    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg','photo-scale':p.scale,'photo-frame-width':(p.enabled?p.frameWidth:0)+'px','photo-frame-color':p.frameColor,'photo-outline':p.enabled?'1px solid '+p.outlineColor:'none','photo-radius':p.enabled?'1px':(p.radius??c.avatarRadius)+'px','photo-shadow':p.enabled&&p.shadow?'1px 2px 3px #6c7b962b':'none','photo-tilt':(p.enabled?p.photoRotation:0)+'deg'}))variable(state,msg,'--ol-'+key,value);
+    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg','photo-scale':p.scale}))variable(state,msg,'--ol-'+key,value);
     const destinations={header,avatar:photo,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
     for(const anchor of Object.keys(destinations)){
       if(!destinations[anchor])continue;const container=artContainer(state,destinations[anchor],anchor);if(anchor==='header')container.classList.add('otl-scene-art');if(anchor.startsWith('reasoning-'))container.setAttribute('data-otl-reason-owned','');
@@ -171,9 +171,9 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       const existing=new Map([...container.children].map(e=>[e.getAttribute('data-layer-id'),e]));
       for(const layer of layers){
         const src=resolveArtwork(layer);if(!src)continue;
-        let image=existing.get(layer.id);if(!image){image=owned(state,'img','',container);image.setAttribute('data-layer-id',layer.id);if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
+        let image=existing.get(layer.id);if(!image){image=owned(state,'img','',container);image.setAttribute('data-layer-id',layer.id);if(anchor==='header')image.onload=schedule;if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
         existing.delete(layer.id);if(image.getAttribute('src')!==src)image.setAttribute('src',src);
-        Object.assign(image.style,{width:layer.width+(layer.widthUnit==='percent'?'%':'px'),height:layer.heightPercent?layer.heightPercent+'%':'auto',objectPosition:layer.side+' '+layer.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:layer.z});
+        Object.assign(image.style,{width:layer.width+(layer.widthUnit==='percent'?'%':'px'),height:layer.heightPercent?layer.heightPercent+'%':'auto',objectPosition:layer.side+' '+layer.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[layer.side]:layer.x+(layer.offsetUnit==='percent'?'%':'px'),[layer.vertical]:layer.y+(layer.offsetUnit==='percent'?'%':'px'),opacity:layer.opacity,transform:`rotate(${layer.rotation}deg)`,zIndex:layer.z});if(anchor==='header')updateHeaderArtworkClip(image,layer,scene.width,Math.max(0,scene.height-24));
       }
       for(const image of existing.values()){state.nodes.delete(image);image.remove();}
     }

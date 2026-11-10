@@ -1,9 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {defaultPhoto,validatePhotos,kittyLayers,collageMetrics} from './photos.mjs';
+import {defaultPhoto,validatePhotos,kittyLayers} from './photos.mjs';
 import {validateLayers,clone} from './layers.mjs';
 
-test('legacy configurations get independent disabled photo groups',()=>{
+test('default initialization creates independent disabled borders',()=>{
   const p=validatePhotos();p.ai.x=50;assert.equal(p.user.x,0);assert.equal(p.user.enabled,false);
 });
 test('photo settings round trip and reject unsafe sources or transforms',()=>{
@@ -22,8 +22,10 @@ test('old decoration layers keep pixel and top defaults',()=>{
   const [old]=kittyLayers();delete old.widthUnit;delete old.offsetUnit;delete old.vertical;
   const [converted]=validateLayers([old]);assert.equal(converted.widthUnit,'px');assert.equal(converted.vertical,'top');
 });
-test('long captions receive separate space above photos',()=>{
-  const normal=collageMetrics(350,230,80,150);assert.equal(normal.stacked,false);
-  const long=collageMetrics(300,230,260,150);assert.equal(long.stacked,true);assert.ok(long.height>=456);
-  for(const width of [240,320,390,600,900])assert.ok(collageMetrics(width,230,50,120).height>=150);
+test('photo schema rejects removed fields and missing dimensions without migration',()=>{
+  for(const key of ['widthPercent','maxSize','outlineColor','photoRotation']){
+    assert.equal(Object.hasOwn(defaultPhoto(),key),false);
+    assert.throws(()=>validatePhotos({ai:defaultPhoto({[key]:1}),user:defaultPhoto()}));
+  }
+  for(const key of ['size','radius']){const ai=defaultPhoto();delete ai[key];assert.throws(()=>validatePhotos({ai,user:defaultPhoto()}));}
 });

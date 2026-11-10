@@ -14,10 +14,10 @@ test('old configurations migrate in memory with fill off; schema10 validates ind
  for(let version=1;version<=9;version++){const original={version,textItems:{name:{x:75,y:-30,width:60}}},raw=JSON.stringify(original),next=normalizeAvatarFill(original);assert.equal(JSON.stringify(original),raw);assert.deepEqual(next.textItems,original.textItems);assert.equal(next.avatarFill.ai.enabled,false);assert.equal(next.avatarFill.user.gradient,false);}
  assert.throws(()=>normalizeAvatarFill({...c,version:9}));assert.throws(()=>normalizeAvatarFill({version:10}));assert.throws(()=>normalizeAvatarFill({version:11}));
 });
-test('fill width tracks card, reserves header height without photo caps, text may extend space not image',()=>{
+test('fill width tracks card and exact fixed total height independently from normal shape',()=>{
  const c=normalizeAvatarFill({version:9,headerHeight:320,layout:'top',avatarSize:88});c.avatarFill.ai.enabled=true;
- const p=defaultPhoto({enabled:true,maxSize:80,scale:1.5,rotation:20});
- for(const w of [240,342,632,852]){const g=sceneGeometry(c,w,p);assert.equal(g.photoWidth,w+48);assert.equal(g.photoHeight,344);assert.equal(g.photoTop,-24);assert.equal(g.baseHeight,320);assert.equal(sceneBounds(c,g,[]).height,320);}
+ const p=defaultPhoto({enabled:true,size:80,scale:1.5,rotation:20});
+ for(const w of [240,342,632,852]){const g=sceneGeometry(c,w,p);assert.equal(g.photoWidth,w+48);assert.equal(g.photoHeight,320);assert.equal(g.photoTop,-24);assert.equal(g.baseHeight,320);assert.equal(sceneBounds(c,g,[]).height,320);}
  const normal=sceneGeometry(c,342,p,false,true);assert.equal(normal.photoWidth,80);
  assert.equal(sceneGeometry(c,342,p,true).photoWidth,0);
 });

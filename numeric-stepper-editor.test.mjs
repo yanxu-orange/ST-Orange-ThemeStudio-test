@@ -4,7 +4,7 @@ test('mobile numeric stepper real editor preserves manual input, click undo and 
 
 
  sh.querySelector('.launcher').click();sh.querySelector('[data-flow=continue]').click();go('header');kind('region');
- const label='头像区最小高度',number=()=>sh.querySelector(`[aria-label="${label} 数值"]`),plus=()=>sh.querySelector(`[aria-label="${label} 手机增加"]`),step=()=>sh.querySelector(`[aria-label="${label} 调整步长"]`);
+ const label='头像区总高度',number=()=>sh.querySelector(`[aria-label="${label} 数值"]`),plus=()=>sh.querySelector(`[aria-label="${label} 手机增加"]`),step=()=>sh.querySelector(`[aria-label="${label} 调整步长"]`);
  const initial=Number(number().value);plus().click();plus().click();assert.equal(save().headerHeight,initial+2);sh.querySelector('#undo').click();assert.equal(save().headerHeight,initial+1);sh.querySelector('#undo').click();assert.equal(save().headerHeight,initial);
  step().value='10';plus().click();assert.equal(save().headerHeight,initial+10);edit(label+' 数值',333);plus().click();assert.equal(save().headerHeight,343);sh.querySelector('#undo').click();assert.equal(save().headerHeight,333);sh.querySelector('#undo').click();assert.equal(save().headerHeight,initial+10);
  kind('name');const x=sh.querySelector('[aria-label="名字 水平位置 数值"]');assert.ok(x);assert.equal(x.parentNode.querySelectorAll('.nudge-button').length,2);assert.equal(x.parentNode.querySelectorAll('.numeric-plus').length,1);const oldX=Number(x.value);x.parentNode.querySelector('.numeric-plus').click();assert.equal(save().textItems.name.x,oldX+1);sh.querySelector('#undo').click();assert.equal(save().textItems.name.x,oldX);

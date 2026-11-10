@@ -69,10 +69,10 @@ test('native hide-avatar and document modes are inherited, and changing body mod
   document.body.classList.add('documentstyle');await settle();assert.equal(msg.getAttribute('data-otl-live-avatar-hidden'),'true');assert.ok(parseFloat(msg.style.getPropertyValue('--sc-base-height'))>0);
   const buttons=msg.querySelector('.mes_edit_buttons');assert.equal(buttons.style.display,'none');adapter.stop();assert.ok(document.body.classList.contains('documentstyle'));assert.equal(buttons.style.display,'none');
 });
-test('text leaf measures after full-scene width, without a metadata stacked fallback',()=>{
+test('text width is assigned without measuring content to grow the fixed region',()=>{
   const {document,adapter}=environment(),msg=document.querySelector('.mes'),name=msg.querySelector('.name_text'),measured=[];
   name.getBoundingClientRect=()=>{measured.push(msg.style.getPropertyValue('--sc-width-name'));return {left:0,top:0,width:200,height:240};};
-  adapter.start(config('collage'));assert.ok(measured.length);assert.ok(measured.every(v=>v==='632px'));const base=msg.style.getPropertyValue('--sc-base-height');adapter.reconcile();assert.equal(msg.style.getPropertyValue('--sc-base-height'),base);assert.equal(msg.style.getPropertyValue('--ol-meta-width'),'');adapter.stop();
+  adapter.start(config('collage'));assert.equal(measured.length,0);assert.equal(msg.style.getPropertyValue('--sc-width-name'),'632px');const base=msg.style.getPropertyValue('--sc-base-height');adapter.reconcile();assert.equal(msg.style.getPropertyValue('--sc-base-height'),base);assert.equal(msg.style.getPropertyValue('--ol-meta-width'),'');adapter.stop();
 });
 test('font ready and loading events schedule only for the active session',async()=>{
   const {document,adapter,settle,queue}=environment();let resolveReady;const listeners=new Set();Object.defineProperty(document,'fonts',{value:{ready:new Promise(resolve=>{resolveReady=resolve;}),addEventListener:(name,fn)=>listeners.add(fn),removeEventListener:(name,fn)=>listeners.delete(fn)}});
@@ -92,21 +92,21 @@ test('common offsets use full scene and leaves while native time and full DOM re
     const {document,adapter}=environment(),msg=document.querySelector('.mes'),names=msg.querySelector('.alignItemsBaseline'),before=msg.outerHTML;
     const name=names.querySelector('.name_text');name.getBoundingClientRect=()=>({left:0,top:0,width:100,height:60});
     adapter.start({...config(layout),headerHeight:60,textAlign:'end',textInset:20,textTop:80,timeFont:'monospace',timePosition:'beside',captionPosition:'hidden'});
-    const expectedX=(layout==='collage'?.69:layout==='left'?.45:.2)*632;
+    const expectedX=24+(layout==='collage'?.69:layout==='left'?.45:.2)*632;
     assert.ok(Math.abs(parseFloat(msg.style.getPropertyValue('--sc-left-name'))-expectedX)<.001);
-    assert.ok(parseFloat(msg.style.getPropertyValue('--sc-total-height'))>=148);
+    assert.equal(msg.style.getPropertyValue('--sc-total-height'),'60px');
     assert.equal(names.querySelector('.timestamp').textContent,'原生时间');assert.equal(names.querySelector('.timestamp').getAttribute('style'),null);
     adapter.stop();assert.equal(msg.outerHTML,before);
   }
 });
 
-test('independent scene movement reserves both directions without recursive growth and restores native DOM',async()=>{
+test('independent scene movement clips both directions without height growth and restores native DOM',async()=>{
   const {document,adapter,settle,queue}=environment(),msg=document.querySelector('.mes'),before=msg.outerHTML;
   msg.querySelector('.name_text').getBoundingClientRect=()=>({left:0,top:0,width:100,height:40});msg.querySelector('.timestamp').getBoundingClientRect=()=>({left:0,top:0,width:100,height:70});
   adapter.start({...config('collage'),textItems:{name:{x:-20,y:-100,weight:900,z:0},time:{x:30,y:200,z:8}}});await settle();
-  assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'60px');assert.equal(msg.style.getPropertyValue('--sc-total-height'),'402px');
-  assert.equal(parseFloat(msg.style.getPropertyValue('--sc-left-name')),.29*632);const base=msg.style.getPropertyValue('--sc-base-height');
-  adapter.reconcile();assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'60px');assert.equal(msg.style.getPropertyValue('--sc-total-height'),'402px');assert.equal(msg.style.getPropertyValue('--sc-base-height'),base);await settle();assert.equal(queue.size,0);
+  assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'0px');assert.equal(msg.style.getPropertyValue('--sc-total-height'),'240px');
+  assert.equal(parseFloat(msg.style.getPropertyValue('--sc-left-name')),24+.29*632);const base=msg.style.getPropertyValue('--sc-base-height');
+  adapter.reconcile();assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'0px');assert.equal(msg.style.getPropertyValue('--sc-total-height'),'240px');assert.equal(msg.style.getPropertyValue('--sc-base-height'),base);await settle();assert.equal(queue.size,0);
   adapter.stop();assert.equal(msg.outerHTML,before);
 });
 test('live font callbacks cannot register after stop or change native text',async()=>{
@@ -134,12 +134,12 @@ test('custom caption wraps only owned nodes, measures after width, follows new m
 });
 
 
-test('multiple captions constrain every width, reserve all visible bounds and keep one node per ID',async()=>{
+test('multiple captions constrain every width without growing region and keep one node per ID',async()=>{
  const {document,window,adapter,settle,queue}=environment(),msg=document.querySelector('.mes'),before=msg.outerHTML,names=msg.querySelector('.alignItemsBaseline'),reads=[];
  const rect=(top,bottom)=>({top,bottom,width:100,height:bottom-top});window.HTMLElement.prototype.getBoundingClientRect=function(){if(this.classList.contains('ch_name'))return rect(100,300);if(this.classList.contains('otl-live-caption'))return this.dataset.captionId==='a'?rect(400,500):this.dataset.captionId==='b'?rect(20,60):rect(-1000,1000);return rect(0,0);};
  Object.defineProperty(names,'offsetHeight',{get(){reads.push([msg.style.getPropertyValue('--ol-caption-width-a'),msg.style.getPropertyValue('--ol-caption-width-c')]);return msg.style.getPropertyValue('--ol-meta-width')==='23%'?200:80;}});
  const c=normalizeCaptionConfig(config('collage'));c.captions=[newCaption({id:'a',width:50,y:140}),newCaption({id:'b',position:'above',y:-60}),newCaption({id:'c',width:80,visible:false,y:-400})];adapter.start(c);await settle();
- assert.ok(reads.every(([a,c])=>parseFloat(a)===(680-48)*.5&&parseFloat(c)===(680-48)*.8));assert.equal(msg.style.getPropertyValue('--sc-width-cap-a'),'316px');assert.equal(msg.style.getPropertyValue('--sc-width-cap-c'),'505.6px');assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'20px');assert.equal(msg.style.getPropertyValue('--sc-total-height'),'396px');
+ assert.ok(reads.every(([a,c])=>parseFloat(a)===(680-48)*.5&&parseFloat(c)===(680-48)*.8));assert.equal(msg.style.getPropertyValue('--sc-width-cap-a'),'316px');assert.equal(msg.style.getPropertyValue('--sc-width-cap-c'),'505.6px');assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'0px');assert.equal(msg.style.getPropertyValue('--sc-total-height'),'240px');
  adapter.reconcile();await settle();assert.equal(msg.querySelectorAll('.otl-live-caption').length,3);assert.equal(msg.querySelectorAll('.otl-live-caption-slot').length,2);assert.equal(queue.size,0);
  document.querySelector('#chat').insertAdjacentHTML('beforeend',markup(9));await settle();assert.equal(document.querySelectorAll('.otl-live-caption').length,9);for(const node of document.querySelectorAll('.mes'))for(const id of ['a','b','c'])assert.equal(node.querySelectorAll('.otl-live-caption[data-caption-id="'+id+'"]').length,1);
  adapter.stop();assert.equal(msg.outerHTML,before);adapter.start({...c,captions:[]});assert.equal(document.querySelectorAll('.otl-live-caption,.otl-live-caption-slot').length,0);adapter.stop();assert.equal(msg.outerHTML,before);
@@ -209,10 +209,20 @@ test('full-header avatar preserves real source, reserves content, respects hidde
  assert.equal(msg.querySelector('.avatar>img').getAttribute('src'),'/real-0.png');
  const fillRules=[...document.querySelector('#orange-theme-live-style').sheet.cssRules].filter(r=>r.style?.getPropertyValue('object-position'));assert.ok(fillRules.some(r=>msg.querySelector('.avatar>img').matches(r.selectorText)));assert.ok(fillRules.every(r=>!msg.querySelector('.name_text').matches(r.selectorText)));
  assert.equal(msg.style.getPropertyValue('--ol-photo-width'),'680px');
- assert.equal(msg.style.getPropertyValue('--sc-fill-height'),'444px');
- assert.ok(parseFloat(msg.style.getPropertyValue('--sc-total-height'))>=420);
+ assert.equal(msg.style.getPropertyValue('--sc-fill-height'),'420px');
+ assert.equal(msg.style.getPropertyValue('--sc-total-height'),'420px');
  assert.equal(msg.querySelector('.mes_text').textContent,'虚构正文0');
  const style=[...document.querySelectorAll('style')].find(s=>s.textContent.includes('linear-gradient(to bottom'));assert.ok(style);
  adapter.stop();assert.equal(msg.outerHTML,before);
  document.body.classList.add('hideChatAvatars');adapter.start(c);await settle();assert.equal(msg.getAttribute('data-otl-live-avatar-hidden'),'true');const hiddenRules=[...document.querySelector('#orange-theme-live-style').sheet.cssRules].filter(r=>r.style?.getPropertyValue('object-position'));assert.ok(hiddenRules.every(r=>!msg.querySelector('.avatar>img').matches(r.selectorText)));adapter.stop();
+});
+
+test('fixed avatar area shrink/enlarge restores clipping and never rewrites native content or model positions',async()=>{
+ const {normalizeAvatarFill}=await import('./avatar-fill.mjs'),{normalizeChromeConfig}=await import('./chrome.mjs'),{normalizeTextScene}=await import('./text-scene.mjs'),{normalizeNativeConfig}=await import('./native.mjs'),{normalizeFooterConfig}=await import('./footer.mjs'),{normalizeReasoningConfig}=await import('./reasoning.mjs');
+ for(const fill of [false,true]){
+  const {document,adapter}=environment(),msg=document.querySelector('.mes'),before=msg.outerHTML,body=msg.querySelector('.mes_text'),source=msg.querySelector('.avatar>img').getAttribute('src'),bodyBefore=body.innerHTML;
+  const c=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(config('collage'))))))));c.avatarFill.ai.enabled=fill;c.headerHeight=600;c.photos.ai={...c.photos.ai,size:300,ratio:'0.75',rotation:20,scale:1.5};c.textItems.name.y=-200;c.textItems.time.y=700;const original=JSON.stringify(c),clips=[];
+  for(const height of [600,60,600]){c.headerHeight=height;adapter.start(c);assert.equal(msg.style.getPropertyValue('--sc-total-height'),height+'px');assert.equal(msg.style.getPropertyValue('--sc-reserve-top'),'0px');assert.equal(body.innerHTML,bodyBefore);assert.equal(msg.querySelector('.avatar>img').getAttribute('src'),source);clips.push(msg.style.getPropertyValue('--sc-avatar-clip'));}
+  assert.equal(clips[0],clips[2]);assert.notEqual(clips[0],clips[1]);assert.equal(JSON.stringify(c),original);adapter.stop();assert.equal(msg.outerHTML,before);
+ }
 });

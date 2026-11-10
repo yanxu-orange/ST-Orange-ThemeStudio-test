@@ -2,7 +2,7 @@ import {validImage, newLayer} from './layers.mjs';
 import {ASSETS} from './catalog.mjs';
 
 export function defaultPhoto(overrides={}) {
-  return {enabled:false,size:88,radius:16,widthPercent:44,maxSize:190,ratio:'1',frameWidth:3,frameColor:'#fffdf4',outlineColor:'#e1d8c8',shadow:true,photoRotation:0,x:0,y:0,scale:1,rotation:0,image:'',asset:'',...overrides};
+  return {enabled:false,size:88,radius:16,ratio:'1',frameWidth:3,frameColor:'#fffdf4',shadow:true,x:0,y:0,scale:1,rotation:0,image:'',asset:'',...overrides};
 }
 export function validatePhotos(raw) {
   if(raw===undefined)return {ai:defaultPhoto(),user:defaultPhoto()};
@@ -11,11 +11,11 @@ export function validatePhotos(raw) {
   for(const scope of ['ai','user']) {
     const p=raw[scope];if(!p||typeof p!=='object'||Array.isArray(p))throw Error('头像设置无效：'+scope);
     const out=defaultPhoto();
-    for(const [key,min,max] of [['size',40,300],['radius',0,150],['widthPercent',20,65],['maxSize',80,300],['frameWidth',0,15],['photoRotation',-20,20],['x',-80,80],['y',-80,80],['scale',.5,1.5],['rotation',-20,20]]) {
-      if(['size','radius'].includes(key)&&p[key]===undefined)continue;
+    if(Object.keys(p).some(key=>!Object.hasOwn(out,key)))throw Error('头像设置包含未知参数');
+    for(const [key,min,max] of [['size',40,300],['radius',0,150],['frameWidth',0,15],['x',-80,80],['y',-80,80],['scale',.5,1.5],['rotation',-20,20]]) {
       if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw Error('头像参数超出范围：'+key);out[key]=p[key];
     }
-    for(const key of ['frameColor','outlineColor']) {if(typeof p[key]!=='string'||!/^#[a-f0-9]{6}$/i.test(p[key]))throw Error('头像颜色无效');out[key]=p[key];}
+    for(const key of ['frameColor']) {if(typeof p[key]!=='string'||!/^#[a-f0-9]{6}$/i.test(p[key]))throw Error('头像颜色无效');out[key]=p[key];}
     for(const key of ['enabled','shadow']) {if(typeof p[key]!=='boolean')throw Error('头像开关无效');out[key]=p[key];}
     if(!['1','0.8','0.75','1.3333333333333333'].includes(p.ratio))throw Error('头像比例无效');out.ratio=p.ratio;
     if(p.image&&!validImage(p.image))throw Error('头像图片格式无效');out.image=p.image||'';
@@ -23,12 +23,6 @@ export function validatePhotos(raw) {
     result[scope]=out;
   }
   return result;
-}
-
-export function collageMetrics(width, headerHeight, metaHeight, photoHeight) {
-  const normal=Math.min(headerHeight, Math.max(180,headerHeight*width/390));
-  const stacked=metaHeight>normal*.65;
-  return {stacked,height:stacked?Math.max(normal,metaHeight+photoHeight+46):Math.max(normal,photoHeight+30)};
 }
 
 export function kittyLayers() {
