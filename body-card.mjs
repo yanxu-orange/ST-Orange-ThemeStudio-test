@@ -13,10 +13,11 @@ const SPECIAL=['blockquote','pre','code','ul','ol','li','details','summary','tab
 const EMBEDDED='pre,code,ul,ol,li,blockquote,details,summary,table,img,picture,video,audio,iframe,svg,canvas,object,embed,form,button,input,select,textarea,[contenteditable],a[role="button"]';
 /** Only ordinary paragraphs; neither content nor host nodes are rewritten. */
 export function ordinaryParagraphSelector(body){const filter=`:not(:empty):not(:is(${SPECIAL.map(parent=>parent+' p').join(',')})):not(:has(${EMBEDDED}))`;return `${body} > p${filter},${body} > :is(.text_segment,.custom-text_segment) p${filter}`;}
+/** Extend only the body over the card’s shared 24px inset; header/avatar/footer keep it. */
 export function bodyCardRules(body,card,raw,surface='live'){
  const c=bodyCardSettings(raw),paragraphs=ordinaryParagraphSelector(body);
  return `${card}{border-color:${borderColor(c,surface)}!important;border-style:${c.cardBorderStyle}!important;border-width:${borderWidths(c).map(n=>n+'px').join(' ')}!important}
-${body}{box-sizing:border-box!important;width:100%!important;padding-left:${c.bodyPaddingLeft}px!important;padding-right:${c.bodyPaddingRight}px!important;${c.bodyWeight==='auto'?'':`font-weight:${c.bodyWeight}!important;`}}
+${body}{box-sizing:border-box!important;width:calc(100% + 48px)!important;max-width:none!important;margin-left:-24px!important;margin-right:-24px!important;padding-left:${c.bodyPaddingLeft}px!important;padding-right:${c.bodyPaddingRight}px!important;${c.bodyWeight==='auto'?'':`font-weight:${c.bodyWeight}!important;`}}
 ${paragraphs}{margin-top:0!important;margin-bottom:${c.bodyParagraphGap}px!important;text-indent:${c.bodyIndent?'2em':'0'}!important}`;
 }
 

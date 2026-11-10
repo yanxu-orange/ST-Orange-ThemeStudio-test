@@ -42,3 +42,23 @@ test('input containers explicitly release native <=450px one-icon widths in both
  }
  const c=config();assert.equal(chromeRules(c).includes('width:auto!important'),false,'disabled input does not take over native layout');
 });
+
+test('inline text line and tools share a vertical center with symmetric padding on live and preview',()=>{
+ for(const [minHeight,slot,size,lineHeight]of [[45,30,16,1.5],[44,36,16,1.5],[32,64,24,2],[100,28,12,1]])for(const layout of ['inline','stacked'])for(const preview of [false,true]){
+  const c=config();Object.assign(c.chromeStyle.input,{enabled:true,layout,minHeight,slot,size,lineHeight,maxHeight:320});
+  const {document}=dom(),style=document.createElement('style');style.textContent=chromeRules(c,preview?PREVIEW_CHROME_SELECTORS:undefined,{},'sans-serif',preview);document.head.append(style);const rules=[...style.sheet.cssRules];
+  const area=rules.find(r=>r.selectorText===(preview?'html[data-orange-lab] .otl-page-textarea':'html[data-orange-live] #send_textarea')).style;
+  const row=rules.find(r=>r.selectorText===(preview?'html[data-orange-lab] .otl-page-composer':'html[data-orange-live] #nonQRFormItems')).style;
+  const pad=Math.max(6,(minHeight-size*lineHeight)/2),oneLineHeight=Math.max(minHeight,size*lineHeight+2*pad),rowHeight=Math.max(oneLineHeight,slot);
+  assert.equal(row.getPropertyValue('align-items'),layout==='inline'?'center':'end');assert.equal(area.getPropertyValue('padding'),pad===6?'6px':`${pad}px 6px`);assert.equal(area.getPropertyValue('border'),'0');assert.equal(area.getPropertyValue('margin'),'0');
+  if(layout==='inline')assert.equal((rowHeight-oneLineHeight)/2+pad+size*lineHeight/2,rowHeight/2);
+  assert.equal(area.getPropertyValue('height'),'','host remains responsible for growth');assert.equal(area.getPropertyValue('max-height'),'min(320px,60vh)');assert.equal(area.getPropertyValue('overflow-y'),'auto');assert.equal(area.getPropertyValue('resize'),'vertical');
+ }
+});
+
+test('preview textarea refits multiline content and shrinks again without rewriting the draft',()=>{
+ const {document,window}=dom(),ui={page:'chat',previewMode:'page',demoState:'normal'},p=createChromePreview({document,ui}),c=config();c.layers=[];p.update(c);const area=document.querySelector('.otl-page-textarea');assert.equal(area.getAttribute('rows'),'1');
+ let measured=45;Object.defineProperty(area,'scrollHeight',{get:()=>measured});
+ for(const [value,height]of [['一行',45],['第一行\n第二行\n第三行',93],['短句',45]]){measured=height;area.value=value;area.dispatchEvent(new window.Event('input'));assert.equal(area.style.height,height+'px');assert.equal(ui.demoText,value);assert.equal(area.value,value);}
+ p.close();
+});

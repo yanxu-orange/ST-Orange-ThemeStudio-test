@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.16.0-workbench.0",
+  "version": "0.17.0-workbench.0",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }

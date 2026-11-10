@@ -1,0 +1,19 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {parseHTML} from 'linkedom';
+test('shape dimensions precede appearance and position; import survives retargeting and closed resize',async()=>{
+ const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
+ const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
+ const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
+ await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const set=(label,value)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(value);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
+ const save=()=>{sh.querySelector('#save').click();return JSON.parse(values.get('orange.theme-lab.mobile-test.v1'));};
+ sh.querySelector('.launcher').click();sh.querySelector('[data-region="header"]').click();sh.querySelector('[data-kind="image"]').click();sh.querySelector('#add-current-image').click();sh.querySelector('[data-add-shape="rectangle"]').click();
+ const headings=[...sh.querySelectorAll('.property-heading')].map(n=>n.textContent);assert.ok(headings.indexOf('形状与尺寸')<headings.indexOf('外观'));assert.ok(headings.indexOf('外观')<headings.indexOf('位置与叠放'));
+ assert.equal(sh.querySelector('[aria-label="宽度 数值"]').closest('.paired-fields'),sh.querySelector('[aria-label="高度 数值"]').closest('.paired-fields'));
+ set('宽度 数值',137);set('高度 数值',42);set('旋转 数值',15);let config=save(),shape=config.layers.at(-1);assert.equal(shape.width,137);assert.equal(shape.height,42);assert.equal(shape.rotation,15);
+ const input=sh.querySelector('#import-file');let resolve;Object.defineProperty(input,'files',{value:[{size:1024,text:()=>new Promise(r=>resolve=r)}]});
+ const event=new window.Event('change');input.dispatchEvent(event);Object.defineProperty(event,'target',{value:null});resolve(JSON.stringify(config));await new Promise(r=>setImmediate(r));assert.equal(input.value,'');assert.match(sh.querySelector('#notice').textContent,/已导入预览/);assert.deepEqual(save(),config);
+ sh.querySelector('#apply-live').click();assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
+ sh.querySelector('.launcher').click();assert.deepEqual(save(),config);sh.querySelector('#close').click();window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
+});

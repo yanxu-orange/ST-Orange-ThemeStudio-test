@@ -22,7 +22,7 @@ test('editor independent controls validate links and preserve settings through s
   url.value='https://example.com/font.woff2';url.dispatchEvent(new window.Event('change'));assert.equal(url.hasAttribute('aria-invalid'),false);
   shadow.querySelector('#save').click();const saved=JSON.parse(values.get('orange.theme-lab.mobile-test.v1'));assert.equal(saved.regionOrder.header.at(-1),'name');assert.equal(new Set(saved.regionOrder.header).size,saved.regionOrder.header.length);assert.equal(saved.textItems.name.x,-25);assert.equal(saved.textItems.name.y,140);assert.equal(saved.textItems.name.weight,700);assert.equal(saved.textItems.name.fontLink.url,'https://example.com/font.woff2');assert.equal(saved.textItems.time.x,0);
   shadow.querySelector('#undo').click();shadow.querySelector('#save').click();assert.equal(JSON.parse(values.get('orange.theme-lab.mobile-test.v1')).textItems.name.fontLink,null);
-  shadow.querySelector('[data-kind="text"]').click();shadow.querySelector('[data-object="caption:caption-legacy"]').click();input('文案宽度模式','custom');
+  shadow.querySelector('[data-kind="text"]').click();const captionPicker=shadow.querySelector('[aria-label="选择文案"]');captionPicker.value='caption:caption-legacy';captionPicker.dispatchEvent(new window.Event('change'));input('文案宽度模式','custom');
   assert.equal(shadow.querySelector('[aria-label="文案宽度占比 数值"]').value,'60');input('文案宽度占比 数值',75);
   shadow.querySelector('#save').click();assert.equal(JSON.parse(values.get('orange.theme-lab.mobile-test.v1')).captions[0].width,75);
   shadow.querySelector('#undo').click();shadow.querySelector('#save').click();assert.equal(JSON.parse(values.get('orange.theme-lab.mobile-test.v1')).captions[0].width,60);
