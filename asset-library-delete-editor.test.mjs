@@ -1,0 +1,35 @@
+import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {parseHTML} from 'linkedom';
+import {indexedDatabase} from './test-support/indexed-db.mjs';
+import {createAssetLibrary} from './asset-library.mjs';
+
+test('library deletion requires selection and confirmation, commits before refresh, and leaves placed copies intact',async()=>{
+  const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
+  const descriptor=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');
+  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:descriptor.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
+  const values=new Map(),{factory,controls}=indexedDatabase();let confirmed=false,confirmations=0;
+  window.confirm=message=>{assert.match(message,/已放入方案的图片不受影响/);confirmations++;return confirmed;};
+  Object.assign(globalThis,{document,window,indexedDB:factory,localStorage:{getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
+  const library=createAssetLibrary({indexedDB:factory});
+  const record=await library.add({name:'保留方案副本',image:'data:image/png;base64,YQ=='});
+  const other=await library.add({name:'未选中的素材',image:'https://example.com/other.png'});
+  const scheme=await editorStorage(null);await import('./index.js');
+  const shadow=document.querySelector('#orange-theme-lab').shadowRoot,tick=()=>new Promise(resolve=>setImmediate(resolve));
+  const card=()=>shadow.querySelector(`[data-library-asset="${record.id}"]`),remove=()=>card().querySelector('[aria-label^="从素材库删除："]');
+  const save=()=>saveEditorScheme(shadow,scheme);
+  const show=async()=>{shadow.querySelector('#mode-library').click();await tick();};
+  shadow.querySelector('.launcher').click();await show();
+  assert.equal(confirmations,0);assert.equal((await library.list()).length,2,'opening the library never deletes records');
+  remove().click();await tick();assert.ok(card());assert.equal((await library.list()).length,2,'cancel keeps the selected source');
+  card().querySelector('[aria-label^="使用素材："]').click();const placed=(await save());assert.equal(placed.layers.at(-1).image,record.image);
+  await show();confirmed=true;controls.failNext='AbortError';remove().click();await tick();
+  assert.match(shadow.querySelector('[data-asset-library-status]').textContent,/未删除/);assert.ok(card());assert.equal(remove().disabled,false);assert.equal((await library.get(record.id)).image,record.image);assert.deepEqual((await save()),placed);
+  controls.holdCommit=true;remove().click();const pendingButton=remove();pendingButton.click();await tick();
+  assert.equal(confirmations,3,'a repeated click does not request another deletion');assert.equal(pendingButton.disabled,true);assert.ok(card(),'source remains visible until transaction commits');
+  controls.holdCommit=false;controls.finish();await tick();assert.equal(card(),null);assert.equal(await library.get(record.id),null);assert.equal((await library.get(other.id)).image,other.image);assert.deepEqual((await save()),placed,'deleting source cannot change the placed image');
+  shadow.querySelector('#close').click();shadow.querySelector('.launcher').click();await show();assert.equal(card(),null);assert.equal(shadow.querySelectorAll('[data-library-asset]').length,1);
+  const remaining=shadow.querySelector('[aria-label^="从素材库删除："]');controls.holdCommit=true;remaining.click();await tick();shadow.querySelector('#mode-edit').click();controls.holdCommit=false;controls.finish();await tick();await show();assert.equal(shadow.querySelectorAll('[data-library-asset]').length,0,'confirmed deletion may finish after navigation without reopening the old panel');assert.deepEqual((await save()),placed);
+  shadow.querySelector('#close').click();library.close();
+});

@@ -1,3 +1,4 @@
+import {createSchemeStorage} from './scheme-storage.mjs';
 import {createFontLibrary,renderFontLibrary} from './font-library.mjs';
 import {createAssetLibrary} from './asset-library.mjs';
 import {normalizeImageUrl} from './image-sources.mjs';
@@ -33,10 +34,10 @@ import {createLiveAdapter} from './live-adapter.mjs';
 import {createFontSession} from './font-sources.mjs';
 import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customTextLayout,TEXT_Z_MAX,validateTextItems,freeText,sceneReserves,textItemRules} from './text-layout.mjs';
 
-(() => {
+await (async () => {
   'use strict';
   if (document.getElementById('orange-theme-lab')) return;
-  const KEY = 'orange.theme-lab.mobile-test.v1';
+  const schemeStorage=createSchemeStorage();let loadError=null;
   const fonts = [['serif','宋体风格'],['sans-serif','黑体风格'],['Georgia, serif','英文衬线'],['monospace','等宽字体']];
   const base = { ...TEXT_DEFAULTS, ...BODY_CARD_DEFAULTS, textItems:validateTextItems(), version:1, template:'letter', avatarDesign:'unified', canvasBackground:'tavern', background:'#e8ece6', surface:'#fffdf8', text:'#354b42', accent:'#6f8973', radius:20, font:'serif', fontSize:17, lineHeight:1.9, layout:'top', avatarSize:88, headerHeight:240, avatarRadius:16, nameColor:'#354b42', nameSize:23, nameFont:'serif', timeColor:'#89958b', timeSize:12, timePosition:'below', caption:'今日也有一封来信', captionColor:'#7e9477', captionSize:14, captionFont:'serif', captionPosition:'above', reasoning:'展开这页思绪', reasoningSize:14, reasoningFont:'serif', decoration:'flower', decorationWidth:90, decorationX:8, decorationY:8, decorationOpacity:0.8, glass:0, image:'' };
   const templates = {
@@ -95,7 +96,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
     if(raw.surfaceOpacity===undefined&&raw.glass>0)result.surfaceOpacity=.81;
     for(const key of ['reasoning','reasoningFont','reasoningSize'])delete result[key];const scene=normalizeTextScene(stripLegacyCaptions(result));if(raw.regionOrder)scene.regionOrder=validateRegionOrder(raw.regionOrder,scene);return syncRegionOrder(normalizeAvatarFill(normalizeChromeConfig({...scene,version:raw.version,...(Object.hasOwn(raw,'chromeStyle')?{chromeStyle:raw.chromeStyle}:{}),...(Object.hasOwn(raw,'avatarFill')?{avatarFill:raw.avatarFill}:{})})));
   }
-  try{const raw=localStorage.getItem(KEY);if(raw){saved=validate(JSON.parse(raw));config=clone(saved);selectedLayerId=config.layers[0]?.id;}}catch(error){console.warn('[主题编辑实验] 保存方案未载入',error.message);}
+  try{const raw=await schemeStorage.load();if(raw!==null){saved=validate(JSON.parse(raw));config=clone(saved);selectedLayerId=config.layers[0]?.id;}}catch(error){loadError=error;console.warn('[主题编辑实验] 保存方案未载入',error.message);}
   const decorations={
     flower:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><g fill="#e5b3b1"><ellipse cx="60" cy="35" rx="15" ry="27"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(72 60 60)"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(144 60 60)"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(216 60 60)"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(288 60 60)"/></g><circle cx="60" cy="60" r="13" fill="#e9ca81"/></svg>',
     star:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="m60 8 14 34 37 3-28 24 9 36-32-19-32 19 9-36L9 45l37-3z" fill="#e6c480" stroke="#b89355" stroke-width="2"/><path d="m22 8 3 9 9 3-9 3-3 9-3-9-9-3 9-3z" fill="#acb8a0"/></svg>',
@@ -106,7 +107,7 @@ import {TEXT_DEFAULTS,textSettings,captionWidthPixels,metadataPadding,customText
   let previewAvatars={};
   const avatarUrl=(user)=>svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140"><rect width="120" height="140" fill="${user?'#d9d4c4':'#cddbcf'}"/><circle cx="60" cy="51" r="23" fill="#fffaf0"/><path d="M15 140v-18c0-44 90-44 90 0v18" fill="#fffaf0"/><path d="M18 14h84" stroke="#ffffff" opacity=".5"/></svg>`);
   let noticeTimer;
-  function notify(text){const n=shadow.querySelector('#notice');n.textContent=text;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{n.textContent='';},4500);noticeTimer.unref?.();}
+  function notify(text,duration=4500){const n=shadow.querySelector('#notice');n.textContent=text;clearTimeout(noticeTimer);if(duration){noticeTimer=setTimeout(()=>{n.textContent='';},duration);noticeTimer.unref?.();}}
   function remember(){shadow.querySelector('#save-state').textContent='未保存的草稿';history.push(clone(config));if(history.length>40)history.shift();}
   function fixture(user,long=false){
     const msg=make('div','mes');msg.dataset.orangeLabFixture='message';msg.setAttribute('is_user',String(user));msg.setAttribute('is_system','false');msg.setAttribute('mesid',user?'2':'1');
@@ -376,7 +377,16 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     async function refreshLibrary(){
       const version=++listVersion;list.textContent='正在读取素材库…';
       try{const records=await assetLibrary.list();if(!visible()||version!==listVersion)return;list.replaceChildren();if(!records.length)list.append(make('p','hint','还没有自定义素材。上传图片或保存图片链接后，可在所有选图入口复用。'));
-        for(const record of records){const card=make('div','asset-library-card');card.dataset.libraryAsset=record.id;Object.assign(card.style,{display:'grid',gridTemplateColumns:'52px minmax(0,1fr)',gap:'8px',padding:'10px',border:'1px solid #d5ded7',borderRadius:'10px',marginBottom:'8px'});const preview=make('img');preview.src=record.image;preview.alt=record.name;preview.loading='lazy';preview.referrerPolicy='no-referrer';Object.assign(preview.style,{width:'52px',height:'52px',objectFit:'contain'});const detail=make('div'),name=make('p','',record.name),source=make('small','',record.kind==='url'?'链接素材':'已保存在本浏览器');Object.assign(name.style,{margin:'0 0 4px',overflowWrap:'anywhere'});const use=make('button','','使用素材');use.type='button';use.setAttribute('aria-label','使用素材：'+record.name);use.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;use.addEventListener('click',()=>useSource(record));preview.addEventListener('error',()=>{source.textContent=record.kind==='url'?'图片加载失败，请检查链接或来源网站限制。':'图片无法预览，请重新上传。';});detail.append(name,source,use);card.append(preview,detail);list.append(card);}
+        for(const record of records){const card=make('div','asset-library-card');card.dataset.libraryAsset=record.id;Object.assign(card.style,{display:'grid',gridTemplateColumns:'52px minmax(0,1fr)',gap:'8px',padding:'10px',border:'1px solid #d5ded7',borderRadius:'10px',marginBottom:'8px'});const preview=make('img');preview.src=record.image;preview.alt=record.name;preview.loading='lazy';preview.referrerPolicy='no-referrer';Object.assign(preview.style,{width:'52px',height:'52px',objectFit:'contain'});const detail=make('div'),name=make('p','',record.name),source=make('small','',record.kind==='url'?'链接素材':'已保存在本浏览器');Object.assign(name.style,{margin:'0 0 4px',overflowWrap:'anywhere'});const use=make('button','','使用素材');use.type='button';use.setAttribute('aria-label','使用素材：'+record.name);use.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;use.addEventListener('click',()=>useSource(record));preview.addEventListener('error',()=>{source.textContent=record.kind==='url'?'图片加载失败，请检查链接或来源网站限制。':'图片无法预览，请重新上传。';});const remove=make('button','','从素材库删除');remove.type='button';remove.setAttribute('aria-label','从素材库删除：'+record.name);
+          remove.addEventListener('click',async()=>{
+            if(remove.disabled||!visible()||!card.isConnected)return;
+            if(!window.confirm(`从素材库删除“${record.name}”？已放入方案的图片不受影响；库中原图删除后无法撤销。`))return;
+            remove.disabled=true;status.textContent='正在删除素材…';
+            try{await assetLibrary.remove(record.id);if(visible()){status.textContent=`已从素材库删除“${record.name}”，方案中的图片未改变。`;await refreshLibrary();}}
+            catch(error){if(visible())status.textContent=`未删除“${record.name}”：素材库删除失败，请重试。`;}
+            finally{remove.disabled=false;}
+          });
+          const actions=make('div','actions');actions.append(use,remove);detail.append(name,source,actions);card.append(preview,detail);list.append(card);}
       }catch(error){if(visible()&&version===listVersion){list.replaceChildren(make('p','hint',error.message));const retry=make('button','','重试读取素材库');retry.type='button';retry.addEventListener('click',refreshLibrary);list.append(retry);}}
     }
     saveUrl.addEventListener('click',async()=>{
@@ -745,6 +755,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     chat.append(fixture(false),fixture(true),fixture(false,true));
     shadow.querySelector('.launcher').classList.add('hidden');shadow.querySelector('.bar').classList.remove('hidden');panel.classList.remove('hidden');shadow.querySelector('.preview-tools').classList.remove('hidden');shadow.querySelector('.splitter').classList.remove('hidden');shadow.querySelector('.mobile-dock').classList.remove('hidden');document.documentElement.dataset.otlNarrow=String(ui.narrow);shadow.querySelector('#narrow').setAttribute('aria-pressed',String(ui.narrow));apply();renderFields();chat.scrollTop=0;
     layoutObserver=new ResizeObserver(scheduleFit);layoutObserver.observe(chat);for(const meta of chat.querySelectorAll('[data-orange-lab-fixture] .otl-meta'))layoutObserver.observe(meta);syncFooterSizes();
+    if(loadError)notify('保存的方案未载入：'+loadError.message+' 点击“恢复已保存”重试。',0);
   }
   function syncFooterSizes(){
     if(!layoutObserver)return;const wanted=new Set(document.querySelectorAll('[data-orange-lab-fixture] .otl-footer-flow,[data-orange-lab-fixture] .name_text,[data-orange-lab-fixture] .timestamp,[data-orange-lab-fixture] .otl-caption'));for(const node of previewFooterSizes)if(!wanted.has(node)){layoutObserver.unobserve?.(node);previewFooterSizes.delete(node);}for(const node of wanted)if(!previewFooterSizes.has(node)){layoutObserver.observe(node);previewFooterSizes.add(node);}
@@ -769,10 +780,32 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   shadow.querySelector('[aria-label="基础模板"]').addEventListener('change',event=>{const id=event.target.value;if(!replaceStart(id))event.target.value=config.template;});
   shadow.querySelector('#narrow').addEventListener('click',event=>{const narrow=event.target.getAttribute('aria-pressed')!=='true';ui.narrow=narrow;event.target.setAttribute('aria-pressed',String(narrow));document.documentElement.dataset.otlNarrow=String(narrow);updateWorkbenchLayout();scheduleFit();});
   shadow.querySelector('#undo').addEventListener('click',()=>{if(!history.length)return;invalidateEditing();config=history.pop();apply();renderFields();notify('已撤销上一步');});
-  shadow.querySelector('#save').addEventListener('click',()=>{try{const checked=validate(config);localStorage.setItem(KEY,JSON.stringify(checked));saved=clone(checked);shadow.querySelector('#save-state').textContent='已保存方案';notify('方案已保存到当前浏览器，刷新后可以继续编辑。');}catch(error){notify(error.name==='QuotaExceededError'?'浏览器空间不足，原有保存未变。请先导出方案，或缩小图片后重试。':'未保存：'+error.message);}});
-  shadow.querySelector('#restore').addEventListener('click',()=>{if(!saved){notify('还没有保存过方案。');return;}invalidateEditing();remember();config=clone(saved);selectedLayerId=config.layers[0]?.id;apply();renderFields();notify('已恢复上次保存的方案');});
+  shadow.querySelector('#save').addEventListener('click',async()=>{
+    const button=shadow.querySelector('#save');if(button.disabled)return;
+    if(loadError){notify('未保存：请先点击“恢复已保存”重新读取方案。原保存未改变。',0);return;}
+    let checked,json;try{checked=validate(config);json=JSON.stringify(checked);}catch(error){shadow.querySelector('#save-state').textContent='未保存';notify('未保存：'+error.message,0);return;}
+    button.disabled=true;shadow.querySelector('#save-state').textContent='正在保存…';
+    try{
+      await schemeStorage.save(json);saved=clone(checked);
+      let unchanged=false;try{unchanged=JSON.stringify(validate(config))===json;}catch{}
+      shadow.querySelector('#save-state').textContent=unchanged?'已保存方案':'未保存的草稿';
+      notify(unchanged?'方案已保存到当前浏览器，刷新后可以继续编辑。':'点击保存时的方案已保存；之后的修改尚未保存。');
+    }catch(error){shadow.querySelector('#save-state').textContent='未保存';notify(error.name==='QuotaExceededError'?'未保存：浏览器可用存储空间不足，原有保存未变。请释放设备或本站不需要的存储后重试；也可手动导出当前方案。':'未保存：'+error.message,0);}
+    finally{button.disabled=false;}
+  });
+  shadow.querySelector('#restore').addEventListener('click',async()=>{
+    const button=shadow.querySelector('#restore');if(button.disabled)return;
+    if(loadError){
+      button.disabled=true;const epoch=editEpoch,originalConfig=config,draft=JSON.stringify(config);
+      try{const raw=await schemeStorage.load();saved=raw===null?null:validate(JSON.parse(raw));loadError=null;
+        if(!active||epoch!==editEpoch||config!==originalConfig||JSON.stringify(config)!==draft){notify('已重新读取保存方案；点击“恢复已保存”载入。');return;}
+      }catch(error){loadError=error;notify('保存的方案未载入：'+error.message,0);return;}
+      finally{button.disabled=false;}
+    }
+    if(!saved){notify('还没有保存过方案。');return;}invalidateEditing();remember();config=clone(saved);selectedLayerId=config.layers[0]?.id;apply();renderFields();notify('已恢复上次保存的方案');
+  });
   shadow.querySelector('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(validate(config),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=make('a');a.href=url;a.download='橙子的主题实验方案.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('已导出实验方案；它不是酒馆原生主题文件。');});
   shadow.querySelector('#import').addEventListener('click',()=>shadow.querySelector('#import-file').click());
-  shadow.querySelector('#import-file').addEventListener('change',async event=>{const input=event.target,file=input.files[0];if(!file)return;const epoch=editEpoch,originalConfig=config;try{if(file.size>24*1024*1024)throw Error('方案文件过大');const contents=await file.text();if(!active||epoch!==editEpoch||config!==originalConfig)return;const next=validate(JSON.parse(contents));invalidateEditing();remember();config=next;selectedLayerId=config.layers[0]?.id;apply();renderFields();notify('已导入预览，点击保存后记住。');}catch(error){notify('未导入：'+error.message);}finally{input.value='';}});
+  shadow.querySelector('#import-file').addEventListener('change',async event=>{const input=event.target,file=input.files[0];if(!file)return;invalidateEditing();const epoch=editEpoch,originalConfig=config;try{const contents=await file.text();if(!active||epoch!==editEpoch||config!==originalConfig)return;const next=validate(JSON.parse(contents));invalidateEditing();remember();config=next;selectedLayerId=config.layers[0]?.id;apply();renderFields();notify('已导入预览，点击保存后记住。');}catch(error){notify('未导入：'+error.message);}finally{input.value='';}});
 })();
 

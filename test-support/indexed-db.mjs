@@ -28,16 +28,16 @@ export function indexedDatabase() {
                   let result;
                   if (kind === 'getAll') result = [...store.values()];
                   if (kind === 'get') result = store.get(argument);
-                  if (kind === 'add') {
+                  if (kind === 'add' || kind === 'put') {
                     assert.equal(mode, 'readwrite');
-                    if (store.has(argument.id)) { tx.error = new DOMException('duplicate', 'ConstraintError'); tx.abort(); return; }
+                    if (kind === 'add' && store.has(argument.id)) { tx.error = new DOMException('duplicate', 'ConstraintError'); tx.abort(); return; }
                     result = argument.id;
                   }
                   req.result = structuredClone(result); req.onsuccess?.();
                   const finish = () => {
                     if (controls.failNext) { tx.error = new DOMException('failed transaction', controls.failNext); controls.failNext = ''; tx.abort(); return; }
                     if (tx.aborted) return;
-                    if (kind === 'add') store.set(argument.id, structuredClone(argument));
+                    if (kind === 'add' || kind === 'put') store.set(argument.id, structuredClone(argument));
                     if (kind === 'delete') store.delete(argument);
                     tx.oncomplete?.();
                   };
@@ -45,7 +45,7 @@ export function indexedDatabase() {
                 });
                 return req;
               }
-              return {getAll: () => operation('getAll'), get: id => operation('get', id), add: record => operation('add', record), delete: id => operation('delete', id)};
+              return {getAll: () => operation('getAll'), get: id => operation('get', id), add: record => operation('add', record), put: record => operation('put', record), delete: id => operation('delete', id)};
             }};
           return tx;
         }};
