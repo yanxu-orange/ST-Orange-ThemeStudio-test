@@ -1,0 +1,61 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {parseHTML} from 'linkedom';
+import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
+import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
+import {resolvePageGroup,pageFontEntries} from './page-style.mjs';
+
+test('independent page editors preserve native controls, inheritance, all fields, materials, history and persistence',async()=>{
+ const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div><div id="user-settings-block"><section id="UI-Theme-Block"><h4>设置分组</h4><input id="real-setting" value="original"><button id="real-setting-button">设置操作</button></section></div><div id="WorldInfo"><div id="world_popup_entries_list"><div class="world_entry"><form class="world_entry_form wi-card-entry"><div class="inline-drawer"><div class="inline-drawer-header">条目</div><div class="inline-drawer-content"><textarea id="real-entry">original entry</textarea><button id="real-entry-button">条目操作</button></div></div></form></div></div></div></body></html>');
+ const descriptor=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:descriptor.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
+ const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});window.innerWidth=390;window.innerHeight=844;window.confirm=()=>true;
+ seedNativeChat(document);const storage=await editorStorage();await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const click=selector=>{const node=sh.querySelector(selector);assert.ok(node,selector);assert.notEqual(node.disabled,true);node.click();};
+ const change=(selector,value)=>{const node=sh.querySelector(selector);assert.ok(node,selector);node.value=String(value);node.dispatchEvent(new window.Event('input',{bubbles:true}));node.dispatchEvent(new window.Event('change',{bubbles:true}));};
+ const field=(label,value)=>change(`[aria-label="${label}"]`,value),save=()=>saveEditorScheme(sh,storage),page=value=>change('#workspace-page',value),region=value=>change('#region-select',value),part=value=>click(`[data-kind=${value}]`),custom=()=>field('样式来源','custom');
+ const path=()=>[sh.querySelector('#workspace-page').value,sh.querySelector('#region-select').value,sh.querySelector('[data-kind][aria-pressed=true]')?.dataset.kind];
+ const nativeNodes=['real-setting','real-entry','real-setting-button','real-entry-button'].map(id=>document.getElementById(id));let inputEvents=0,buttonEvents=0;for(const node of nativeNodes)node.addEventListener(node.tagName==='BUTTON'?'click':'input',()=>node.tagName==='BUTTON'?buttonEvents++:inputEvents++);
+ try{
+ click('.launcher');click('[data-flow=continue]');const initial=await save();
+ page('home');region('common');part('text');field('界面文字颜色 HEX','#102030');page('settings');region('page-common');part('text');assert.equal(sh.querySelector('[aria-label="样式来源"]').value,'inherit');assert.equal(sh.querySelector('[aria-label="界面文字颜色 HEX"]'),null);
+ const inherited=await save();assert.deepEqual(inherited.pageStyle,initial.pageStyle,'global edits must never freeze inherited page groups');assert.equal(resolvePageGroup(inherited,'settings','text').color,'#102030');assert.equal(resolvePageGroup(inherited,'worldbook','text').color,'#102030');
+ part('panel');click('[data-page-artwork=page]');click('button[data-builtin-asset]');const artOnly=await save();assert.equal(artOnly.pageStyle.settings.panel,null);assert.ok(artOnly.pageStyle.settings.art.page.asset);assert.equal(sh.querySelector('[aria-label="样式来源"]').value,'inherit');click('[data-remove-page-artwork=page]');part('text');
+ custom();assert.equal(sh.querySelector('[aria-label="界面文字颜色 HEX"]').value,'#102030');field('界面文字颜色 HEX','#314159');field('样式来源','inherit');assert.equal((await save()).pageStyle.settings.text,null);
+ page('home');region('common');part('text');field('界面文字颜色 HEX','#203040');page('settings');region('page-common');part('text');custom();assert.equal(sh.querySelector('[aria-label="界面文字颜色 HEX"]').value,'#203040');
+ const edits={
+ text:[['界面字体','serif','font'],['界面字号 数值',19,'size'],['界面文字颜色 HEX','#123456','color'],['辅助文字颜色 HEX','#234567','muted'],['界面强调颜色 HEX','#345678','accent']],
+ panel:[['面板底色 HEX','#456789','background'],['面板不透明度 数值',.65,'opacity'],['面板边框颜色 HEX','#56789a','border'],['面板边框粗细 数值',3,'width'],['面板圆角 数值',21,'radius']],
+ heading:[['标题文字颜色 HEX','#6789ab','color'],['标题底色 HEX','#789abc','background'],['标题字号 数值',23,'size'],['标题字重',800,'weight'],['标题圆角 数值',17,'radius']],
+ button:[['按钮文字颜色 HEX','#89abcd','color'],['按钮底色 HEX','#9abcde','background'],['按钮边框颜色 HEX','#abcdef','border'],['按钮悬停底色 HEX','#bcdef0','hover'],['按钮圆角 数值',13,'radius']],
+ field:[['控件文字颜色 HEX','#cdef01','color'],['控件底色 HEX','#def012','background'],['控件边框颜色 HEX','#ef0123','border'],['控件焦点颜色 HEX','#f01234','focus'],['控件圆角 数值',15,'radius']]
+ };
+ for(const target of ['settings','worldbook']){
+  page(target);region('page-common');assert.equal(sh.querySelectorAll('.kind-tabs [data-kind]').length,5);
+  for(const [group,rows]of Object.entries(edits)){part(group);if(sh.querySelector('[aria-label="样式来源"]').value==='inherit')custom();for(const [label,value]of rows)field(label,value);const saved=await save();for(const [,value,key]of rows)assert.equal(saved.pageStyle[target][group][key],value,`${target}.${group}.${key}`);}
+  part('text');field('界面 字体直链',`https://example.com/${target}.woff2`);field('界面 链接文件类型','700');assert.equal(pageFontEntries(await save())['page-'+target].fontLink.faceWeight,'700');
+  if(target==='settings')assert.deepEqual((await save()).pageStyle.worldbook,initial.pageStyle.worldbook,'settings edits leave every worldbook override untouched');
+ }
+ const both=await save();assert.deepEqual(both.commonStyle.text,{...initial.commonStyle.text,color:'#203040'});assert.deepEqual(both.layers,initial.layers);
+ page('settings');region('page-content');assert.equal(sh.querySelectorAll('.kind-tabs [data-kind]').length,0);custom();for(const [label,value]of edits.panel)field(label,value);field('面板圆角 数值',25);assert.equal((await save()).pageStyle.settings.section.radius,25);
+ page('worldbook');region('page-content');part('surface');custom();for(const [label,value]of edits.panel)field(label,value);field('面板圆角 数值',27);part('heading');custom();for(const [label,value]of edits.heading)field(label,value);field('标题字重',900);let config=await save();assert.equal(config.pageStyle.worldbook.entry.radius,27);assert.equal(config.pageStyle.worldbook.entryHeading.weight,900);assert.equal(config.pageStyle.settings.section.radius,25);
+ field('标题圆角 数值',30);click('#undo');assert.equal(Number(sh.querySelector('[aria-label="标题圆角 数值"]').value),17);
+ field('样式来源','inherit');config=await save();assert.equal(config.pageStyle.worldbook.entryHeading,null);assert.equal(resolvePageGroup(config,'worldbook','entryHeading').weight,800);click('#undo');assert.equal(sh.querySelector('[aria-label="样式来源"]').value,'custom');
+ for(const [target,surface]of [['settings','page'],['settings','section'],['worldbook','page'],['worldbook','entry']]){
+  page(target);region(surface==='page'?'page-common':'page-content');if(surface==='page')part('panel');else if(target==='worldbook')part('surface');const caller=path(),before=await save();
+  click(`[data-page-artwork=${surface}]`);const stale=sh.querySelector('button[data-builtin-asset]');assert.ok(stale);click('#material-back');stale.click();assert.deepEqual(await save(),before);assert.deepEqual(path(),caller);
+  click(`[data-page-artwork=${surface}]`);const escape=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(escape,'key',{value:'Escape'});sh.querySelector('.fields').dispatchEvent(escape);assert.deepEqual(await save(),before);assert.deepEqual(path(),caller);
+  click(`[data-page-artwork=${surface}]`);document.querySelector('#WI-SP-button .drawer-toggle').click();await settleNativeCanvas();click('button[data-builtin-asset]');assert.deepEqual(path(),caller);field('图片铺放','contain');field('水平取景 数值',31);field('垂直取景 数值',72);const withArt=await save();assert.ok(withArt.pageStyle[target].art[surface].asset);assert.equal(withArt.pageStyle[target].art[surface].fit,'contain');assert.equal(withArt.pageStyle[target].art[surface].x,31);assert.equal(withArt.pageStyle[target].art[surface].y,72);assert.deepEqual(withArt.layers,initial.layers);
+  click(`[data-remove-page-artwork=${surface}]`);assert.equal((await save()).pageStyle[target].art[surface],null);click('#undo');assert.deepEqual((await save()).pageStyle[target].art[surface],withArt.pageStyle[target].art[surface]);
+ }
+ config=await save();for(const width of [390,1200,320]){window.innerWidth=width;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('#workspace-page').value,'worldbook');assert.equal(sh.querySelector('#region-select').value,'page-content');assert.equal(sh.querySelector('#mode-layers').disabled,true);assert.ok(sh.querySelector('[aria-label="样式来源"]'));}
+ const blobs=[],create=URL.createObjectURL;URL.createObjectURL=blob=>{blobs.push(blob);return create(blob);};try{click('#export');}finally{URL.createObjectURL=create;}assert.equal(blobs.length,1);const json=await blobs[0].text();assert.deepEqual(JSON.parse(json),config);
+ const importJson=async value=>{const input=sh.querySelector('#import-file');Object.defineProperty(input,'files',{value:[{text:async()=>JSON.stringify(value)}],configurable:true});input.dispatchEvent(new window.Event('change'));await settleNativeCanvas();};
+ field('面板圆角 数值',30);await importJson(config);assert.deepEqual(await save(),config);
+ const legacy=structuredClone(config);delete legacy.pageStyle;await importJson(legacy);const migrated=await save();assert.deepEqual(migrated.pageStyle,initial.pageStyle,'old imports default all page groups and art to inheritance');assert.deepEqual(migrated.commonStyle,config.commonStyle);await importJson(config);assert.deepEqual(await save(),config);
+ for(const corrupt of [value=>value.pageStyle.settings.section.radius=999,value=>value.pageStyle.worldbook.art.entry.x=-1,value=>value.pageStyle.worldbook.art.entry.image='javascript:alert(1)',value=>value.pageStyle.unknown={}]){const bad=structuredClone(config);corrupt(bad);await importJson(bad);assert.match(sh.querySelector('#notice').textContent,/未导入/);assert.deepEqual(await save(),config);}
+ for(const node of nativeNodes){assert.equal(document.getElementById(node.id),node);if(node.tagName==='BUTTON')node.click();else{node.value='edited natively';node.dispatchEvent(new window.Event('input',{bubbles:true}));}}assert.equal(inputEvents,2);assert.equal(buttonEvents,2);assert.deepEqual(await save(),config);assert.equal(document.querySelectorAll('.otl-native-page').length,0);
+ click('#apply-live');assert.equal(document.documentElement.hasAttribute('data-orange-live'),true);assert.match(document.querySelector('#orange-theme-live-style').textContent,/#123456/);assert.match(document.querySelector('#orange-theme-live-style').textContent,/#WorldInfo/);assert.match(document.querySelector('#orange-theme-live-style').textContent,/#user-settings-block/);click('.launcher');click('[data-flow=continue]');assert.deepEqual(await save(),config);
+ // Reinitialize against the same IndexedDB to exercise the startup migration/load path.
+ click('#close');document.querySelector('#orange-theme-lab').remove();await import('./index.js?page-style-reload');const reloaded=document.querySelector('#orange-theme-lab').shadowRoot;reloaded.querySelector('.launcher').click();reloaded.querySelector('[data-flow=continue]')?.click();assert.deepEqual(await saveEditorScheme(reloaded,storage),config);reloaded.querySelector('#close').click();
+ }finally{document.querySelector('#orange-theme-lab')?.shadowRoot.querySelector('#close')?.click();}
+});

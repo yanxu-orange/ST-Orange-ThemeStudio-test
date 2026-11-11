@@ -1,4 +1,5 @@
 import {normalizeCommonConfig,commonStyleRules,commonFontEntries} from './common-style.mjs';
+import {normalizePageConfig,pageStyleRules,pageFontEntries,createPageDropdownBridge} from './page-style.mjs';
 import {createImageDisplay} from './image-display.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {avatarArtworkFrameStyle} from './avatar-art.mjs';
@@ -86,13 +87,14 @@ ${avatarDesignRules(q,config)}
 ${avatarFillRules(q,config)}
 ${canvasBackgroundRules(config,'html[data-orange-live]')}
 ${commonStyleRules(config,{family:families.common||''})}
+${pageStyleRules(config,{families})}
 
 `;
 }
 
 function normalizeLiveConfig(config){
   const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
-  Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle});
+  Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle});
   next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
 }
 // Drafts already normalized by the editor need object isolation, not another
@@ -106,6 +108,7 @@ const cssRootFields=new Set(['background','surface','surfaceOpacity','text','acc
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
 const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
 function cssOnlyField(path,key){
+  if(!path.length&&key==='pageStyle')return true;
   if(!path.length)return cssRootFields.has(key);
   const [root,group,part]=path;
   if(path.length===2){
@@ -130,10 +133,11 @@ function sameLayout(a,b,path=[]){
   if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
   return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
 }
-function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config)};}
+function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config)};}
 
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
 export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {
+  const pageDropdowns=createPageDropdownBridge({document,MutationObserver:Observe});
   const imageDisplay=createImageDisplay({document,selector:'img[data-layer-id][data-otl-live-owned]'});
   const chrome=createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize});
   const win=document.defaultView;
@@ -339,6 +343,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function stop(){
     if(!snapshot)return;
+    pageDropdowns.stop();
     imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
@@ -350,14 +355,16 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const next=normalizeLiveConfig(config);stop();snapshot=next;hostModes=readHostModes();
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
+      pageDropdowns.start();
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
-      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update(fontEntries(snapshot));stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
+      let layoutFamilies='{}';
+      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;const families=fontSession.families();style.textContent=styleText(snapshot,families,currentInterface);const next=JSON.stringify(Object.fromEntries(Object.entries(families).filter(([key])=>!key.startsWith('page-'))));if(next!==layoutFamilies){layoutFamilies=next;schedule();}}});fontSession.update(fontEntries(snapshot));stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
       if(ResizeObs)resizer=new ResizeObs(resized);
       const token=++session;const count=reconcile();imageDisplay.watch(document.querySelector('#chat'));
       if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['mesid','is_user','is_system','data-orange-lab-fixture','class','src','data-duration','data-state','open','style','hidden']});}
-      fontHandler=()=>{if(snapshot&&session===token){chrome.refreshInput();schedule();}};document.fonts?.addEventListener?.('loadingdone',fontHandler);document.fonts?.ready?.then?.(fontHandler,()=>{});
+      fontHandler=event=>{if(snapshot&&session===token){const families=fontSession.families(),pageFamilies=new Set(Object.entries(families).filter(([key])=>key.startsWith('page-')).map(([,family])=>family)),layoutFonts=new Set(Object.entries(families).filter(([key])=>!key.startsWith('page-')).map(([,family])=>family));if(event?.fontfaces?.length&&event.fontfaces.every(face=>pageFamilies.has(face.family)&&!layoutFonts.has(face.family)))return;chrome.refreshInput();schedule();}};document.fonts?.addEventListener?.('loadingdone',fontHandler);document.fonts?.ready?.then?.(fontHandler,()=>{});
       return {messages:count};
     }catch(error){stop();throw error;}
   }

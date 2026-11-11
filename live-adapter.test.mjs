@@ -18,6 +18,18 @@ function environment(options={}){
   return {document,window,adapter,queue,settle};
 }
 
+test('page appearance and art updates are CSS-only and do not relayout chat messages',async()=>{
+ const renders=[],{document,adapter,settle}=environment({onRender:r=>renders.push(r)});
+ const c=config();adapter.start(c);await settle();renders.length=0;
+ c.pageStyle={settings:{field:{background:'#123456'},art:{page:{image:'https://example.com/page.png'}}},worldbook:{entry:{radius:21}}};
+ adapter.update(c);await settle();
+ assert.equal(renders.at(-1).updated,0);const css=document.getElementById('orange-theme-live-style').textContent;
+ assert.ok(css.includes('#user-settings-block'));assert.ok(css.includes('background-image:url("https://example.com/page.png")'));
+ assert.ok(css.includes('#world_popup_entries_list .wi-card-entry'));
+ c.pageStyle={};adapter.update(c);await settle();assert.equal(renders.at(-1).updated,0);assert.ok(!document.getElementById('orange-theme-live-style').textContent.includes('https://example.com/page.png'));
+ adapter.stop();
+});
+
 test('applies snapshot while preserving real avatar, native nodes and listeners; restores precisely',async()=>{
   const {document,adapter,settle,queue}=environment(),msg=document.querySelector('.mes'),before=msg.outerHTML;
   const image=msg.querySelector('.avatar>img'),name=msg.querySelector('.name_text'),button=msg.querySelector('.mes_edit');let clicks=0;button.addEventListener('click',()=>clicks++);

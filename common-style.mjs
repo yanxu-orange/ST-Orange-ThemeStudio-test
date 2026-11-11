@@ -38,13 +38,13 @@ export function commonFontEntries(config){return {common:{fontLink:normalizeComm
 
 // The host owns geometry, visibility, events, and icon fonts. Only appearance is shared.
 // Source: SillyTavern 1.18.0 style.css, world-info.css, select2-overrides.css.
-export function commonStyleRules(config,{preview=false,family=''}={}){
+export function commonStyleRules(config,{preview=false,family='',rootScope='',dropdownScope=''}={}){
  const {text:t,panel:p,heading:h,button:b,field:f}=normalizeCommonConfig(config).commonStyle;
  const guard=':not(:where(#chat *,#send_form *,#form_sheld *,#orange-theme-lab,#orange-theme-lab *))';
- const page=preview?'html[data-orange-lab] #chat>.otl-native-page':`html[data-orange-live] :is(.drawer-content,dialog.popup:not(.transparent_dialogue_popup):not(:has(.img_enlarged_container)),#options,.options-content,.list-group)${guard}`;
+ const page=rootScope||(preview?'html[data-orange-lab] #chat>.otl-native-page':`html[data-orange-live] :is(.drawer-content,dialog.popup:not(.transparent_dialogue_popup):not(:has(.img_enlarged_container)),#options,.options-content,.list-group)${guard}`);
  const scope=selector=>{const [element,pseudo]=selector.split('::');return `${page} ${element}${preview?'':guard}${pseudo?'::'+pseudo:''}`;};
  // Select2 appends its dropdown to body rather than to the source drawer.
- const dropdown=preview?scope('.select2-dropdown'):'html[data-orange-live] body>.select2-container--open .select2-dropdown';
+ const dropdown=dropdownScope||(preview?scope('.select2-dropdown'):'html[data-orange-live] body>.select2-container--open .select2-dropdown');
  const select2=selector=>`${scope(selector)},${dropdown} ${selector}`;
  const font=family?JSON.stringify(family):t.font==='auto'?'var(--mainFontFamily, sans-serif)':t.font;
  const fontVariables=`--mainFontSize:${t.size}px;${family||t.font!=='auto'?'--mainFontFamily:'+font+';':''}`;

@@ -2,6 +2,7 @@ import {uniqueId} from './unique-id.mjs';
 import {createWorkshopEntries} from './workshop-entries.mjs';
 import {createLiveCanvas} from './live-canvas.mjs';
 import {normalizeCommonConfig} from './common-style.mjs';
+import {normalizePageConfig} from './page-style.mjs';
 import {createImageDisplay} from './image-display.mjs';
 import {createSchemeStorage} from './scheme-storage.mjs';
 import {createFontLibrary,renderFontLibrary} from './font-library.mjs';
@@ -59,7 +60,7 @@ await (async () => {
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
   let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', gestureSelection=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, libraryPurpose='layer', libraryTarget='', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry',previewChatWidth=0;
-  config=normalizeCommonConfig(config);
+  config=normalizePageConfig(normalizeCommonConfig(config));
   const assetLibrary=createAssetLibrary();
   const iconLibrary=createIconLibrary();let disposeIconLibrary=null,disposeFontLibrary=null;
   const fontLibrary=createFontLibrary();
@@ -99,7 +100,7 @@ await (async () => {
     }
     if(raw.image){if(!validEmbeddedImage(raw.image))throw Error('图片格式不支持');result.image=raw.image;}
     if(Object.hasOwn(templates,raw.template))result.template=raw.template;if(raw.layout!==undefined){if(!['top','left','collage'].includes(raw.layout))throw Error('排版值无效');result.layout=raw.layout;}
-    result.commonStyle=normalizeCommonConfig(raw).commonStyle;result.avatarDesign=raw.avatarDesign||'separate';Object.assign(result,normalizeCanvasBackground(raw));result.hideScrollbars=hideScrollbars;result.textItems=canonical.textItems;result.captions=canonical.captions;result.layers=migrateLayers(raw);result.photos=validatePhotos(raw.photos);result.reasoningStyle=reasoning.reasoningStyle;result.footerCaptions=footer.footerCaptions;result.nativeStyle=native.nativeStyle;result.version=raw.version>=8?raw.version:7;if(raw.version>=8)delete result.timePosition;result.image='';
+    result.pageStyle=normalizePageConfig(raw).pageStyle;result.commonStyle=normalizeCommonConfig(raw).commonStyle;result.avatarDesign=raw.avatarDesign||'separate';Object.assign(result,normalizeCanvasBackground(raw));result.hideScrollbars=hideScrollbars;result.textItems=canonical.textItems;result.captions=canonical.captions;result.layers=migrateLayers(raw);result.photos=validatePhotos(raw.photos);result.reasoningStyle=reasoning.reasoningStyle;result.footerCaptions=footer.footerCaptions;result.nativeStyle=native.nativeStyle;result.version=raw.version>=8?raw.version:7;if(raw.version>=8)delete result.timePosition;result.image='';
     if(raw.surfaceOpacity===undefined&&raw.glass>0)result.surfaceOpacity=.81;
     for(const key of ['reasoning','reasoningFont','reasoningSize'])delete result[key];const scene=normalizeTextScene(stripLegacyCaptions(result));if(raw.regionOrder)scene.regionOrder=validateRegionOrder(raw.regionOrder,scene);return syncRegionOrder(normalizeAvatarFill(normalizeChromeConfig({...scene,version:raw.version,...(Object.hasOwn(raw,'chromeStyle')?{chromeStyle:raw.chromeStyle}:{}),...(Object.hasOwn(raw,'avatarFill')?{avatarFill:raw.avatarFill}:{})})));
   }
@@ -143,7 +144,7 @@ await (async () => {
 
   panel=shadow.querySelector('.panel');
   const extraStyle=make('style');
-  extraStyle.textContent=`.material-source-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0}.material-source-row select{min-width:0;width:100%}.material-source-row button{white-space:nowrap}.material-source-row select,.material-source-row button{min-height:44px}textarea{font:inherit;width:100%;min-height:100px;resize:vertical;border:1px solid #dce3d6;border-radius:9px;padding:10px;background:white;color:#344d3e;line-height:1.6}input[aria-invalid=true]{border-color:#b86b63}.layer-list{display:grid;gap:5px;max-height:180px;overflow:auto;margin:12px 0}.layer-list button{display:flex;align-items:center;gap:9px;text-align:left;padding:7px}.layer-list button[aria-pressed=true]{background:#edf3e9;border-color:#7d9a78}.layer-list img{width:34px;height:34px;object-fit:contain;background:#f1eee5;border-radius:5px}.layer-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.number-input{width:80px;padding:5px;border:1px solid #dce3d6;border-radius:6px}.crop-dialog{border:1px solid #dce3d6;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;padding:22px;color:#31493e;background:#fffdf8;font:14px/1.5 system-ui,sans-serif}.crop-dialog::backdrop{background:#1e302666}.crop-dialog canvas{display:block;max-width:100%;max-height:40vh;object-fit:contain;margin:14px auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50% / 16px 16px}.crop-dialog h3{margin:0 0 6px}.crop-dialog .actions{margin-top:16px}.layer-count{font-size:12px;color:#7c8975;margin-top:12px}`;
+  extraStyle.textContent=`.page-art-preview{display:block;width:100%;max-height:112px;object-fit:contain;border:1px solid #dde4dc;border-radius:8px;margin-top:10px;background:#f3f4ed}.material-source-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0}.material-source-row select{min-width:0;width:100%}.material-source-row button{white-space:nowrap}.material-source-row select,.material-source-row button{min-height:44px}textarea{font:inherit;width:100%;min-height:100px;resize:vertical;border:1px solid #dce3d6;border-radius:9px;padding:10px;background:white;color:#344d3e;line-height:1.6}input[aria-invalid=true]{border-color:#b86b63}.layer-list{display:grid;gap:5px;max-height:180px;overflow:auto;margin:12px 0}.layer-list button{display:flex;align-items:center;gap:9px;text-align:left;padding:7px}.layer-list button[aria-pressed=true]{background:#edf3e9;border-color:#7d9a78}.layer-list img{width:34px;height:34px;object-fit:contain;background:#f1eee5;border-radius:5px}.layer-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.number-input{width:80px;padding:5px;border:1px solid #dce3d6;border-radius:6px}.crop-dialog{border:1px solid #dce3d6;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;padding:22px;color:#31493e;background:#fffdf8;font:14px/1.5 system-ui,sans-serif}.crop-dialog::backdrop{background:#1e302666}.crop-dialog canvas{display:block;max-width:100%;max-height:40vh;object-fit:contain;margin:14px auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50% / 16px 16px}.crop-dialog h3{margin:0 0 6px}.crop-dialog .actions{margin-top:16px}.layer-count{font-size:12px;color:#7c8975;margin-top:12px}`;
   shadow.append(extraStyle);
   const nativeFit=createInputFitBridge({document,load:()=>import(new URL('../../../RossAscends-mods.js',import.meta.url).href).then(m=>m.autoFitSendTextAreaDebounced)});const fitInput=()=>{if(!document.defaultView?.location?.protocol?.startsWith('http'))return;return nativeFit();};
   const canvas=createLiveCanvas({document,onPage:page=>{if(active)workbench.syncViewedPage(page);}});
@@ -315,9 +316,9 @@ await (async () => {
   }
   function renderSourceLibrary(container,chromeTarget=null){
     if(!chromeTarget&&libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
-    const isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose,session=materialSession;
+    const isPageBackground=libraryPurpose==='page-background',isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon||isPageBackground,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose,session=materialSession;
     const categories=make('div','actions material-categories');categories.setAttribute('aria-label','素材类型');
-    for(const [id,label]of [['images','图片'],['shapes','图形'],['icons','图标'],['fonts','字体']]){const button=make('button','',label);button.type='button';button.dataset.materialCategory=id;button.setAttribute('aria-pressed',String(materialCategory===id));button.disabled=!!materialSession&&(libraryPurpose==='font'?id!=='fonts':libraryPurpose==='layer'?!['images','shapes'].includes(id):id==='shapes'||id==='fonts'||isBackground&&id==='icons');if(button.disabled)continue;button.addEventListener('click',()=>{invalidateEditing();materialCategory=id;renderFields();});categories.append(button);}shadow.querySelector('#library-expand').before(categories);
+    for(const [id,label]of [['images','图片'],['shapes','图形'],['icons','图标'],['fonts','字体']]){const button=make('button','',label);button.type='button';button.dataset.materialCategory=id;button.setAttribute('aria-pressed',String(materialCategory===id));button.disabled=!!materialSession&&(libraryPurpose==='font'?id!=='fonts':libraryPurpose==='layer'?!['images','shapes'].includes(id):id==='shapes'||id==='fonts'||(isBackground||isPageBackground)&&id==='icons');if(button.disabled)continue;button.addEventListener('click',()=>{invalidateEditing();materialCategory=id;renderFields();});categories.append(button);}shadow.querySelector('#library-expand').before(categories);
     if(materialCategory==='fonts'){renderFontShelf(container);return;}
 
     if(materialCategory==='icons'){renderIconShelf(container,chromeTarget,isEditIcon?backgroundTarget:null);return;}
@@ -327,7 +328,8 @@ await (async () => {
       if(!isSourceTarget&&!anchor()){notify('请先选择素材实际应用的区域，不会自动放入头像区。');return;}
       if(!isSourceTarget&&config.layers.length>=LAYER_LIMIT){notify(`最多放置 ${LAYER_LIMIT} 层素材；素材库可继续保存图片。`);return;}
       invalidateEditing();remember();
-      if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||'',icon:''});apply();returnFromMaterials();}
+      if(isPageBackground){session.onUse?.(source);apply();returnFromMaterials();}
+      else if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||'',icon:''});apply();returnFromMaterials();}
       else if(isSourceTarget){backgroundTarget.source={kind:source.asset?'asset':'custom',asset:source.asset||'',image:source.image||''};backgroundTarget.mode='image';if(isEditIcon)backgroundTarget.icon='';apply();returnFromMaterials();}
       else {const layer=newLayer(source.shape?'shape':source.asset?'asset':'custom',{name:source.name,asset:source.asset||'',image:source.image||'',...(source.shape?{shape:source.shape}:{}),opacity:1,anchor:anchor()});config.layers.push(layer);selectedLayerId=layer.id;apply();revealMaterialTarget(layerRegion(layer),'image',layer.id);}
       notify('已添加，尚未保存');
@@ -483,12 +485,15 @@ await (async () => {
       for(const [page,label]of [['settings','查看设置页'],['worldbook','查看世界书']]){const button=make('button','',label);button.type='button';button.addEventListener('click',()=>workbench.choosePage(page));row.append(button);}container.append(row);
     }
     container.append(make('p','hint','用于各页面共用界面；聊天正文、顶栏和输入区单独设置。'));
-    const part=ui.commonPart,item=config.commonStyle[part],control=f=>editorControl(container,{...f,notice:'界面共用外观已更新，尚未保存'},item);
+    renderSharedStyleFields(container,ui.commonPart,config.commonStyle[ui.commonPart]);
+  }
+  function renderSharedStyleFields(container,part,item,{fontKey='common',notice='界面共用外观已更新，尚未保存'}={}){
+    const control=f=>editorControl(container,{...f,notice},item);
     if(part==='text'){
       control(field('界面字体','font','select',{options:[['auto','沿用酒馆界面字体'],...fonts]}));
       control(field('界面字号','size','range',{min:12,max:24,unit:'px'}));
       for(const [key,label]of [['color','界面文字颜色'],['muted','辅助文字颜色'],['accent','界面强调颜色']])control(field(label,key,'color'));
-      propertyHeading(container,'外链字体');renderFontLinkFields(container,'common',item,'界面');
+      propertyHeading(container,'外链字体');renderFontLinkFields(container,fontKey,item,'界面');
     }else if(part==='panel'){
       control(field('面板底色','background','color'));control(field('面板不透明度','opacity','range',{min:0,max:1,step:.05}));
       control(field('面板边框颜色','border','color'));control(field('面板边框粗细','width','range',{min:0,max:4,unit:'px'}));control(field('面板圆角','radius','range',{min:0,max:32,unit:'px'}));
@@ -502,6 +507,32 @@ await (async () => {
       for(const [key,label]of [['color','控件文字颜色'],['background','控件底色'],['border','控件边框颜色'],['focus','控件焦点颜色']])control(field(label,key,'color'));
       control(field('控件圆角','radius','range',{min:0,max:32,unit:'px'}));
     }
+  }
+  function renderPageArtwork(container,page,surface){
+    const art=config.pageStyle[page].art[surface],label=surface==='page'?'页面背景图片':surface==='entry'?'条目背景图片':'分组背景图片';
+    propertyHeading(container,label);
+    const row=make('div','actions'),pick=make('button','',art?'更换图片':'选择图片');pick.type='button';pick.dataset.pageArtwork=surface;
+    pick.addEventListener('click',()=>openMaterialPicker('page-background','images',page+':'+surface,source=>{config.pageStyle[page].art[surface]={asset:source.asset||'',image:source.image||'',fit:art?.fit||'cover',x:art?.x??50,y:art?.y??50};}));row.append(pick);
+    if(art){const remove=make('button','','移除图片');remove.type='button';remove.dataset.removePageArtwork=surface;remove.addEventListener('click',()=>{remember();config.pageStyle[page].art[surface]=null;apply();renderFields();});row.append(remove);}
+    container.append(row);
+    if(art){const preview=make('img','page-art-preview');preview.alt=label;preview.src=art.asset?assetUrl(art.asset):art.image;preview.loading='lazy';container.append(preview);
+      editorControl(container,field('图片铺放','fit','select',{options:[['cover','铺满区域'],['contain','完整显示'],['auto','原始大小']]}),art);
+      const position=pairedFields(container);for(const [key,name]of [['x','水平取景'],['y','垂直取景']])editorControl(position,field(name,key,'range',{min:0,max:100,unit:'%'}),art);
+    }
+    container.append(make('p','hint','图片放在原生内容后方，不拦截按钮、输入或滚动；文字和控件保持可操作。'));
+  }
+  function renderPageFields(container){
+    const page=ui.page,specific=ui.region==='page-content',part=specific?(page==='settings'?'section':ui.kind==='heading'?'entryHeading':'entry'):ui.commonPart,basePart=['section','entry'].includes(part)?'panel':part==='entryHeading'?'heading':part;
+    const pageConfig=config.pageStyle[page],inherited=pageConfig[basePart]||config.commonStyle[basePart],item=pageConfig[part],label=specific?(part==='entryHeading'?'条目标题':page==='settings'?'设置分组':'条目卡片'):COMMON_PARTS.find(([id])=>id===part)?.[1];
+    container.append(make('p','hint',page==='settings'?'只调整原生用户设置页的外观，设置内容与切页仍由酒馆管理。':'只调整原生世界书面板与条目外观，不改世界书内容、顺序和启用状态。'));
+    const sourceLabel=make('label','field',label+'样式来源'),source=make('select');source.setAttribute('aria-label','样式来源');source.dataset.pageStyleSource=part;
+    const follow=specific?(part==='section'?(pageConfig.panel?'跟随本页面板':'沿用原生分组'):basePart==='panel'?'跟随本页面板':pageConfig.heading?'跟随本页标题':'沿用页面标题区'):'跟随全局';for(const [value,text]of [['inherit',follow],['custom','单独设置']]){const option=make('option','',text);option.value=value;source.append(option);}source.value=item?'custom':'inherit';
+    source.addEventListener('change',()=>{remember();pageConfig[part]=source.value==='custom'?clone(inherited):null;apply();renderFields();notify(source.value==='custom'?'已从当前外观开始单独设置，尚未保存':'已恢复跟随，尚未保存');});sourceLabel.append(source);container.append(sourceLabel);
+    if(item)renderSharedStyleFields(container,basePart,item,{fontKey:'page-'+page,notice:PAGE_NAMES[page]+'外观已更新，尚未保存'});
+    else container.append(make('p','hint',part==='entryHeading'&&!pageConfig.heading?'标题区保留页面外观，标题输入框沿用控件文字；选择“单独设置”可一起调整。':part==='section'&&!pageConfig.panel?'保留原生分组外观；选择“单独设置”会从当前面板外观开始调整。':follow+'，上层样式改变时会同步更新。选择“单独设置”可只修改这里。'));
+    if(basePart==='panel')renderPageArtwork(container,page,specific?part:'page');
+    if(part==='button')container.append(make('p','hint','保留删除等危险操作的警示色，以及原生按钮图标、名称与功能。'));
+    if(part==='field')container.append(make('p','hint','输入框、下拉及其选项、复选框、滑块沿用这页配色；勾选与滑块强调色在“界面文字”中调整。'));
   }
   function reasoningControl(container,target,f,onUpdate){editorControl(container,{...f,notice:'思维样式已更新，尚未保存'},target,onUpdate);}
   function renderReasoningColor(container,target,key,label){
@@ -656,8 +687,9 @@ await (async () => {
     if(fromPreview&&(document.defaultView?.innerWidth||1200)<=700)ui.mobileView='preview';
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
     shadow.querySelector('.inspector-head .material-categories')?.remove();const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;disposeFontLibrary?.();disposeFontLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
-    const commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&(!['home','chat'].includes(ui.page)||ui.region==='home-design');
-    if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}
+    const pageEditing=['settings','worldbook'].includes(ui.page)&&ui.mode!=='library',commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&(!['home','chat','settings','worldbook'].includes(ui.page)||ui.region==='home-design');
+    if(pageEditing){if(!['page-common','page-content'].includes(ui.region))ui.region='page-common';if(ui.region==='page-common'){kinds=COMMON_PARTS;title=PAGE_NAMES[ui.page]+' / 页面基础';}else{kinds=ui.page==='worldbook'?[['surface','条目卡片'],['heading','条目标题']]:[];if(!['surface','heading'].includes(ui.kind))ui.kind='surface';title=ui.page==='worldbook'?'世界书 / 条目':'设置分组';}}
+    else if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}
     else if(unavailable)title=ui.region==='home-design'?'首页独立设计尚未接入':PAGE_NAMES[ui.page]+'独立设计尚未接入';
     else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮素材':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':materialSession?'选择素材':'素材库';
     else if(ui.region==='overall'){
@@ -681,9 +713,10 @@ await (async () => {
     else title='此区域尚未开放';
     let extra;if(supportsLayers(ui)&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{openMaterialPicker('layer','images',targetForRegion());});}
     let actions;if(ui.page==='chat'&&ui.mode==='edit'&&['header','footer'].includes(ui.region)&&ui.kind==='text'&&!(ui.region==='header'&&['name','time'].includes(ui.object))){const list=currentCaptions();actions=make('button','',`＋ 新增文案（${list.length}/${CAPTION_LIMIT}）${list.length>=CAPTION_LIMIT?' 已达上限':''}`);actions.id=ui.region==='footer'?'add-footer-caption':'add-caption';actions.disabled=list.length>=CAPTION_LIMIT;actions.title=actions.disabled?'已达20条文案上限':'新增一条文案';actions.addEventListener('click',()=>{remember();const cap=currentNewCaption({name:'文案'+(list.length+1),font:config.font,color:config.accent});list.push(cap);ui.object=currentCaptionKey(cap.id);apply();renderFields();});}
-    const activeKind=commonEditing?ui.commonPart:ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
+    const activeKind=commonEditing||pageEditing&&ui.region==='page-common'?ui.commonPart:ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
     if(unavailable){container.append(make('p','hint','本页沿用全局外观，专属样式尚未开放。'));const global=make('button','','前往全局基础');global.type='button';global.addEventListener('click',()=>{workbench.choose('common','text','common');renderFields();});container.append(global);}
     else if(commonEditing)renderCommonFields(container);
+    else if(pageEditing)renderPageFields(container);
     else if(!['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)&&ui.mode!=='library')container.append(make('p','hint','此入口仅保留位置，真实功能尚未接入。当前主题和保存未改变。'));
     else if(ui.mode==='library')renderSourceLibrary(container);
     else if(ui.mobileView==='layers')renderRegionLayers(container);

@@ -1,7 +1,8 @@
 import {footerKey} from './footer.mjs';
 import {captionKey} from './captions.mjs';
 export const COMMON_PARTS=[['text','界面文字'],['panel','面板'],['heading','分区标题'],['button','按钮'],['field','输入与选择']];
-export const REGION_NAMES={common:'全局基础','home-design':'首页设计',overall:'卡片整体',header:'消息卡片 / 头像区',body:'消息卡片 / 正文',reasoning:'消息卡片 / 思维',footer:'消息卡片 / 尾部区',native:'消息控件',input:'共用输入区',topbar:'顶栏与工具',qr:'快捷回复 · 未接入'};
+export const PAGE_STYLE_REGIONS=['page-common','page-content'];
+export const REGION_NAMES={'page-common':'页面基础','page-content':'内容分组',common:'全局基础','home-design':'首页设计',overall:'卡片整体',header:'消息卡片 / 头像区',body:'消息卡片 / 正文',reasoning:'消息卡片 / 思维',footer:'消息卡片 / 尾部区',native:'消息控件',input:'共用输入区',topbar:'顶栏与工具',qr:'快捷回复 · 未接入'};
 export const PAGE_NAMES={home:'首页和全局',chat:'聊天',presets:'预设',connection:'API',worldbook:'世界书',settings:'设置',backgrounds:'背景',extensions:'扩展',personas:'人设',characters:'角色',formatting:'回复格式'};
 export const LAYER_REGIONS=['overall','header','reasoning','footer','input'];
 const GLOBAL_REGIONS=['common','topbar','input','home-design'];
@@ -49,14 +50,14 @@ export function createWorkbench(shadow,{onNavigate,onLayout}={}){
  function syncPage(){find('#workspace-page').value=ui.page;}
  function choosePage(page){
   if(!Object.hasOwn(PAGE_NAMES,page))return false;
-  if(page!==ui.page){finishLayout();ui.libraryExpanded=false;pageViews.set(ui.page,{region:ui.region,kind:ui.kind,object:ui.object,commonPart:ui.commonPart});ui.page=page;Object.assign(ui,pageViews.get(page)||{region:page==='home'?'common':'header',kind:page==='home'?'text':'region',object:page==='home'?'common':'region'});}
+  if(page!==ui.page){finishLayout();ui.libraryExpanded=false;pageViews.set(ui.page,{region:ui.region,kind:ui.kind,object:ui.object,commonPart:ui.commonPart});ui.page=page;Object.assign(ui,pageViews.get(page)||{region:page==='home'?'common':['settings','worldbook'].includes(page)?'page-common':'header',kind:page==='home'?'text':['settings','worldbook'].includes(page)?'surface':'region',object:page==='home'?'common':'region',commonPart:'text'});}
   ui.mode='edit';ui.mobileView='adjust';syncPage();onNavigate?.({pageChanged:true});onLayout?.();return true;
  }
  // Native Tavern navigation is observed only, never used to select an editing scope.
  function syncViewedPage(page){if(Object.hasOwn(PAGE_NAMES,page))ui.viewPage=page;}
  find('#workspace-page').addEventListener('change',event=>choosePage(event.target.value));
  find('#full-view').addEventListener('click',()=>{finishLayout();ui.libraryExpanded=false;ui.mobileView=ui.mobileView==='preview'?'adjust':'preview';ui.mode='edit';syncMobile();onNavigate?.();onLayout?.();});
- find('#region-select').addEventListener('change',event=>{const region=event.target.value;ui.region=region;ui.kind=region==='footer'?'text':region==='overall'?'card':region==='reasoning'?'entry':region==='native'?'actions':'region';ui.object=region==='header'?'region':region;ui.mode='edit';ui.mobileView='adjust';onNavigate?.();onLayout?.();});
+ find('#region-select').addEventListener('change',event=>{const region=event.target.value;ui.region=region;ui.kind=region==='footer'?'text':region==='overall'?'card':region==='reasoning'?'entry':region==='native'?'actions':region==='page-content'?'surface':'region';ui.object=region==='header'?'region':region;ui.mode='edit';ui.mobileView='adjust';onNavigate?.();onLayout?.();});
 
  // Keep browser editing defaults and local handlers; only stop host-level hotkeys.
  const isolateEditingKeys=event=>{const path=event.composedPath?.()||[event.target];if(path.some(node=>node?.getRootNode?.()===shadow&&node.matches?.('input,textarea,select,[contenteditable="true"],#wb-splitter,#wb-mobile-splitter')))event.stopPropagation();};
@@ -91,8 +92,8 @@ export function createWorkbench(shadow,{onNavigate,onLayout}={}){
  shadow.addEventListener('keydown',event=>{if(event.key==='Escape'&&ui.layoutEditing){event.preventDefault();event.stopPropagation();finishLayout({focus:true});onLayout?.();}else if(event.key==='Escape'&&ui.libraryExpanded){event.preventDefault();event.stopPropagation();ui.libraryExpanded=false;syncMobile();onLayout?.();find('#library-expand').focus?.();}});
  function render({kinds=[],objects=[],title='',extra,actions,activeKind=ui.kind}={}){
   syncPage();const layers=supportsLayers(ui)&&ui.mode==='edit'&&ui.mobileView==='layers';
-  const regionSelect=find('#region-select'),regions=ui.page==='home'?GLOBAL_REGIONS:ui.page==='chat'?['overall','header','body','reasoning','footer','native']:[];
-  regionSelect.replaceChildren();for(const id of regions){const option=shadow.ownerDocument.createElement('option');option.value=id;option.textContent=REGION_NAMES[id].split(' / ').at(-1);option.selected=id===ui.region;regionSelect.append(option);}regionSelect.parentElement.hidden=!regions.length;find('.panel-head').hidden=ui.mode==='library';find('.scope-controls').dataset.single=String(!regions.length);find('.scope-controls').dataset.layers=String(supportsLayers(ui));find('.inspector-head').hidden=ui.mode!=='library';
+  const regionSelect=find('#region-select'),regions=ui.page==='home'?GLOBAL_REGIONS:ui.page==='chat'?['overall','header','body','reasoning','footer','native']:['settings','worldbook'].includes(ui.page)?PAGE_STYLE_REGIONS:[];
+  regionSelect.replaceChildren();for(const id of regions){const option=shadow.ownerDocument.createElement('option');option.value=id;option.textContent=id==='page-content'?(ui.page==='worldbook'?'条目卡片':'设置分组'):REGION_NAMES[id].split(' / ').at(-1);option.selected=id===ui.region;regionSelect.append(option);}regionSelect.parentElement.hidden=!regions.length;find('.panel-head').hidden=ui.mode==='library';find('.scope-controls').dataset.single=String(!regions.length);find('.scope-controls').dataset.layers=String(supportsLayers(ui));find('.inspector-head').hidden=ui.mode!=='library';
   find('.inspector').setAttribute('aria-label',ui.mode==='library'?'素材库':layers?'图层':'属性');
   const captionSelector=ui.page==='chat'&&ui.mode==='edit'&&ui.kind==='text'&&['header','footer'].includes(ui.region)&&!['name','time'].includes(ui.object);
   find('.object-list').dataset.captionSelector=String(captionSelector);
@@ -104,7 +105,7 @@ export function createWorkbench(shadow,{onNavigate,onLayout}={}){
     if(!items.length){const option=shadow.ownerDocument.createElement('option');option.value='';option.textContent='暂无文案';option.selected=true;select.append(option);select.disabled=true;}
     select.addEventListener('change',()=>{ui.mode='edit';ui.mobileView='adjust';ui.object=select.value;onNavigate?.();});label.append(heading,select);container.append(label);continue;
    }
-   for(const [id,label]of items){const b=shadow.ownerDocument.createElement('button');b.textContent=label;b.dataset[type]=id;b.setAttribute('aria-pressed',String(current===id));b.addEventListener('click',()=>{ui.mode='edit';ui.mobileView='adjust';if(type==='kind'&&ui.page==='home'&&ui.region==='common'){ui.commonPart=id;}else if(type==='kind'){ui.kind=['name','time'].includes(id)?'text':id;ui.object=['name','time'].includes(id)?id:id==='text'?'caption':id==='avatar'?'ordinary':id==='region'?'region':id==='card'?'card':'';}else ui.object=id;onNavigate?.();});container.append(b);}if(extra&&type==='object')container.append(extra);
+   for(const [id,label]of items){const b=shadow.ownerDocument.createElement('button');b.textContent=label;b.dataset[type]=id;b.setAttribute('aria-pressed',String(current===id));b.addEventListener('click',()=>{ui.mode='edit';ui.mobileView='adjust';if(type==='kind'&&((ui.page==='home'&&ui.region==='common')||ui.region==='page-common')){ui.commonPart=id;}else if(type==='kind'){ui.kind=['name','time'].includes(id)?'text':id;ui.object=['name','time'].includes(id)?id:id==='text'?'caption':id==='avatar'?'ordinary':id==='region'?'region':id==='card'?'card':'';}else ui.object=id;onNavigate?.();});container.append(b);}if(extra&&type==='object')container.append(extra);
   }
   find('.selection-actions').replaceChildren(...(actions?[actions]:[]),...(captionSelector&&extra?[extra]:[]));find('.inspector-head').setAttribute('aria-label',ui.mode==='library'?title:'素材库');find('.selected-title').textContent=title;find('.selected-title').hidden=ui.kind==='region'||captionSelector||!title||kinds.some(([,label])=>label===title)||objects.some(([,label])=>label===title);find('.selection').classList.toggle('hidden',ui.mode==='library'||layers||(!title&&!kinds.length&&!objects.length));find('#mode-edit').setAttribute('aria-pressed',String(ui.mode==='edit'&&!layers));find('#mode-layers').setAttribute('aria-pressed',String(layers));find('#mode-library').setAttribute('aria-pressed',String(ui.mode==='library'));find('#mode-edit').disabled=false;find('#mode-edit').hidden=!layers;find('#mode-layers').disabled=!supportsLayers(ui);find('#mode-layers').hidden=!supportsLayers(ui)||layers;find('#mode-library').disabled=false;syncMobile();
  }

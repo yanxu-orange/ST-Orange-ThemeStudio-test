@@ -27,7 +27,7 @@ test('independent scopes, supported material destinations and hidden entry prefe
   document.querySelector('#chat .name_text').click();assert.equal(sh.querySelector('#workspace-page').value,'home');assert.ok(sh.querySelector('[aria-label="界面文字颜色 HEX"]'));
   navigateRegion(sh,'home-design');assert.match(sh.querySelector('.fields').textContent,/专属样式尚未开放/);assert.equal(sh.querySelector('.fields input'),null);
   navigateRegion(sh,'topbar');assert.equal(sh.querySelector('#mode-layers').disabled,true);navigateRegion(sh,'input');assert.equal(sh.querySelector('#mode-layers').disabled,false);
-  change('#workspace-page','settings');await idle();assert.equal(sh.querySelector('#workspace-page').value,'settings');assert.match(sh.querySelector('.fields').textContent,/专属样式尚未开放/);assert.equal(sh.querySelector('.fields input'),null);assert.equal(sh.querySelector('#mode-library').disabled,false);
+  change('#workspace-page','settings');await idle();assert.equal(sh.querySelector('#workspace-page').value,'settings');assert.equal(sh.querySelector('#region-select').value,'page-common');assert.equal(sh.querySelector('[aria-label="样式来源"]').value,'inherit');assert.equal(sh.querySelector('.fields input'),null);assert.equal(sh.querySelector('#mode-library').disabled,false);
   assert.deepEqual([...document.querySelectorAll('.drawer-content')].map(n=>n.className),nativeBefore);
   document.querySelector('#WI-SP-button .drawer-toggle').click();await idle();assert.equal(sh.querySelector('#workspace-page').value,'settings');
   click('#mode-library');assert.equal(sh.querySelector('[aria-label="素材应用区域"]'),null);assert.equal(sh.querySelector('button[data-builtin-asset]'),null);assert.ok(sh.querySelector('[data-builtin-asset] img'));assert.deepEqual(await save(),initial);
