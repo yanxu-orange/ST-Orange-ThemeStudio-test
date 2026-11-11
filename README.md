@@ -1,6 +1,6 @@
 # ST-Orange-ThemeStudio 真实画布测试版
 
-版本 **0.21.0-workbench.1**，面向 SillyTavern 1.18.0。电脑和手机使用同一个插件。
+版本 **0.21.0-workbench.2**，面向 SillyTavern 1.18.0。电脑和手机使用同一个插件。
 
 ## 安装
 
@@ -9,6 +9,12 @@
 https://github.com/yanxu-orange/ST-Orange-ThemeStudio-test
 
 正式版与测试版不要同时启用。测试版在本浏览器独立保存方案和素材，支持方案 JSON 导入、导出。
+
+## 工坊入口
+
+魔棒使用与兰台相同的原生「图标 + 文字」列表行，不再嵌套大按钮。扩展面板使用紧凑的原生标题行，点击直接进入工坊；不会新增一层折叠页。应用后可继续编辑或退出工坊应用。三个入口的浏览器本地开关保持不变。
+
+入口蝴蝶复用仓库已有的 `materials/shared/black-rose-butterfly.webp`，对应素材库「黑粉紫 · 黑玫撕裂蝶」，不引入新素材或外部图片请求。
 
 ## 工作台结构
 

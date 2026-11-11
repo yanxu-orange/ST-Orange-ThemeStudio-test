@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
-import {createWorkshopEntries,WORKSHOP_ENTRIES_KEY} from './workshop-entries.mjs';
+import {createWorkshopEntries,WORKSHOP_ENTRIES_KEY,WORKSHOP_ICON_URL} from './workshop-entries.mjs';
 function setup({native=true,stored=null,storageError=false}={}){
  const {document,window}=parseHTML('<html><body>'+(native?'<button id="extensionsMenuButton"></button><div id="extensionsMenu"><div id="native-item">Native</div></div><div id="extensions_settings"><div id="native-setting">Native</div></div>':'')+'<div id="host"></div></body></html>');
  const shadow=document.querySelector('#host').attachShadow({mode:'open'}),launcher=document.createElement('button');shadow.append(launcher);
@@ -13,10 +13,10 @@ function setup({native=true,stored=null,storageError=false}={}){
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 test('all entry actions share the open route and preserve native siblings',()=>{
  const f=setup();
- for(const name of ['wand','extensions'])f.document.querySelector(`[data-workshop-entry="${name}"] button`).click();
+ for(const name of ['wand','extensions'])f.document.querySelector(`[data-workshop-entry="${name}"] [data-workshop-action="open"]`).click();
  assert.equal(f.opens,2);assert.equal(f.document.querySelector('#native-item').textContent,'Native');assert.ok(f.document.querySelector('#native-setting'));
  f.entries.setApplied(true);
- const root=f.document.querySelector('[data-workshop-entry="wand"]');assert.equal(root.firstElementChild.textContent,'继续编辑');assert.equal(root.lastElementChild.hidden,false);root.lastElementChild.click();assert.equal(f.stops,1);
+ const root=f.document.querySelector('[data-workshop-entry="wand"]');assert.equal(root.firstElementChild.textContent,'继续编辑主题工坊');assert.equal(root.lastElementChild.hidden,false);root.lastElementChild.click();assert.equal(f.stops,1);
  f.entries.setApplied(false);assert.equal(root.lastElementChild.hidden,true);
  f.entries.destroy();assert.ok(f.document.querySelector('#native-item'));assert.equal(f.document.querySelector('[data-workshop-entry]'),null);
 });
@@ -52,13 +52,39 @@ test('last selected native entry is protected and multiple controls stay synchro
  const copy=f.entries.preferences;copy.wand=false;assert.equal(f.entries.preferences.wand,true);f.entries.destroy();
 });
 
-test('native entry buttons retain readable width and touch height under host menu styles',()=>{
+test('native entries are compact icon and label rows, without nested buttons or fixed flex height',()=>{
  const f=setup();
  for(const root of f.document.querySelectorAll('[data-workshop-entry]')){
-  assert.equal(root.style.width,'100%');
-  for(const button of root.querySelectorAll('button')){
-   assert.equal(button.style.minWidth,'120px');assert.equal(button.style.minHeight,'44px');assert.equal(button.style.whiteSpace,'nowrap');
-  }
+  assert.equal(root.className,'extension_container');assert.ok(!root.style.width);
+  assert.equal(root.querySelector('button'),null);
+  const open=root.querySelector('[data-workshop-action="open"]');
+  assert.equal(open.getAttribute('role'),'button');assert.equal(open.getAttribute('tabindex'),'0');
+  assert.equal(open.style.flex,'0 0 auto');assert.ok(!open.style.minHeight);
+  assert.equal(open.style.justifyContent,'flex-start');
+  assert.equal(open.getAttribute('aria-label'),'打开主题工坊');
+  const icon=open.querySelector('img');assert.equal(icon.src,WORKSHOP_ICON_URL);
+  assert.equal(icon.getAttribute('aria-hidden'),'true');assert.equal(icon.alt,'');
+  assert.equal(icon.style.width,'1.25em');assert.equal(icon.style.height,'1.25em');
+  const label=open.querySelector('span');assert.equal(label.textContent,'主题工坊');
+  f.entries.setApplied(true);assert.equal(open.querySelector('img'),icon);assert.equal(label.textContent,'继续编辑主题工坊');
+  f.entries.setApplied(false);assert.equal(open.querySelector('img'),icon);
  }
+ assert.ok(f.document.querySelector('[data-workshop-entry="wand"] > .list-group-item'));
+ assert.ok(f.document.querySelector('[data-workshop-entry="extensions"] > .standoutHeader'));
  f.entries.destroy();
+});
+test('native rows support Enter and Space once, and hidden applied actions stay hidden after remount',async()=>{
+ const f=setup();
+ const open=f.document.querySelector('[data-workshop-entry="wand"] [data-workshop-action="open"]');
+ for(const key of ['Enter',' ']){
+  const event=new f.window.Event('keydown',{cancelable:true});Object.assign(event,{key,repeat:false});open.dispatchEvent(event);assert.equal(event.defaultPrevented,true);
+ }
+ assert.equal(f.opens,2);
+ const repeat=new f.window.Event('keydown',{cancelable:true});Object.assign(repeat,{key:'Enter',repeat:true});open.dispatchEvent(repeat);assert.equal(f.opens,2);
+ f.entries.setPreference('wand',false);assert.equal(f.document.querySelector('[data-workshop-entry="wand"]').style.display,'none');
+ f.entries.setApplied(true);f.document.querySelector('#extensionsMenu').replaceChildren();f.entries.sync();await tick();
+ const root=f.document.querySelector('[data-workshop-entry="wand"]');assert.equal(root.style.display,'none');assert.equal(root.lastElementChild.hidden,false);
+ f.entries.setApplied(false);assert.equal(root.lastElementChild.style.display,'none');
+ f.entries.setPreference('wand',true);assert.equal(root.style.display,'');assert.equal(root.lastElementChild.style.display,'none');
+ assert.equal(f.document.querySelectorAll('[data-workshop-entry="wand"]').length,1);f.entries.destroy();
 });

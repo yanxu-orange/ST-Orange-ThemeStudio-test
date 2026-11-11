@@ -1,6 +1,8 @@
 // Browser-local navigation preferences. Never serialize these into a theme scheme.
 export const WORKSHOP_ENTRIES_KEY='orange.theme-lab.entries.v1';
 export const DEFAULT_WORKSHOP_ENTRIES=Object.freeze({wand:true,extensions:true,floating:true});
+// Reuse the workshop's bundled 黑粉紫 · 黑玫撕裂蝶; no remote icon request.
+export const WORKSHOP_ICON_URL=new URL('./materials/shared/black-rose-butterfly.webp',import.meta.url).href;
 const labels={wand:'魔棒',extensions:'扩展',floating:'悬浮入口'};
 const targets={wand:'#extensionsMenu',extensions:'#extensions_settings'};
 
@@ -20,7 +22,21 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
   }
  }catch(error){report('入口设置未能读取，已使用默认入口：'+error.message);}
  const make=(tag,text)=>{const node=document.createElement(tag);if(text)node.textContent=text;return node;};
- const button=(text,action)=>{const node=make('button',text);node.type='button';node.className='menu_button';node.addEventListener('click',action);return node;};
+ const actionRow=(name,text,action,{butterfly=false}={})=>{
+  // Match native Tavern/Lantai rows, rather than nesting a large menu_button.
+  const node=make('div');node.setAttribute('role','button');node.tabIndex=0;
+  node.className=name==='wand'?'list-group-item flex-container flexGap5':'inline-drawer-header standoutHeader flex-container flexGap5';
+  Object.assign(node.style,{flex:'0 0 auto',minWidth:'0',cursor:'pointer',justifyContent:'flex-start'});
+  const icon=make(butterfly?'img':'i');icon.setAttribute('aria-hidden','true');
+  if(butterfly){
+   icon.src=WORKSHOP_ICON_URL;icon.alt='';icon.draggable=false;
+   Object.assign(icon.style,{width:'1.25em',height:'1.25em',flex:'0 0 1.25em',objectFit:'contain',alignSelf:'center',pointerEvents:'none',filter:'brightness(1.5) drop-shadow(0 0 1px #e9a8d8)'});
+  }else icon.className='fa-solid fa-arrow-right-from-bracket';
+  const label=make('span',text);if(name==='extensions')label.style.fontWeight='bold';node.append(icon,label);
+  node.addEventListener('click',action);
+  node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!event.repeat)node.click();}});
+  return {node,label};
+ };
  function ensureEntries(){
   for(const [name,selector] of Object.entries(targets)){
    const target=document.querySelector(selector),old=entries.get(name);
@@ -28,12 +44,11 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    old?.root.remove();entries.delete(name);
    if(!target)continue;
    const root=make('div');root.dataset.workshopEntry=name;
-   root.className=name==='wand'?'list-group-item flex-container flexGap5':'extension_container';
-   Object.assign(root.style,{width:'100%',minWidth:'0',flexWrap:'wrap',gap:'8px'});
-   const open=button('打开主题工坊',()=>onOpen());
-   const stop=button('退出应用',()=>onStopApplied());
-   for(const action of [open,stop])Object.assign(action.style,{flex:'1 1 120px',minWidth:'120px',minHeight:'44px',whiteSpace:'nowrap',width:'100%'});
-   root.append(open,stop);target.append(root);entries.set(name,{root,open,stop});
+   root.className='extension_container';
+   const {node:open,label:openLabel}=actionRow(name,'主题工坊',()=>onOpen(),{butterfly:true});
+   const {node:stop}=actionRow(name,'退出工坊应用',()=>onStopApplied());
+   open.dataset.workshopAction='open';stop.dataset.workshopAction='stop';
+   root.append(open,stop);target.append(root);entries.set(name,{root,open,openLabel,stop});
   }
  }
  function available(name){
@@ -54,12 +69,13 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
  function sync(){
   if(destroyed)return;
   ensureEntries();
-  for(const [name,{root,open,stop}] of entries){
+  for(const [name,{root,open,openLabel,stop}] of entries){
    // Explicit inline display is understood by SillyTavern's native wand item counter.
    const display=preferences[name]?'':'none';
    if(root.style.display!==display)root.style.display=display;
-   const text=editing||applied?'继续编辑':'打开主题工坊';
-   if(open.textContent!==text)open.textContent=text;
+   const text=editing||applied?'继续编辑主题工坊':'主题工坊';
+   if(openLabel.textContent!==text)openLabel.textContent=text;
+   open.setAttribute('aria-label',editing||applied?'继续编辑主题工坊':'打开主题工坊');
    if(stop.hidden!==!applied)stop.hidden=!applied;
    if(stop.style.display!==(applied?'':'none'))stop.style.display=applied?'':'none';
   }
