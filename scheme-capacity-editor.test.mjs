@@ -59,8 +59,11 @@ test('pending save commits its snapshot once and never marks newer edits or impo
   const shadow=document.querySelector('#orange-theme-lab').shadowRoot;shadow.querySelector('.launcher').click();await settleNativeCanvas();const initial=await saveEditorScheme(shadow,storage);
   navigateRegion(shadow,'header');shadow.querySelector('[data-kind="region"]').click();
   controls.holdCommit=true;shadow.querySelector('#save').click();await tick();assert.equal(shadow.querySelector('#save').disabled,true);assert.equal(shadow.querySelector('#save-state').textContent,'正在保存…');
-  const pendingCommit=controls.finish;shadow.querySelector('#save').click();await tick();assert.equal(controls.finish,pendingCommit,'repeated clicks cannot start a second write');
-  const field=shadow.querySelector('[aria-label="头像区总高度 数值"]');field.value='350';field.dispatchEvent(new window.Event('input'));field.dispatchEvent(new window.Event('change'));
+  const pendingCommit=controls.finish;
+  navigateRegion(shadow,'body');navigateRegion(shadow,'header');shadow.querySelector('[data-kind="region"]').click();
+  assert.equal(shadow.querySelector('#save').disabled,true,'field redraw cannot unlock an in-flight save');
+  shadow.querySelector('#save').dispatchEvent(new window.Event('click'));await tick();assert.equal(controls.finish,pendingCommit,'save state rejects a repeated event independently of the button DOM');
+  const field=shadow.querySelector('[aria-label="头像区总高度 数值"]');field.value='350';field.dispatchEvent(new window.Event('input'));field.dispatchEvent(new window.Event('change'));assert.equal(shadow.querySelector('#save-state').textContent,'正在保存…','new edits do not hide an in-flight write');
   controls.holdCommit=false;pendingCommit();await tick();assert.equal(shadow.querySelector('#save-state').textContent,'未保存的草稿');assert.match(shadow.querySelector('#notice').textContent,/之后的修改尚未保存/);assert.equal(JSON.parse(await storage.load()).headerHeight,initial.headerHeight);assert.equal(field.value,'350');
   await saveEditorScheme(shadow,storage);assert.equal(JSON.parse(await storage.load()).headerHeight,350);
   controls.holdCommit=true;shadow.querySelector('#save').click();await tick();const finish=controls.finish;

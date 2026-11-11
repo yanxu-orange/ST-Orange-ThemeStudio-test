@@ -45,17 +45,19 @@ export function createLiveCanvas({document,onPage=()=>{}}={}){
   scheduleReport();
  }
  function layout({left=8,width=374,top=14,height=500,hidden=false,preserveTopbar=false}={}){
-  if(!active)return;if(preserveTopbar)style.textContent='';const nativeTopbarBottom=preserveTopbar?Math.max(...['top-bar','top-settings-holder'].map(id=>document.getElementById(id)?.getBoundingClientRect?.().bottom||0)):0;
-  const toolbar=preserveTopbar?Math.max(0,nativeTopbarBottom-top):Math.min(48,Math.max(30,height/5)),bodyTop=top+toolbar,bodyHeight=Math.max(1,height-toolbar);
+  if(!active)return;
+  // Tavern and chromeRules own the topbar's block size. The canvas only positions
+  // it, and reserves the exact same CSS size regardless of style insertion order.
+  const toolbar='var(--topBarBlockSize, 48px)',bodyTop=preserveTopbar?`max(${top}px, ${toolbar})`:`calc(${top}px + ${toolbar})`,bodyHeight=`max(1px, calc(${top+height}px - ${bodyTop}))`;
   const scope='html[data-orange-editor]';
   style.textContent=`
 ${scope}{--otl-canvas-left:${left}px;--otl-canvas-width:${width}px;--otl-canvas-top:${top}px;--otl-canvas-height:${height}px}
-${scope} #sheld{position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}px!important;bottom:auto!important;width:${width}px!important;height:${bodyHeight}px!important;max-width:none!important;max-height:${bodyHeight}px!important;min-width:0!important;min-height:0!important;margin:0!important;transform:none!important;display:flex!important;flex-direction:column!important;z-index:${preserveTopbar?30:10000}!important}
+${scope} #sheld{position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}!important;bottom:auto!important;width:${width}px!important;height:${bodyHeight}!important;max-width:none!important;max-height:${bodyHeight}!important;min-width:0!important;min-height:0!important;margin:0!important;transform:none!important;display:flex!important;flex-direction:column!important;z-index:${preserveTopbar?30:10000}!important}
 ${scope} #chat{min-height:0!important;flex:1 1 0!important;overflow-y:auto!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
 ${scope} #form_sheld{flex:0 0 auto;max-height:60%;overflow:auto}
-${preserveTopbar?'':`${scope} #top-bar,${scope} #top-settings-holder{position:fixed!important;left:${left}px!important;right:auto!important;top:${top}px!important;width:${width}px!important;max-width:${width}px!important;min-width:0!important;height:${toolbar}px!important;margin:0!important;transform:none!important;z-index:10010!important}
+${preserveTopbar?'':`${scope} #top-bar,${scope} #top-settings-holder{position:fixed!important;left:${left}px!important;right:auto!important;top:${top}px!important;width:${width}px!important;max-width:${width}px!important;min-width:0!important;margin:0!important;transform:none!important;z-index:10010!important}
 ${scope} #top-settings-holder{align-items:center!important;overflow:visible!important}`}
-${scope} body :is(.drawer-content,#WorldInfo,#floatingPrompt){position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}px!important;bottom:auto!important;width:${width}px!important;min-width:0!important;max-width:${width}px!important;max-height:${bodyHeight}px!important;margin:0!important;transform:none!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
+${scope} body :is(.drawer-content,#WorldInfo,#floatingPrompt){position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}!important;bottom:auto!important;width:${width}px!important;min-width:0!important;max-width:${width}px!important;max-height:${bodyHeight}!important;margin:0!important;transform:none!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
 ${scope} body :is(.drawer-content.openDrawer,.drawer-content.open,#WorldInfo.open,#floatingPrompt.open){overflow-y:auto!important}
 ${scope} #movingDivs{position:relative;z-index:10020}
 ${scope} :is(#chat,.drawer-content){scroll-padding-block:12px}

@@ -29,7 +29,8 @@ test('layout and real page navigation retain native nodes, values, and independe
  canvas.start();canvas.layout({left:8,width:374,top:12,height:420});
  const css=document.getElementById('orange-workbench-layout').textContent;
  assert.match(css,/#chat\{[^}]*overflow-y:auto/);assert.match(css,/drawer-content.openDrawer[^}]*overflow-y:auto/);
- assert.match(css,/touch-action:pan-y pinch-zoom/);assert.match(css,/height:372px/);
+ assert.match(css,/touch-action:pan-y pinch-zoom/);assert.match(css,/height:max\(1px, calc\(432px - calc\(12px \+ var\(--topBarBlockSize, 48px\)\)\)\)/);
+ assert.doesNotMatch(css,/#top-bar[^}]*height:/,'canvas does not override native or configured topbar height');
  assert.equal(document.querySelector('#chat'),chat);assert.equal(chat.firstElementChild,message);assert.equal(input.value,'draft');
  assert.equal(canvas.showPage('settings'),true);assert.equal(document.querySelector('#user-settings-button .drawer-content').classList.contains('openDrawer'),true);
  canvas.showPage('worldbook');assert.equal(document.querySelector('#user-settings-button .drawer-content').classList.contains('openDrawer'),false);assert.equal(document.querySelector('#WI-SP-button .drawer-content').classList.contains('openDrawer'),true);
@@ -99,7 +100,7 @@ test('collapsed workbench restores native topbar geometry without moving native 
  for(let i=0;i<3;i++){
   canvas.layout({top:6,height:800,preserveTopbar:true});
   assert.doesNotMatch(style.textContent,/#top-bar|#top-settings-holder/);assert.match(style.textContent,/z-index:30!important/);
-  assert.match(style.textContent,/#sheld\{[^}]*top:42px/);
+  assert.match(style.textContent,/#sheld\{[^}]*top:max\(6px, var\(--topBarBlockSize, 48px\)\)/);
   assert.equal(document.querySelector('#top-bar'),bar);assert.equal(document.querySelector('#top-settings-holder'),holder);
   canvas.layout({top:88});assert.match(style.textContent,/#top-bar[^}]*top:88px/);
  }
