@@ -9,7 +9,7 @@ export function installMobileFlow({shadow,onContinue,onTemplate,onBlank,onImport
  // The scheme menu becomes a flat group on mobile and returns to its desktop fold.
  const scheme=bar.querySelector('.desktop-scheme');
  for(const n of [shadow.querySelector('#save-state'),scheme.querySelector('.menu'),shadow.querySelector('.preview-tools')]){const mark=doc.createTextNode('');n.before(mark);moved.push([n,mark]);}
- const labels=[['#save','保存','保存方案'],['#apply-live','应用','应用到真实聊天'],['#close','退出','退出编辑']];
+ const labels=[['#save','保存','保存方案'],['#apply-live','应用','应用到酒馆'],['#close','退出','退出编辑']];
  let expanded=false,wasMobile;
  function mobile(){return (win.innerWidth||1200)<=700;}
  function dismissMenus(){more.open=false;scheme.open=false;}

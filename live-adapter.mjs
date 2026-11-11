@@ -1,3 +1,4 @@
+import {normalizeCommonConfig,commonStyleRules,commonFontEntries} from './common-style.mjs';
 import {createImageDisplay} from './image-display.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {avatarArtworkFrameStyle} from './avatar-art.mjs';
@@ -84,6 +85,7 @@ ${q} .otl-live-art.otl-scene-art{display:block!important}
 ${avatarDesignRules(q,config)}
 ${avatarFillRules(q,config)}
 ${canvasBackgroundRules(config,'html[data-orange-live]')}
+${commonStyleRules(config,{family:families.common||''})}
 
 `;
 }
@@ -278,13 +280,13 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function start(config){
     if(!document.querySelector('#chat'))throw Error('酒馆聊天区域尚未就绪');
-    const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));Object.assign(next,bodyCardSettings(next));next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);stop();snapshot=next;
+    const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle});next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);stop();snapshot=next;
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
-      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update({body:{fontLink:snapshot.bodyFontLink},...textEntries(snapshot),...reasoningFontEntries(snapshot),...footerTextEntries(snapshot),...chromeFontEntries(snapshot)});stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
+      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update({body:{fontLink:snapshot.bodyFontLink},...textEntries(snapshot),...reasoningFontEntries(snapshot),...footerTextEntries(snapshot),...chromeFontEntries(snapshot),...commonFontEntries(snapshot)});stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
       if(ResizeObs)resizer=new ResizeObs(resized);
       const token=++session;const count=reconcile();imageDisplay.watch(document.querySelector('#chat'));
       if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['mesid','is_user','is_system','data-orange-lab-fixture','class','src','data-duration','data-state','open','style','hidden']});}

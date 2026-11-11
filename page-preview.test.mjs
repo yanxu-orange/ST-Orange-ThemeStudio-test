@@ -22,3 +22,14 @@ test('narrow preview reflows the page content by its actual container width',()=
 test('page switch captures scroll before changing chrome and restores only after final layout',()=>{
  const {document,ui,preview,chat}=setup();preview.update();chat.scrollTop=500;preview.capture();chat.scrollTop=420;ui.page='settings';preview.update({deferRestore:true});assert.equal(chat.scrollTop,420);preview.restore();assert.equal(chat.scrollTop,0);chat.scrollTop=240;preview.capture();ui.page='chat';preview.update({deferRestore:true});chat.scrollTop=0;preview.restore();assert.equal(chat.scrollTop,500);preview.update();assert.equal(chat.scrollTop,500);ui.page='settings';preview.update();assert.equal(chat.scrollTop,240);preview.close();
 });
+
+test('worldbook tag specimen edits only its local keywords and search ignores unchosen suggestions',()=>{
+ const {document,window,ui,preview}=setup();ui.page='worldbook';preview.update();const root=document.querySelector('.otl-native-page'),picker=root.querySelector('[data-keyword-picker]'),source=picker.parentElement.querySelector('textarea'),combo=picker.querySelector('[role=combobox]'),input=picker.querySelector('input'),popup=picker.querySelector('.otl-keyword-options');let host=0;document.addEventListener('input',()=>host++);document.addEventListener('click',()=>host++);
+ combo.click();assert.equal(popup.hidden,false);assert.equal(combo.getAttribute('aria-expanded'),'true');input.value='新关键词';const enter=new window.Event('keydown',{bubbles:true,cancelable:true});enter.key='Enter';input.dispatchEvent(enter);assert.match(source.value,/新关键词/);assert.equal(input.value,'');assert.equal(host,0);
+ const remove=picker.querySelector('[aria-label="移除示例关键字 邮局"]');remove.click();assert.doesNotMatch(source.value,/邮局/);assert.equal(host,0);
+ const esc=new window.Event('keydown',{bubbles:true,cancelable:true});esc.key='Escape';input.dispatchEvent(esc);assert.equal(popup.hidden,true);assert.equal(combo.getAttribute('aria-expanded'),'false');
+ const search=root.querySelector('input[type=search]');search.value='新关键词';search.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal([...root.querySelectorAll('.world_entry')].filter(entry=>!entry.hidden).length,1);
+ ui.page='settings';preview.update();const button=document.querySelector('[data-sample-toggle]');button.click();assert.equal(button.getAttribute('aria-pressed'),'true');assert.equal(host,0);assert.ok(document.querySelector('.otl-native-page input[readonly]'));preview.close();
+});
+
+test('tag specimen resets native absolute remove positioning without affecting live Select2',()=>{assert.match(PAGE_PREVIEW_CSS,/\.select2-selection__choice__remove\{position:static;inset:auto/);assert.match(PAGE_PREVIEW_CSS,/\.select2-selection__choice__display\{padding:0\}/);});

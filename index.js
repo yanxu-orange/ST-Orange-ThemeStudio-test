@@ -1,3 +1,4 @@
+import {normalizeCommonConfig,commonStyleRules,commonFontEntries} from './common-style.mjs';
 import {createImageDisplay} from './image-display.mjs';
 import {createSchemeStorage} from './scheme-storage.mjs';
 import {createFontLibrary,renderFontLibrary} from './font-library.mjs';
@@ -32,7 +33,7 @@ import {footerBaseHeight,FOOTER_LIMIT,footerKey,newFooterCaption,normalizeFooter
 import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningImageUrl,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
 import {BODY_CARD_DEFAULTS,bodyCardSettings,bodyCardRules,chatFrameRules} from './body-card.mjs';
 import {CAPTION_LIMIT,captionKey,captionToken,newCaption,normalizeCaptionConfig,stripLegacyCaptions,validateCaptionStyle,textEntries,textTokens,textFallbacks} from './captions.mjs';
-import {workbenchMarkup,createWorkbench,matchingLayers,normalizeSelection,layerRegion,layoutWidths,mobileGeometry} from './workbench-ui.mjs';
+import {COMMON_PARTS,workbenchMarkup,createWorkbench,matchingLayers,normalizeSelection,layerRegion,layoutWidths,mobileGeometry} from './workbench-ui.mjs';
 import {newLayer, migrateLayers, clone, cropRect, LAYER_LIMIT} from './layers.mjs';
 import {ASSETS,SHARED_ASSETS,assetUrl,builtinAssetGroups} from './catalog.mjs';
 import {defaultPhoto,validatePhotos,kittyLayers} from './photos.mjs';
@@ -61,6 +62,7 @@ await (async () => {
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
   let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
+  config=normalizeCommonConfig(config);
   const assetLibrary=createAssetLibrary();
   const iconLibrary=createIconLibrary();let disposeIconLibrary=null;
   const fontLibrary=createFontLibrary();
@@ -100,7 +102,7 @@ await (async () => {
     }
     if(raw.image){if(!validEmbeddedImage(raw.image))throw Error('图片格式不支持');result.image=raw.image;}
     if(Object.hasOwn(templates,raw.template))result.template=raw.template;if(raw.layout!==undefined){if(!['top','left','collage'].includes(raw.layout))throw Error('排版值无效');result.layout=raw.layout;}
-    result.avatarDesign=raw.avatarDesign||'separate';Object.assign(result,normalizeCanvasBackground(raw));result.hideScrollbars=hideScrollbars;result.textItems=canonical.textItems;result.captions=canonical.captions;result.layers=migrateLayers(raw);result.photos=validatePhotos(raw.photos);result.reasoningStyle=reasoning.reasoningStyle;result.footerCaptions=footer.footerCaptions;result.nativeStyle=native.nativeStyle;result.version=raw.version>=8?raw.version:7;if(raw.version>=8)delete result.timePosition;result.image='';
+    result.commonStyle=normalizeCommonConfig(raw).commonStyle;result.avatarDesign=raw.avatarDesign||'separate';Object.assign(result,normalizeCanvasBackground(raw));result.hideScrollbars=hideScrollbars;result.textItems=canonical.textItems;result.captions=canonical.captions;result.layers=migrateLayers(raw);result.photos=validatePhotos(raw.photos);result.reasoningStyle=reasoning.reasoningStyle;result.footerCaptions=footer.footerCaptions;result.nativeStyle=native.nativeStyle;result.version=raw.version>=8?raw.version:7;if(raw.version>=8)delete result.timePosition;result.image='';
     if(raw.surfaceOpacity===undefined&&raw.glass>0)result.surfaceOpacity=.81;
     for(const key of ['reasoning','reasoningFont','reasoningSize'])delete result[key];const scene=normalizeTextScene(stripLegacyCaptions(result));if(raw.regionOrder)scene.regionOrder=validateRegionOrder(raw.regionOrder,scene);return syncRegionOrder(normalizeAvatarFill(normalizeChromeConfig({...scene,version:raw.version,...(Object.hasOwn(raw,'chromeStyle')?{chromeStyle:raw.chromeStyle}:{}),...(Object.hasOwn(raw,'avatarFill')?{avatarFill:raw.avatarFill}:{})})));
   }
@@ -209,11 +211,11 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   const layerDrag=createLayerDrag({document,getState:()=>({active,...ui,layers:config.layers,regionFor:layerRegion}),getTextTarget:previewTextTarget,getLayerTarget:previewLayerTarget,onCommit:(item,next)=>{remember();Object.assign(item,next);apply();renderFields();notify('位置或大小已更新，尚未保存');}});
   const chromePreview=createChromePreview({document,ui,resolveArtwork:artworkUrl,onPick:(region,kind,id)=>{invalidateEditing();ui.demoDrawer=region==='topbar'?id:ui.demoDrawer;workbench.choose(region,kind,id);renderFields(undefined,{fromPreview:kind==='image'});}});
   const pagePreview=createPagePreview({document,ui});
-  const applyButton=make('button','primary','应用到真实聊天');applyButton.type='button';applyButton.id='apply-live';shadow.querySelector('#close').before(applyButton);
-  const liveBar=make('section','live-bar hidden');const liveStatus=make('span','','当前方案已应用到消息区');liveStatus.setAttribute('role','status');
+  const applyButton=make('button','primary','应用到酒馆');applyButton.type='button';applyButton.id='apply-live';shadow.querySelector('#close').before(applyButton);
+  const liveBar=make('section','live-bar hidden');const liveStatus=make('span','','当前方案已应用到酒馆');liveStatus.setAttribute('role','status');
   const editLive=make('button','','返回编辑');editLive.type='button';const stopLive=make('button','','退出应用');stopLive.type='button';liveBar.append(liveStatus,editLive,stopLive);shadow.append(liveBar);
   const liveBarStyle=make('style');liveBarStyle.textContent='.live-bar{position:fixed;right:24px;top:66px;z-index:20020;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);padding:9px 12px;border:1px solid #dce5dc;border-radius:12px;background:#fffdf8;box-shadow:0 5px 20px #0002}.live-bar span{font-size:12px;color:#63765e}.live-bar button{white-space:nowrap}.bar #apply-live{white-space:nowrap}@media(max-width:900px){.bar small{display:none}.bar select{max-width:180px}.live-bar{right:12px}}';shadow.append(liveBarStyle);
-  applyButton.addEventListener('click',()=>{try{const snapshot=validate(config);close();const result=liveAdapter.start(snapshot);shadow.querySelector('.launcher').classList.add('hidden');liveBar.classList.remove('hidden');liveStatus.textContent=result.messages?'当前方案已应用到消息区':'已应用，进入聊天后生效';}catch(error){liveAdapter.stop();liveBar.classList.add('hidden');open();notify('应用失败：'+error.message);}});
+  applyButton.addEventListener('click',()=>{try{const snapshot=validate(config);close();liveAdapter.start(snapshot);shadow.querySelector('.launcher').classList.add('hidden');liveBar.classList.remove('hidden');liveStatus.textContent='当前方案已应用到酒馆';}catch(error){liveAdapter.stop();liveBar.classList.add('hidden');open();notify('应用失败：'+error.message);}});
   editLive.addEventListener('click',()=>{liveAdapter.stop();liveBar.classList.add('hidden');open();});
   stopLive.addEventListener('click',()=>{liveAdapter.stop();liveBar.classList.add('hidden');shadow.querySelector('.launcher').classList.remove('hidden');});
   window.addEventListener('pagehide',()=>{invalidateEditing();scrollbarVisibility.stop();liveAdapter.stop();});
@@ -299,7 +301,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     else{input.type=f.type;if(f.type==='range'){input.min=f.min;input.max=f.max;input.step=f.step||1;}}
     if(f.type==='text')input.maxLength=f.maxLength||(f.key==='name'?80:300);input.value=String(target[f.key]);let tracking=false,number=null,hex=null,colorChip=null;
     const update=value=>{if(f.type==='range'&&(!Number.isFinite(value)||value<f.min||value>f.max))return false;if(!tracking){remember();tracking=true;}target[f.key]=value;if(ui.region==='header'&&ui.kind==='avatar'&&config.avatarDesign==='unified'){const other=photoScope==='ai'?'user':'ai';if(target===config.photos[photoScope])config.photos[other]=clone(target);if(target===config.avatarFill[photoScope])config.avatarFill[other]=clone(target);}input.value=String(value);if(number)number.value=value;if(hex)hex.value=value;if(colorChip)colorChip.style.background=value;apply();onUpdate?.();notify(f.notice||'设置已更新');return true;};
-    input.addEventListener('input',()=>update(f.type==='range'?Number(input.value):['cardFullWidth','showArrow','enabled','gradient','borderEnabled','shadow','visible','bodyIndent','hideHistory','hideLatest','tint'].includes(f.key)?input.value==='true':input.value));input.addEventListener('change',()=>{tracking=false;});if(!['range','color'].includes(f.type))label.append(input);
+    input.addEventListener('input',()=>update(f.type==='range'||f.numeric?Number(input.value):['cardFullWidth','showArrow','enabled','gradient','borderEnabled','shadow','visible','bodyIndent','hideHistory','hideLatest','tint'].includes(f.key)?input.value==='true':input.value));input.addEventListener('change',()=>{tracking=false;});if(!['range','color'].includes(f.type))label.append(input);
     if(f.type==='range'){number=make('input','number-input');number.type='number';number.min=f.min;number.max=f.max;number.step=f.step||1;number.value=target[f.key];number.setAttribute('aria-label',f.label+' 数值');number.addEventListener('input',()=>{if(number.value==='')return;number.setAttribute('aria-invalid',String(!update(Number(number.value))));});number.addEventListener('change',()=>{tracking=false;});numericRow(label,input,number,f.unit||'',['x','y'].includes(f.key));}
     if(f.type==='color'){hex=make('input','hex-input');hex.type='text';hex.maxLength=7;hex.value=target[f.key];hex.setAttribute('aria-label',f.label+' HEX');hex.addEventListener('input',()=>{const valid=/^#[a-f0-9]{6}$/i.test(hex.value);hex.setAttribute('aria-invalid',String(!valid));if(valid)update(hex.value);});hex.addEventListener('change',()=>{tracking=false;});input.type='hidden';label.append(input);
       const trigger=make('button','otl-color-launch');trigger.type='button';trigger.setAttribute('aria-label','选择'+f.label+'颜色');trigger.setAttribute('aria-haspopup','dialog');colorChip=make('span');colorChip.style.background=target[f.key];trigger.append(colorChip);
@@ -483,7 +485,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       else{input.type=f.type;if(f.type==='range'){input.min=f.min;input.max=f.max;input.step=f.step||1;}else input.maxLength=80;}
       input.value=String(layer[f.key]);let number=null,tracking=false;
       const update=(value)=>{if(f.type==='range'&&(!Number.isFinite(value)||value<f.min||value>f.max))return false;if(!tracking){remember();tracking=true;}layer[f.key]=value;if(layer.anchor==='input')layer.scope='both';if(number)number.value=value;input.value=String(value);apply();notify('素材已更新，尚未保存');return true;};
-      input.addEventListener('input',()=>update(f.type==='range'?Number(input.value):f.key==='visible'?input.value==='true':input.value));input.addEventListener('change',()=>{tracking=false;if(['widthUnit','offsetUnit','anchor','side','vertical'].includes(f.key))renderFields('decoration');});if(f.type!=='range')label.append(input);
+      input.addEventListener('input',()=>update(f.type==='range'||f.numeric?Number(input.value):f.key==='visible'?input.value==='true':input.value));input.addEventListener('change',()=>{tracking=false;if(['widthUnit','offsetUnit','anchor','side','vertical'].includes(f.key))renderFields('decoration');});if(f.type!=='range')label.append(input);
       if(f.type==='range'){number=make('input','number-input');number.type='number';number.min=f.min;number.max=f.max;number.step=f.step||1;number.value=layer[f.key];number.setAttribute('aria-label',f.label+' 数值');number.addEventListener('input',()=>{if(number.value==='')return;const ok=update(Number(number.value));number.setAttribute('aria-invalid',String(!ok));});number.addEventListener('change',()=>{tracking=false;});numericRow(label,input,number,f.unit||'',['x','y'].includes(f.key));}(['visible','scope'].includes(f.key)?availability:container).append(label);
     }
   }
@@ -553,6 +555,32 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     }
   }
   function propertyHeading(container,title){const heading=make('h3','property-heading',title);container.append(heading);}
+  function renderCommonFields(container){
+    if(ui.page==='chat'){
+      const row=make('div','actions');
+      for(const [page,label]of [['settings','查看设置页'],['worldbook','查看世界书']]){const button=make('button','',label);button.type='button';button.addEventListener('click',()=>workbench.choosePage(page));row.append(button);}container.append(row);
+    }
+    container.append(make('p','hint','统一用于酒馆抽屉、弹窗和菜单中的共用界面。设置与世界书是虚构预览，示例内容不会写入酒馆。聊天正文、顶栏与输入区继续单独设计。'));
+    const part=ui.commonPart,item=config.commonStyle[part],control=f=>editorControl(container,{...f,notice:'界面共用外观已更新，尚未保存'},item);
+    if(part==='text'){
+      control(field('界面字体','font','select',{options:[['auto','沿用酒馆界面字体'],...fonts]}));
+      control(field('界面字号','size','range',{min:12,max:24,unit:'px'}));container.append(make('p','hint','手机输入和选择控件最小使用 16px，避免聚焦时页面放大。'));
+      for(const [key,label]of [['color','界面文字颜色'],['muted','辅助文字颜色'],['accent','界面强调颜色']])control(field(label,key,'color'));
+      propertyHeading(container,'外链字体');renderFontLinkFields(container,'common',item,'界面');
+    }else if(part==='panel'){
+      control(field('面板底色','background','color'));control(field('面板不透明度','opacity','range',{min:0,max:1,step:.05}));
+      control(field('面板边框颜色','border','color'));control(field('面板边框粗细','width','range',{min:0,max:4,unit:'px'}));control(field('面板圆角','radius','range',{min:0,max:32,unit:'px'}));
+    }else if(part==='heading'){
+      control(field('标题文字颜色','color','color'));control(field('标题底色','background','color'));control(field('标题字号','size','range',{min:12,max:32,unit:'px'}));
+      control(field('标题字重','weight','select',{numeric:true,options:[[100,'100 · 极细'],[200,'200 · 纤细'],[300,'300 · 细体'],[400,'400 · 常规'],[500,'500 · 中等'],[600,'600 · 半粗'],[700,'700 · 粗体'],[800,'800 · 特粗'],[900,'900 · 重体']]}));control(field('标题圆角','radius','range',{min:0,max:32,unit:'px'}));
+    }else if(part==='button'){
+      for(const [key,label]of [['color','按钮文字颜色'],['background','按钮底色'],['border','按钮边框颜色'],['hover','按钮悬停底色']])control(field(label,key,'color'));
+      control(field('按钮圆角','radius','range',{min:0,max:32,unit:'px'}));container.append(make('p','hint','保留危险操作的警示颜色；焦点、选中和禁用状态会随共用配色变化。'));
+    }else{
+      for(const [key,label]of [['color','控件文字颜色'],['background','控件底色'],['border','控件边框颜色'],['focus','控件焦点颜色']])control(field(label,key,'color'));
+      control(field('控件圆角','radius','range',{min:0,max:32,unit:'px'}));container.append(make('p','hint','包括输入框、多行文字、原生下拉与 Select2；勾选和滑块使用界面强调色。只读、禁用及焦点状态仍保持可辨认。'));
+    }
+  }
   function reasoningControl(container,target,f,onUpdate){editorControl(container,{...f,notice:'思维样式已更新，尚未保存'},target,onUpdate);}
   function renderReasoningColor(container,target,key,label){
     const mode=make('select'),row=make('label','field',label+'来源');mode.setAttribute('aria-label',label+'来源');for(const [v,t]of [['auto','沿用主题颜色'],['custom','自定义']]){const o=make('option','',t);o.value=v;mode.append(o);}mode.value=target[key]==='auto'?'auto':'custom';mode.addEventListener('change',()=>{remember();target[key]=mode.value==='auto'?'auto':config.accent;apply();renderFields();});row.append(mode);container.append(row);if(target[key]!=='auto')reasoningControl(container,target,field(label,key,'color'));
@@ -708,7 +736,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(fromPreview&&(document.defaultView?.innerWidth||1200)<=700)ui.mobileView='preview';
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
     const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
-    if(ui.page!=='chat')title=PREVIEW_PAGES[ui.page]+' · 页面预览';
+    const commonEditing=ui.page!=='chat'||ui.region==='common';
+    if(commonEditing){kinds=COMMON_PARTS;title='各页共用同一套外观';}
     else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':'添加到：'+(ui.region==='input'?'输入区':ui.region==='footer'?'尾部区':ui.region==='reasoning'?'思维区':ui.region==='overall'?'整张消息':'头像区');
     else if(ui.region==='overall'){
       kinds=[['card','整体样式'],['image','全局装饰']];if(ui.kind==='image'){objects=matchingLayers(config.layers,'overall').map(l=>[l.id,l.name]);selectedLayerId=ui.object;selected='decoration';title=config.layers.find(l=>l.id===ui.object)?.name||'全局装饰';}else{selected='global';title='当前消息卡片';keys=['surface','accent','radius','glass','surfaceOpacity','cardWidth'];}
@@ -731,8 +760,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     else title='此区域尚未开放';
     let extra;if(ui.page==='chat'&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';materialCategory='images';ui.mode='library';renderFields();});}
     let actions;if(ui.page==='chat'&&ui.mode==='edit'&&['header','footer'].includes(ui.region)&&ui.kind==='text'&&!(ui.region==='header'&&['name','time'].includes(ui.object))){const list=currentCaptions();actions=make('button','',`＋ 新增文案（${list.length}/${CAPTION_LIMIT}）${list.length>=CAPTION_LIMIT?' 已达上限':''}`);actions.id=ui.region==='footer'?'add-footer-caption':'add-caption';actions.disabled=list.length>=CAPTION_LIMIT;actions.title=actions.disabled?'已达20条文案上限':'新增一条文案';actions.addEventListener('click',()=>{remember();const cap=currentNewCaption({name:'文案'+(list.length+1),font:config.font,color:config.accent});list.push(cap);ui.object=currentCaptionKey(cap.id);apply();renderFields();});}
-    const activeKind=ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
-    if(ui.page!=='chat')container.append(make('p','hint','当前是 '+PREVIEW_PAGES[ui.page]+' 的虚构页面预览。可展开分组、查看控件与滚动效果，不会修改酒馆数据。此页外观编辑尚未接入；从更多切回聊天可继续原来的编辑。'));
+    const activeKind=commonEditing?ui.commonPart:ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
+    if(commonEditing)renderCommonFields(container);
     else if(!['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)&&ui.mode!=='library')container.append(make('p','hint','此入口仅保留位置，真实功能尚未接入。当前主题和保存未改变。'));
     else if(ui.mode==='library')renderSourceLibrary(container);
     else if(ui.mobileView==='layers')renderRegionLayers(container);
@@ -751,7 +780,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       if(ui.region==='header'&&ui.kind==='avatar')renderPhotoFields(container);
       if(ui.kind==='image')renderLayers(container);
     }
-    const canOperate=ui.page!=='chat'||(['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)||ui.mode==='library');for(const id of ['save','import','export','restore','undo','apply-live'])shadow.querySelector('#'+id).disabled=!canOperate||(id==='undo'&&!history.length);
+    const canOperate=commonEditing||(['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)||ui.mode==='library');for(const id of ['save','import','export','restore','undo','apply-live'])shadow.querySelector('#'+id).disabled=!canOperate||(id==='undo'&&!history.length);
     for(const e of document.querySelectorAll('[data-orange-lab-fixture] .otl-selected'))e.classList.remove('otl-selected');
     if(ui.page==='chat'&&ui.mode==='edit')for(const e of document.querySelectorAll('[data-orange-lab-fixture] [data-pick]')){
       const matches=ui.kind==='image'?e.dataset.layerId===ui.object:['header','footer'].includes(ui.region)&&ui.kind==='text'?selectedCaption()?(ui.region==='footer'?e.dataset.footerCaptionId:e.dataset.captionId)===selectedCaption().id:e.dataset.textItem===textItemKey:ui.kind==='avatar'?e.dataset.pick==='photo'&&e.dataset.scope===photoScope:false;if(matches)e.classList.add('otl-selected');
@@ -763,7 +792,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     scrollbarVisibility.set(active&&normalizeScrollbars(config.hideScrollbars));if(scrollbarToggle)scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);
     layerDrag.cancel();
     const root=document.documentElement;root.dataset.otlPreviewMode=ui.previewMode;
-    fontSession?.update({body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config)});updateFontStatuses();
+    fontSession?.update({body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config)});updateFontStatuses();
     const lengths=['radius','fontSize','avatarSize','avatarRadius','headerHeight','nameSize','timeSize','captionSize','reasoningSize','decorationWidth','decorationX','decorationY','glass','cardWidth','textTop'];
     // Variables live on this dedicated stylesheet, never on the user's root inline settings.
     const cssKeys=new Set(Object.values(groups).flat().filter(f=>f.type==='color'||f.type==='range'||f.key.endsWith('Font')||f.key==='font').map(f=>f.key));
@@ -776,7 +805,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     liveStyle.textContent+=canvasBackgroundRules(config,'html[data-orange-lab]');
     const sq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=sceneTextRules(config,selectors)+sceneFrameRules(sq,sq+' .otl-header')+`${sq} .otl-header>.otl-photo-group{position:absolute!important;left:24px!important;top:calc(24px + var(--sc-photo-top))!important;bottom:auto!important;z-index:${regionZ(config,'header','avatar')}!important;clip-path:polygon(var(--sc-avatar-clip))!important;}${sq} .otl-meta,${sq} .otl-name-row{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}`;
     liveStyle.textContent+=avatarDesignRules(sq,config,true)+avatarFillRules(sq,config,true);
-    liveStyle.textContent+=CHROME_PREVIEW_BASE+PAGE_PREVIEW_CSS+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
+    liveStyle.textContent+=CHROME_PREVIEW_BASE+PAGE_PREVIEW_CSS+commonStyleRules(config,{preview:true,family:fontSession?.families().common||''})+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
     chromePreview.update(config);
     liveStyle.textContent+=chatFrameRules('html[data-orange-lab] #chat',sq,config);
     liveStyle.textContent+=bodyCardRules('html[data-orange-lab] #chat > .mes[data-orange-lab-fixture] > .mes_block > .mes_text','html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]',config,'preview',fontSession?.families()?.body);
