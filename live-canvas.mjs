@@ -44,16 +44,17 @@ export function createLiveCanvas({document,onPage=()=>{}}={}){
   if(Observer){observer=new Observer(records=>{if(records.some(r=>r.type==='attributes'&&relevant(r.target)||r.type==='childList'&&[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&(n.matches?.('#chat,.drawer,.drawer-content,.welcomePanel')||n.querySelector?.('.drawer,.drawer-content,.welcomePanel')))))scheduleReport();});observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','hidden']});}
   scheduleReport();
  }
- function layout({left=8,width=374,top=14,height=500,hidden=false}={}){
-  if(!active)return;const toolbar=Math.min(48,Math.max(30,height/5)),bodyTop=top+toolbar,bodyHeight=Math.max(1,height-toolbar);
+ function layout({left=8,width=374,top=14,height=500,hidden=false,preserveTopbar=false}={}){
+  if(!active)return;if(preserveTopbar)style.textContent='';const nativeTopbarBottom=preserveTopbar?Math.max(...['top-bar','top-settings-holder'].map(id=>document.getElementById(id)?.getBoundingClientRect?.().bottom||0)):0;
+  const toolbar=preserveTopbar?Math.max(0,nativeTopbarBottom-top):Math.min(48,Math.max(30,height/5)),bodyTop=top+toolbar,bodyHeight=Math.max(1,height-toolbar);
   const scope='html[data-orange-editor]';
   style.textContent=`
 ${scope}{--otl-canvas-left:${left}px;--otl-canvas-width:${width}px;--otl-canvas-top:${top}px;--otl-canvas-height:${height}px}
-${scope} #sheld{position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}px!important;bottom:auto!important;width:${width}px!important;height:${bodyHeight}px!important;max-width:none!important;max-height:${bodyHeight}px!important;min-width:0!important;min-height:0!important;margin:0!important;transform:none!important;display:flex!important;flex-direction:column!important;z-index:10000!important}
+${scope} #sheld{position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}px!important;bottom:auto!important;width:${width}px!important;height:${bodyHeight}px!important;max-width:none!important;max-height:${bodyHeight}px!important;min-width:0!important;min-height:0!important;margin:0!important;transform:none!important;display:flex!important;flex-direction:column!important;z-index:${preserveTopbar?30:10000}!important}
 ${scope} #chat{min-height:0!important;flex:1 1 0!important;overflow-y:auto!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
 ${scope} #form_sheld{flex:0 0 auto;max-height:60%;overflow:auto}
-${scope} #top-bar,${scope} #top-settings-holder{position:fixed!important;left:${left}px!important;right:auto!important;top:${top}px!important;width:${width}px!important;max-width:${width}px!important;min-width:0!important;height:${toolbar}px!important;margin:0!important;transform:none!important;z-index:10010!important}
-${scope} #top-settings-holder{align-items:center!important;overflow:visible!important}
+${preserveTopbar?'':`${scope} #top-bar,${scope} #top-settings-holder{position:fixed!important;left:${left}px!important;right:auto!important;top:${top}px!important;width:${width}px!important;max-width:${width}px!important;min-width:0!important;height:${toolbar}px!important;margin:0!important;transform:none!important;z-index:10010!important}
+${scope} #top-settings-holder{align-items:center!important;overflow:visible!important}`}
 ${scope} body :is(.drawer-content,#WorldInfo,#floatingPrompt){position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}px!important;bottom:auto!important;width:${width}px!important;min-width:0!important;max-width:${width}px!important;max-height:${bodyHeight}px!important;margin:0!important;transform:none!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
 ${scope} body :is(.drawer-content.openDrawer,.drawer-content.open,#WorldInfo.open,#floatingPrompt.open){overflow-y:auto!important}
 ${scope} #movingDivs{position:relative;z-index:10020}

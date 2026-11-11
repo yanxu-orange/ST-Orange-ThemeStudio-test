@@ -9,3 +9,20 @@ test('work setup can return without replacement and closes open menus',()=>{cons
 test('phone More aligns to rightmost command and every primary label fits its 44px touch allocation',()=>{const {shadow}=fixture();const css=shadow.querySelector('style').textContent;assert.match(css,/\.bar \.menu\{right:0;width:min\(280px,calc\(100vw - 24px\)\)/);assert.doesNotMatch(css,/right:-48px/);const labels=['full-view','undo','mode-library','save','apply-live'].map(id=>shadow.querySelector('#'+id).textContent);assert.deepEqual(labels,['预览','撤销','素材库','保存','应用']);assert.match(css,/button,select,summary\{min-height:44px\}/);assert.ok(css.includes('.bar summary{display:flex;align-items:center;justify-content:center;min-height:44px}'));assert.match(css,/\.bar>\.desktop-scheme\{order:6\}/);});
 
 test('selected and primary command hover retains readable dark contrast',()=>{const {shadow}=fixture();const css=shadow.querySelector('style').textContent;assert.ok(css.includes('button[aria-pressed=true]:hover:not(:disabled),button.primary:hover:not(:disabled){background:#425b4b;border-color:#425b4b;color:white}'));});
+
+test('More uses paired short actions, full-width controls and aligned touch-sized checks',()=>{
+ const {shadow}=fixture(),css=shadow.querySelector('style').textContent;
+ assert.equal(shadow.querySelector('.mobile-work').textContent,'工坊首页');
+ assert.equal(shadow.querySelector('.mobile-work').getAttribute('aria-label'),'打开工坊首页');
+ assert.equal(shadow.querySelector('.flow-overlay').getAttribute('aria-label'),'工坊首页');
+ assert.equal(shadow.querySelector('#layout-adjust').textContent,'调整工作台高度');
+ assert.equal(shadow.querySelector('.mobile-layout-toolbar span').textContent,'调整工作台高度');
+ assert.equal(shadow.querySelector('#wb-mobile-splitter').getAttribute('aria-label'),'调整工作台高度');
+ assert.ok(shadow.querySelector('#layout-adjust').classList.contains('menu-wide'));
+ assert.match(css,/\.bar \.menu\{[^}]*overflow:auto;overscroll-behavior:contain;[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(css,/\.bar \.menu>label,\.bar \.menu>section,\.bar \.menu>\.menu-wide\{grid-column:1\/-1\}/);
+ assert.match(css,/\.bar \.menu label:has\(>input\[type=checkbox\]\)\{display:flex;flex-direction:row;align-items:center;gap:8px;min-height:44px\}/);
+ assert.match(css,/input\[type=checkbox\]\{width:20px;height:20px;min-height:20px/);
+ assert.equal(shadow.querySelector('#restore').nextElementSibling.id,'close');
+ assert.equal(shadow.querySelector('#import').nextElementSibling.id,'export');
+});

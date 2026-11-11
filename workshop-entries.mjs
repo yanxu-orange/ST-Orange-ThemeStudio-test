@@ -29,8 +29,10 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    if(!target)continue;
    const root=make('div');root.dataset.workshopEntry=name;
    root.className=name==='wand'?'list-group-item flex-container flexGap5':'extension_container';
+   Object.assign(root.style,{width:'100%',minWidth:'0',flexWrap:'wrap',gap:'8px'});
    const open=button('打开主题工坊',()=>onOpen());
    const stop=button('退出应用',()=>onStopApplied());
+   for(const action of [open,stop])Object.assign(action.style,{flex:'1 1 120px',minWidth:'120px',minHeight:'44px',whiteSpace:'nowrap',width:'100%'});
    root.append(open,stop);target.append(root);entries.set(name,{root,open,stop});
   }
  }

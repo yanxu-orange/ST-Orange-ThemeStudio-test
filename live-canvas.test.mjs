@@ -90,3 +90,18 @@ test('streaming message and artwork changes do not read drawer layout',async()=>
  await tick();assert.equal(reads,before,'chat-only mutations must not schedule native drawer measurements');
  document.querySelector('#user-settings-button .drawer-toggle').click();await tick();assert.ok(reads>before);canvas.stop();
 });
+
+test('collapsed workbench restores native topbar geometry without moving native nodes',()=>{
+ const {document}=documentFor(),bar=document.querySelector('#top-bar'),holder=document.querySelector('#top-settings-holder'),canvas=createLiveCanvas({document});
+ bar.getBoundingClientRect=holder.getBoundingClientRect=()=>({bottom:42});
+ canvas.start();canvas.layout({top:88});
+ const style=document.getElementById('orange-workbench-layout');assert.match(style.textContent,/#top-bar[^}]*top:88px/);
+ for(let i=0;i<3;i++){
+  canvas.layout({top:6,height:800,preserveTopbar:true});
+  assert.doesNotMatch(style.textContent,/#top-bar|#top-settings-holder/);assert.match(style.textContent,/z-index:30!important/);
+  assert.match(style.textContent,/#sheld\{[^}]*top:42px/);
+  assert.equal(document.querySelector('#top-bar'),bar);assert.equal(document.querySelector('#top-settings-holder'),holder);
+  canvas.layout({top:88});assert.match(style.textContent,/#top-bar[^}]*top:88px/);
+ }
+ canvas.stop();assert.equal(document.getElementById('orange-workbench-layout'),null);
+});

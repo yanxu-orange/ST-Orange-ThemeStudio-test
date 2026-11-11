@@ -51,3 +51,14 @@ test('last selected native entry is protected and multiple controls stay synchro
  for(const root of [a,b]){assert.equal(root.querySelector('[data-workshop-entry-choice="wand"]').checked,true);assert.equal(root.querySelector('[data-workshop-entry-choice="floating"]').checked,false);}
  const copy=f.entries.preferences;copy.wand=false;assert.equal(f.entries.preferences.wand,true);f.entries.destroy();
 });
+
+test('native entry buttons retain readable width and touch height under host menu styles',()=>{
+ const f=setup();
+ for(const root of f.document.querySelectorAll('[data-workshop-entry]')){
+  assert.equal(root.style.width,'100%');
+  for(const button of root.querySelectorAll('button')){
+   assert.equal(button.style.minWidth,'120px');assert.equal(button.style.minHeight,'44px');assert.equal(button.style.whiteSpace,'nowrap');
+  }
+ }
+ f.entries.destroy();
+});

@@ -124,11 +124,11 @@ await (async () => {
   shadow.addEventListener('keydown',event=>{if(event.key==='Escape'&&ui.mode==='library'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();returnFromMaterials();}});
   function openMaterialPicker(purpose,category='images',target='',onUse=null){
     invalidateEditing();managerReturn=null;materialSession=Object.freeze({purpose,target,onUse,selection:Object.freeze({...ui}),scroll:shadow.querySelector('.fields').scrollTop,inspectorScroll:shadow.querySelector('.inspector').scrollTop,config});
-    libraryPurpose=purpose;libraryTarget=target;materialCategory=category;ui.mode='library';renderFields();
+    libraryPurpose=purpose;libraryTarget=target;materialCategory=category;ui.mode='library';renderFields();shadow.querySelector('.fields').scrollTop=0;shadow.querySelector('.inspector').scrollTop=0;
   }
   function returnFromMaterials(){
     const session=materialSession||managerReturn;invalidateEditing();materialSession=null;managerReturn=null;libraryPurpose='manager';libraryTarget='';
-    if(session)Object.assign(ui,session.selection);else ui.mode='edit';renderFields();
+    if(session)Object.assign(ui,session.selection,{toolbarCollapsed:ui.toolbarCollapsed});else ui.mode='edit';renderFields();
     if(session){shadow.querySelector('.fields').scrollTop=session.scroll;shadow.querySelector('.inspector').scrollTop=session.inspectorScroll;}
   }
   const MATERIAL_TARGETS=[['header','聊天 / 头像区'],['message','聊天 / 消息整体'],['reasoning-entry','聊天 / 思维入口'],['reasoning-body','聊天 / 思维正文'],['footer','聊天 / 尾部区'],['input','首页和全局 / 共用输入区']];
@@ -137,7 +137,7 @@ await (async () => {
 
   panel=shadow.querySelector('.panel');
   const extraStyle=make('style');
-  extraStyle.textContent=`textarea{font:inherit;width:100%;min-height:100px;resize:vertical;border:1px solid #dce3d6;border-radius:9px;padding:10px;background:white;color:#344d3e;line-height:1.6}input[aria-invalid=true]{border-color:#b86b63}.layer-list{display:grid;gap:5px;max-height:180px;overflow:auto;margin:12px 0}.layer-list button{display:flex;align-items:center;gap:9px;text-align:left;padding:7px}.layer-list button[aria-pressed=true]{background:#edf3e9;border-color:#7d9a78}.layer-list img{width:34px;height:34px;object-fit:contain;background:#f1eee5;border-radius:5px}.layer-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.number-input{width:80px;padding:5px;border:1px solid #dce3d6;border-radius:6px}.crop-dialog{border:1px solid #dce3d6;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;padding:22px;color:#31493e;background:#fffdf8;font:14px/1.5 system-ui,sans-serif}.crop-dialog::backdrop{background:#1e302666}.crop-dialog canvas{display:block;max-width:100%;max-height:40vh;object-fit:contain;margin:14px auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50% / 16px 16px}.crop-dialog h3{margin:0 0 6px}.crop-dialog .actions{margin-top:16px}.layer-count{font-size:12px;color:#7c8975;margin-top:12px}`;
+  extraStyle.textContent=`.material-source-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0}.material-source-row select{min-width:0;width:100%}.material-source-row button{white-space:nowrap}.material-source-row select,.material-source-row button{min-height:44px}textarea{font:inherit;width:100%;min-height:100px;resize:vertical;border:1px solid #dce3d6;border-radius:9px;padding:10px;background:white;color:#344d3e;line-height:1.6}input[aria-invalid=true]{border-color:#b86b63}.layer-list{display:grid;gap:5px;max-height:180px;overflow:auto;margin:12px 0}.layer-list button{display:flex;align-items:center;gap:9px;text-align:left;padding:7px}.layer-list button[aria-pressed=true]{background:#edf3e9;border-color:#7d9a78}.layer-list img{width:34px;height:34px;object-fit:contain;background:#f1eee5;border-radius:5px}.layer-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.number-input{width:80px;padding:5px;border:1px solid #dce3d6;border-radius:6px}.crop-dialog{border:1px solid #dce3d6;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;padding:22px;color:#31493e;background:#fffdf8;font:14px/1.5 system-ui,sans-serif}.crop-dialog::backdrop{background:#1e302666}.crop-dialog canvas{display:block;max-width:100%;max-height:40vh;object-fit:contain;margin:14px auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50% / 16px 16px}.crop-dialog h3{margin:0 0 6px}.crop-dialog .actions{margin-top:16px}.layer-count{font-size:12px;color:#7c8975;margin-top:12px}`;
   shadow.append(extraStyle);
   const nativeFit=createInputFitBridge({document,load:()=>import(new URL('../../../RossAscends-mods.js',import.meta.url).href).then(m=>m.autoFitSendTextAreaDebounced)});const fitInput=()=>{if(!document.defaultView?.location?.protocol?.startsWith('http'))return;return nativeFit();};
   const canvas=createLiveCanvas({document,onPage:page=>{if(active)workbench.syncViewedPage(page);}});
@@ -173,8 +173,9 @@ await (async () => {
   function updateWorkbenchLayout(){
     layerDrag.cancel();
     const win=document.defaultView,vv=win?.visualViewport,mobile=(win?.innerWidth||1200)<=700,compact=mobile&&!!vv&&vv.height<(win?.innerHeight||800)*.75;shadow.host.dataset.wbCompact=String(compact);workbench.syncSizing();
+    const collapsed=ui.toolbarCollapsed;
     const barTop=mobile?parseFloat(win?.getComputedStyle?.(shadow.querySelector('.bar'))?.top)||vv?.offsetTop||0:0;
-    const barBottom=shadow.querySelector('.bar').getBoundingClientRect?.().bottom||(mobile?barTop+52:104);shadow.host.style.setProperty('--wb-mobile-tools-top',(barBottom+4)+'px');
+    const barBottom=collapsed?0:shadow.querySelector('.bar').getBoundingClientRect?.().bottom||(mobile?barTop+52:104);shadow.host.style.setProperty('--wb-mobile-tools-top',(barBottom+4)+'px');
     const toolsBottom=barBottom;
     const safeBottom=parseFloat(win?.getComputedStyle?.(shadow.host)?.getPropertyValue('--wb-safe-bottom'))||0;
     const mobileTop=barBottom+6;
@@ -182,7 +183,7 @@ await (async () => {
     const right=(ui.mobileView==='preview'&&ui.mode!=='library'?0:layoutWidths(document.defaultView?.innerWidth||1200,ui.split).previewRight)+'px';
     if(!active)return;
     const frame=previewFrameGeometry(previewChatWidth,win?.innerWidth||1200,parseFloat(right),ui.narrow);
-    canvas.layout({left:frame.left,width:frame.width,top:mobile?geom.top:toolsBottom+6,height:mobile?geom.height:Math.max(100,(win?.innerHeight||800)-toolsBottom-24),hidden:ui.libraryExpanded});
+    canvas.layout({left:frame.left,width:frame.width,top:mobile?geom.top:toolsBottom+6,height:mobile?geom.height:Math.max(100,(win?.innerHeight||800)-toolsBottom-24),hidden:ui.libraryExpanded,preserveTopbar:collapsed});
   }
 
   function beginUploadFeedback(source,target,files){
@@ -258,6 +259,23 @@ await (async () => {
     const button=make('button','','从字体库选择');button.type='button';button.addEventListener('click',()=>openMaterialPicker('font','fonts','',record=>{commit(record);}));container.append(button);
   }
   function seedIconStyle(target){for(const [key,value]of Object.entries(ICON_STYLE_DEFAULTS))if(target[key]===undefined)target[key]=key==='color'?config.accent:value;}
+  function renderMaterialControl(container,target,{label,purpose,id,native=false}){
+    const nativeMode=native?'default':'native',hasMaterial=!!(target.icon||target.image||target.asset||target.source),custom=['image','icon'].includes(target.mode);
+    const fieldLabel=make('div','field'),row=make('div','material-source-row'),mode=make('select'),pick=make('button','',hasMaterial?'更换':'选择素材');
+    mode.setAttribute('aria-label',label);
+    for(const [value,name]of [[nativeMode,'原生'],...(native?[['text','文字']]:[]),['custom','自定义']]){const option=make('option','',name);option.value=value;mode.append(option);}
+    mode.value=custom?'custom':target.mode;pick.type='button';pick.id=id;pick.setAttribute('aria-label',(hasMaterial?'更换':'选择素材')+'：'+label);
+    const choose=()=>openMaterialPicker(purpose,target.mode==='icon'?'icons':'images');
+    pick.addEventListener('click',choose);
+    mode.addEventListener('change',()=>{
+      if(mode.value==='custom'){mode.value=custom?'custom':target.mode;choose();return;}
+      if(mode.value===target.mode)return;
+      invalidateEditing();remember();target.mode=mode.value;
+      if(target.mode===nativeMode){target.icon='';if(native)target.source=null;else{target.asset='';target.image='';}}
+      apply();renderFields();notify('显示方式已更新，尚未保存');
+    });
+    row.append(mode,pick);fieldLabel.append(make('span','',label),row);container.append(fieldLabel);
+  }
   function renderIconAppearance(container,target,{native=false,prefix='图标'}={}){
     target=new Proxy(target,{get:(object,key)=>Object.hasOwn(ICON_STYLE_DEFAULTS,key)?iconStyle(object)[key]:object[key]});
     propertyHeading(container,prefix+'外观');
@@ -302,8 +320,8 @@ await (async () => {
       if(!isSourceTarget&&!anchor()){notify('请先选择素材实际应用的区域，不会自动放入头像区。');return;}
       if(!isSourceTarget&&config.layers.length>=LAYER_LIMIT){notify(`最多放置 ${LAYER_LIMIT} 层素材；素材库可继续保存图片。`);return;}
       invalidateEditing();remember();
-      if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||''});apply();returnFromMaterials();}
-      else if(isSourceTarget){backgroundTarget.source={kind:source.asset?'asset':'custom',asset:source.asset||'',image:source.image||''};backgroundTarget.mode='image';apply();returnFromMaterials();}
+      if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||'',icon:''});apply();returnFromMaterials();}
+      else if(isSourceTarget){backgroundTarget.source={kind:source.asset?'asset':'custom',asset:source.asset||'',image:source.image||''};backgroundTarget.mode='image';if(isEditIcon)backgroundTarget.icon='';apply();returnFromMaterials();}
       else {const layer=newLayer(source.shape?'shape':source.asset?'asset':'custom',{name:source.name,asset:source.asset||'',image:source.image||'',...(source.shape?{shape:source.shape}:{}),opacity:1,anchor:anchor()});config.layers.push(layer);selectedLayerId=layer.id;apply();revealMaterialTarget(layerRegion(layer),'image',layer.id);}
       notify('已添加，尚未保存');
     }
@@ -536,17 +554,14 @@ await (async () => {
     if(ui.kind==='actions'){
       const actions=config.nativeStyle.actions,edit=actions.edit;
       propertyHeading(container,'编辑');nativePositionFields(container,edit);
-      nativeControl(container,edit,field('显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片'],['icon','从图标库选择']]}),()=>{if(edit.mode==='icon')seedIconStyle(edit);renderFields();});
+      renderMaterialControl(container,edit,{label:'显示方式',purpose:'native-edit-icon',id:'native-edit-pick',native:true});
       if(edit.mode==='text')nativeControl(container,edit,field('文字','text','text',{maxLength:40}));
-      if(['image','icon'].includes(edit.mode)){
-        const pick=make('button','','选择或替换编辑图标');pick.id='native-edit-pick';pick.addEventListener('click',()=>{openMaterialPicker('native-edit-icon',edit.mode==='icon'?'icons':'images');});container.append(pick);
-        nativeControl(container,edit,field('图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
-      }
+      if(['image','icon'].includes(edit.mode))nativeControl(container,edit,field('图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
       if(edit.mode==='icon')renderIconAppearance(container,edit,{native:true,prefix:'编辑图标'});
       propertyHeading(container,'更多');nativePositionFields(container,actions.more);
-      nativeControl(container,actions.more,field('更多显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片'],['icon','从图标库选择']]}),()=>{if(actions.more.mode==='icon')seedIconStyle(actions.more);renderFields();});
+      renderMaterialControl(container,actions.more,{label:'更多显示方式',purpose:'native-more-icon',id:'native-more-pick',native:true});
       if(actions.more.mode==='text')nativeControl(container,actions.more,field('更多文字','text','text',{maxLength:40}));
-      if(['image','icon'].includes(actions.more.mode)){const pick=make('button','','选择或替换更多图标');pick.id='native-more-pick';pick.addEventListener('click',()=>{openMaterialPicker('native-more-icon',actions.more.mode==='icon'?'icons':'images');});container.append(pick);nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));}
+      if(['image','icon'].includes(actions.more.mode))nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
       if(actions.more.mode==='icon')renderIconAppearance(container,actions.more,{native:true,prefix:'更多图标'});
       propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
     }else if(ui.kind==='info'){
@@ -592,10 +607,11 @@ await (async () => {
       propertyHeading(container,'字体设计');controls(v,[['输入字体来源','fontMode','select',{options:[['interface','跟随界面字体'],['chat','跟随聊天正文'],['custom','自定义字体']]}]]);if(v.fontMode==='custom')controls(v,[['输入字体','font','select',{options:fonts}]]);controls(v,[range('输入字号','size',8,60),range('输入字重','weight',100,900,'',100),['输入文字颜色','textColor','color'],range('输入行高','lineHeight',1,3,'',.1)]);propertyHeading(container,'自动增高范围');controls(v,[range('输入最小高度','minHeight',32,160),range('输入最大高度','maxHeight',80,600)]);container.append(make('p','hint','最大高度需不小于最小高度，并受当前视口60%限制；真实输入仍由酒馆自动增高。'));if(v.fontMode==='custom'){propertyHeading(container,'外链字体');renderFontLinkFields(container,'chrome-input',v,'输入文字');}
     }else if(['tools','icons'].includes(ui.kind)){
       if(isInput){propertyHeading(container,'工具共用尺寸');controls(v,[range('输入图标大小','iconSize',12,40),range('输入点击槽','slot',28,64),range('输入工具间距','gap',0,24)]);}
-      propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];editorControl(container,field('按钮图形','mode','select',{options:[['native','保留原生'],['image','使用图片'],['icon','从图标库选择']],notice:'图形已更新，尚未保存'}),item,()=>{if(item.mode==='icon')seedIconStyle(item);renderFields();});
-      if(['image','icon'].includes(item.mode)){const pick=make('button','',item.mode==='icon'?'选择或替换图标':'选择或替换按钮图片');pick.id='chrome-icon-pick';pick.addEventListener('click',()=>{openMaterialPicker('chrome:'+zone+':'+ui.object,item.mode==='icon'?'icons':'images');});container.append(pick,make('p','hint',item.icon?ICONS[item.icon]?.name||'图标':item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择图片，保留原生图形'));}
+      propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];
+      renderMaterialControl(container,item,{label:'按钮图形',purpose:'chrome:'+zone+':'+ui.object,id:'chrome-icon-pick'});
+      if(['image','icon'].includes(item.mode))container.append(make('p','hint',item.icon?ICONS[item.icon]?.name||'图标':item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择素材'));
       if(item.mode==='icon')renderIconAppearance(container,item);
-      const clear=make('button','','恢复原生图形');clear.addEventListener('click',()=>{invalidateEditing();remember();Object.assign(item,{mode:'native',asset:'',image:'',icon:''});apply();renderFields();});container.append(clear,make('p','hint',isInput?'显隐、发送与停止状态由酒馆控制；这里不执行按钮业务。':'只换图形，保留原抽屉、提示和打开/连接状态。'));
+      container.append(make('p','hint',isInput?'显隐、发送与停止状态由酒馆控制；这里不执行按钮业务。':'只换图形，保留原抽屉、提示和打开/连接状态。'));
     }
   }
   function renderChromeSourceLibrary(container){
@@ -636,7 +652,7 @@ await (async () => {
     const commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&(!['home','chat'].includes(ui.page)||ui.region==='home-design');
     if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}
     else if(unavailable)title=ui.region==='home-design'?'首页独立设计尚未接入':PAGE_NAMES[ui.page]+'独立设计尚未接入';
-    else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':materialSession?'选择素材':'素材库';
+    else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮素材':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':materialSession?'选择素材':'素材库';
     else if(ui.region==='overall'){
       kinds=[['card','整体样式'],['image','消息装饰']];if(ui.kind==='image'){objects=matchingLayers(config.layers,'overall').map(l=>[l.id,l.name]);selectedLayerId=ui.object;selected='decoration';title=config.layers.find(l=>l.id===ui.object)?.name||'消息装饰';}else{selected='global';title='当前消息卡片';keys=['surface','accent','radius','glass','surfaceOpacity','cardWidth'];}
     }else if(ui.region==='header'){
@@ -714,9 +730,9 @@ await (async () => {
     if(id==='blank'){const blank=validate(clone(templates.blank));blank.layers=[];blank.captions=[];blank.footerCaptions=[];blank.photos=validatePhotos();blank.avatarFill.ai.enabled=false;blank.avatarFill.user.enabled=false;blank.reasoningStyle.entry.content='思考过程';config=validate(syncRegionOrder(blank));}else config=validate(clone(templates[id]));
     selectedLayerId=config.layers[0]?.id;ui.mobileView='preview';ui.previewMode='page';if(active){apply();renderFields();}notify('新起点已载入，尚未保存');return true;
   }
-  const scrollbarLabel=make('label','field','隐藏滚动条（仍可滚动）'),scrollbarToggle=make('input');scrollbarToggle.type='checkbox';scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);scrollbarToggle.setAttribute('aria-label','隐藏滚动条');scrollbarLabel.append(scrollbarToggle);shadow.querySelector('.bar details .menu').append(scrollbarLabel);scrollbarToggle.addEventListener('change',()=>{remember();config.hideScrollbars=scrollbarToggle.checked;apply();notify('滚动条显示已更新，保存方案后记住');});
+  const scrollbarLabel=make('label','field'),scrollbarToggle=make('input');scrollbarToggle.type='checkbox';scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);scrollbarToggle.setAttribute('aria-label','隐藏滚动条');scrollbarLabel.append(scrollbarToggle,make('span','','隐藏滚动条（仍可滚动）'));shadow.querySelector('.bar details .menu').append(scrollbarLabel);scrollbarToggle.addEventListener('change',()=>{remember();config.hideScrollbars=scrollbarToggle.checked;apply();notify('滚动条显示已更新，保存方案后记住');});
   const mobileFlow=installMobileFlow({shadow,onVisibility:visible=>scrollbarVisibility.set((active||visible)&&normalizeScrollbars(config.hideScrollbars)),onContinue:open,onTemplate:replaceStart,onBlank:()=>replaceStart('blank'),onImport:()=>{open();shadow.querySelector('#import-file').click();},onLayout:()=>{if(active)updateWorkbenchLayout();}});
-  const launch=()=>open();
+  const launch=()=>{if(active){workbench.restoreWorkbench();return;}open();};
   const entries=createWorkshopEntries({document,launcher:shadow.querySelector('.launcher'),onOpen:launch,onStopApplied:stopApplied,onMessage:notify});shadow.querySelector('.bar .menu').append(entries.renderSettings());
   const entryStyle=make('style');entryStyle.textContent='[data-workshop-entry-settings] h4{margin:10px 0 4px}[data-workshop-entry-settings] p{font-size:12px}[data-workshop-entry-settings] .checkbox_label{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:13px}[data-workshop-entry-settings] input{width:20px;height:20px;flex:none}';shadow.append(entryStyle);
   shadow.querySelector('.launcher').addEventListener('click',launch);shadow.querySelector('#close').addEventListener('click',close);
