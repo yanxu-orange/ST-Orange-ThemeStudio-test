@@ -15,7 +15,7 @@ test('input preview and live render matching shape dimensions, fill, scope and u
   const hidden=newLayer('shape',{id:'hidden',anchor:'input',visible:false});
   let c=syncRegionOrder({font:'serif',layers:[shape,bitmap,hidden],chromeStyle:structuredClone(CHROME_DEFAULTS)});c.chromeStyle.input.enabled=true;c=moveRegionItem(c,'input',imageKey(shape.id),'top');
   const resolveArtwork=layer=>layer.kind==='shape'?shapeDataUrl(layer):layer.image,picks=[];
-  const preview=createChromePreview({document,ui:{page:'chat',previewMode:'page',demoState:'normal'},resolveArtwork,onPick:(...args)=>picks.push(args)}),live=createChromeAdapter({document,resolveArtwork});
+  const preview=createChromePreview({document,ui:{page:'chat',previewMode:'page'},resolveArtwork,onPick:(...args)=>picks.push(args)}),live=createChromeAdapter({document,resolveArtwork});
   preview.update(c);live.update(c);
   const shapeNodes=()=>[document.querySelector('.otl-page-input [data-layer-id="shape"]'),document.querySelector('#send_form [data-layer-id="shape"]')];
   for(const node of shapeNodes()){
