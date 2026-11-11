@@ -21,7 +21,7 @@ test('mobile toolbar starts as edge entrance and repeatedly expands all six acti
 });
 test('flat More closes repeatedly; outside pointer and Escape preserve preview input',()=>{
  const {document,window,shadow,flow,toggle,more}=fixture();
- assert.equal(more.querySelector('details'),null);assert.ok(more.querySelector('#export'));assert.equal(more.querySelector('[aria-label="基础模板"]'),null);assert.equal(more.querySelector('#page-scope'),null);for(let i=0;i<3;i++){toggle.click();more.open=true;toggle.click();assert.equal(more.open,false);}
+ assert.equal(more.querySelector('details'),null);assert.ok(more.querySelector('#export'));assert.equal(more.querySelector('[aria-label="基础模板"]'),null);assert.ok(more.querySelector('#page-scope'));for(let i=0;i<3;i++){toggle.click();more.open=true;toggle.click();assert.equal(more.open,false);}
  toggle.click();more.open=true;more.dispatchEvent(new window.Event('pointerdown',{bubbles:true,composed:true}));assert.equal(flow.isToolbarExpanded(),true);
  const outside=new window.Event('pointerdown',{bubbles:true,cancelable:true});document.body.dispatchEvent(outside);assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.open,false);assert.equal(outside.defaultPrevented,false);
  toggle.click();more.open=true;const escape=new window.Event('keydown',{bubbles:true,cancelable:true});escape.key='Escape';shadow.dispatchEvent(escape);assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.open,false);
@@ -29,8 +29,8 @@ test('flat More closes repeatedly; outside pointer and Escape preserve preview i
 test('desktop stays expanded, restores menu controls, and returning to mobile resets collapse',()=>{
  const {window,shadow,flow,toggle,more,bar}=fixture();toggle.click();more.open=true;
  window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));
- assert.equal(flow.isToolbarExpanded(),true);assert.equal(bar.dataset.toolbarExpanded,'true');assert.equal(more.open,false);assert.equal(shadow.querySelector('#save').textContent,'保存方案');assert.ok(shadow.querySelector('.panel-head #page-scope'));assert.ok(bar.querySelector('[aria-label="基础模板"]'));
- window.innerWidth=390;window.dispatchEvent(new window.Event('resize'));assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.querySelector('#page-scope'),null);assert.ok(shadow.querySelector('.scope-label').hidden);assert.equal(shadow.querySelector('#save').textContent,'保存');
+ assert.equal(flow.isToolbarExpanded(),true);assert.equal(bar.dataset.toolbarExpanded,'true');assert.equal(more.open,false);assert.equal(shadow.querySelector('#save').textContent,'保存方案');assert.ok(shadow.querySelector('.desktop-scheme #page-scope'));assert.ok(bar.querySelector('[aria-label="基础模板"]'));
+ window.innerWidth=390;window.dispatchEvent(new window.Event('resize'));assert.equal(flow.isToolbarExpanded(),false);assert.ok(more.querySelector('#page-scope'));assert.equal(shadow.querySelector('.scope-label'),null);assert.equal(shadow.querySelector('#save').textContent,'保存');
 });
 test('opening work settings, exit and reopen leave a clean collapsed toolbar',()=>{
  const {shadow,flow,toggle,more}=fixture();flow.setEditorOpen(true);toggle.click();more.open=true;shadow.querySelector('.mobile-work').click();assert.equal(flow.isToolbarExpanded(),false);assert.equal(more.open,false);assert.equal(shadow.querySelector('.flow-overlay').classList.contains('hidden'),false);
@@ -40,5 +40,5 @@ test('opening work settings, exit and reopen leave a clean collapsed toolbar',()
 test('repeated mobile and desktop resizes preserve one instance of each control and close action menus',()=>{
  const {window,shadow,flow,toggle,more,bar}=fixture();const exportButton=shadow.querySelector('#export'),preview=shadow.querySelector('.preview-tools'),scope=shadow.querySelector('#page-scope');let exports=0;exportButton.addEventListener('click',()=>exports++);
  for(let i=0;i<4;i++){toggle.click();more.open=true;exportButton.click();assert.equal(exports,i+1);assert.equal(more.open,false);assert.equal(flow.isToolbarExpanded(),false);window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(bar.querySelector('.desktop-scheme #export'),exportButton);assert.equal(preview.parentNode,shadow);window.innerWidth=390;window.dispatchEvent(new window.Event('resize'));window.dispatchEvent(new window.Event('resize'));assert.equal(more.querySelector('#export'),exportButton);assert.equal(more.querySelectorAll('#export').length,1);assert.equal(more.querySelector('.preview-tools'),preview);assert.equal(shadow.querySelector('#page-scope'),scope);assert.equal(more.querySelector('details'),null);}
- assert.equal(shadow.querySelector('#preview-mode').hidden,true);assert.equal(shadow.querySelector('#preview-mode').options.length,1);assert.equal(scope.options.length,1);assert.equal(shadow.querySelector('.preview-tools .hint'),null);
+ assert.equal(shadow.querySelector('#preview-mode').hidden,true);assert.equal(shadow.querySelector('#preview-mode').options.length,1);assert.deepEqual([...scope.options].filter(option=>!option.hasAttribute('disabled')).map(option=>option.value),['chat','settings','worldbook']);assert.equal(shadow.querySelector('.preview-tools .hint'),null);
 });

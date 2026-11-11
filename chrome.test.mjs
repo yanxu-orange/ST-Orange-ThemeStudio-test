@@ -68,3 +68,9 @@ test('input following chat uses loaded body font and falls back without overridi
  assert.match(chromeRules(c,PREVIEW_CHROME_SELECTORS,{}),/font-family:serif!important/);
  c.chromeStyle.input.fontMode='custom';c.chromeStyle.input.font='monospace';assert.match(chromeRules(c,PREVIEW_CHROME_SELECTORS,{body:'LoadedBody','chrome-input':'CustomInput'}),/font-family:"CustomInput",monospace!important/);
 });
+
+test('repeated multiline input measurements do not clamp restored chat scroll position',()=>{
+ const {document}=dom(),ui={page:'chat',previewMode:'page',mobileView:'preview'},preview=createChromePreview({document,ui,resolveArtwork:()=>''}),c=config();preview.update(c);const chat=document.querySelector('#chat'),textarea=document.querySelector('.otl-page-textarea');let height='180px';
+ Object.defineProperty(textarea.style,'height',{configurable:true,get:()=>height,set:value=>{height=value;if(value==='1px')chat.scrollTop=Math.min(chat.scrollTop,320);}});Object.defineProperty(textarea,'scrollHeight',{configurable:true,get:()=>180});
+ chat.scrollTop=500;for(let n=0;n<4;n++){preview.fit();assert.equal(chat.scrollTop,500);assert.equal(height,'180px');preview.update(c);assert.equal(chat.scrollTop,500);}preview.close();
+});

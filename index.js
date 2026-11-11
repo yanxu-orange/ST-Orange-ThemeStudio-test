@@ -22,6 +22,7 @@ import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
 import {createInputFitBridge} from './chrome-adapter.mjs';
 import {normalizeChromeConfig,DRAWERS,INPUT_ICONS,chromeFontEntries,chromeRules,PREVIEW_CHROME_SELECTORS} from './chrome.mjs';
 import {createChromePreview,CHROME_PREVIEW_BASE} from './chrome-preview.mjs';
+import {createPagePreview,PAGE_PREVIEW_CSS,PREVIEW_PAGES} from './page-preview.mjs';
 import {sceneWidth,normalizeTextScene,newSceneCaption,prepareScene,placeScene,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
 import {normalizeNativeConfig,nativeRules,renderNative,latestAI} from './native.mjs';
 import {footerBaseHeight,FOOTER_LIMIT,footerKey,newFooterCaption,normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,measureFooter} from './footer.mjs';
@@ -178,7 +179,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   installLauncherDrag({launcher:shadow.querySelector('.launcher')});
   const colorPicker=createColorPicker({document,root:shadow});
   const numericStyle=make('style');numericStyle.textContent=NUMERIC_STEPPER_CSS;shadow.append(numericStyle);
-  const workbench=createWorkbench(shadow,{onNavigate:()=>{invalidateEditing();libraryPurpose='layer';renderFields();},onLayout:()=>{if(!active)return;updateWorkbenchLayout();chromePreview.update(config);scheduleFit();}}),ui=workbench.ui;
+  const workbench=createWorkbench(shadow,{onBeforePageChange:()=>pagePreview.capture(),onNavigate:({pageChanged=false}={})=>{invalidateEditing();if(!pageChanged)libraryPurpose='layer';renderFields();},onLayout:()=>{if(!active)return;updateWorkbenchLayout();chromePreview.update(config);scheduleFit();}}),ui=workbench.ui;
   panel=shadow.querySelector('.panel');
   const extraStyle=make('style');
   extraStyle.textContent=`textarea{font:inherit;width:100%;min-height:100px;resize:vertical;border:1px solid #dce3d6;border-radius:9px;padding:10px;background:white;color:#344d3e;line-height:1.6}input[aria-invalid=true]{border-color:#b86b63}.layer-list{display:grid;gap:5px;max-height:180px;overflow:auto;margin:12px 0}.layer-list button{display:flex;align-items:center;gap:9px;text-align:left;padding:7px}.layer-list button[aria-pressed=true]{background:#edf3e9;border-color:#7d9a78}.layer-list img{width:34px;height:34px;object-fit:contain;background:#f1eee5;border-radius:5px}.layer-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.number-input{width:80px;padding:5px;border:1px solid #dce3d6;border-radius:6px}.crop-dialog{border:1px solid #dce3d6;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;padding:22px;color:#31493e;background:#fffdf8;font:14px/1.5 system-ui,sans-serif}.crop-dialog::backdrop{background:#1e302666}.crop-dialog canvas{display:block;max-width:100%;max-height:40vh;object-fit:contain;margin:14px auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50% / 16px 16px}.crop-dialog h3{margin:0 0 6px}.crop-dialog .actions{margin-top:16px}.layer-count{font-size:12px;color:#7c8975;margin-top:12px}`;
@@ -203,6 +204,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   }
   const layerDrag=createLayerDrag({document,getState:()=>({active,...ui,layers:config.layers,regionFor:layerRegion}),getTextTarget:previewTextTarget,getLayerTarget:previewLayerTarget,onCommit:(item,next)=>{remember();Object.assign(item,next);apply();renderFields();notify('位置或大小已更新，尚未保存');}});
   const chromePreview=createChromePreview({document,ui,resolveArtwork:artworkUrl,onPick:(region,kind,id)=>{invalidateEditing();ui.demoDrawer=region==='topbar'?id:ui.demoDrawer;workbench.choose(region,kind,id);renderFields(undefined,{fromPreview:kind==='image'});}});
+  const pagePreview=createPagePreview({document,ui});
   const applyButton=make('button','primary','应用到真实聊天');applyButton.type='button';applyButton.id='apply-live';shadow.querySelector('#close').before(applyButton);
   const liveBar=make('section','live-bar hidden');const liveStatus=make('span','','当前方案已应用到消息区');liveStatus.setAttribute('role','status');
   const editLive=make('button','','返回编辑');editLive.type='button';const stopLive=make('button','','退出应用');stopLive.type='button';liveBar.append(liveStatus,editLive,stopLive);shadow.append(liveBar);
@@ -226,9 +228,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(!active){style?.remove();return;}
     if(!style){style=make('style');style.id='orange-workbench-layout';document.head.append(style);}
     const frame=previewFrameGeometry(previewChatWidth,win?.innerWidth||1200,parseFloat(right),ui.narrow);
-    style.textContent=`html[data-orange-lab] #sheld{left:${frame.left}px!important;right:auto!important;width:${frame.width}px!important;top:136px!important;bottom:18px!important}html[data-orange-lab] #chat{overflow:auto!important}html[data-orange-lab] #chat>[data-orange-lab-fixture]{display:${ui.page==='chat'?'block':'none'}!important}html[data-orange-lab] #chat>#otl-workbench-placeholder{display:${ui.page==='chat'?'none':'block'}!important}@media(max-width:700px){html[data-orange-lab] #sheld{top:${geom.top}px!important;bottom:auto!important;height:${geom.height}px!important;min-height:0!important}}`;
-    chromePreview.update(config);layerDrag.refresh();
-    let placeholder=document.getElementById('otl-workbench-placeholder');if(ui.page!=='chat'&&!placeholder){placeholder=make('div','', '此编辑范围尚未接入。当前方案和真实消息未改变。');placeholder.id='otl-workbench-placeholder';placeholder.dataset.orangeLabFixture='placeholder';Object.assign(placeholder.style,{padding:'24px',background:'#fffefa',borderRadius:'10px'});document.querySelector('#chat')?.append(placeholder);}
+    style.textContent=`html[data-orange-lab] #sheld{left:${frame.left}px!important;right:auto!important;width:${frame.width}px!important;top:136px!important;bottom:18px!important}html[data-orange-lab] #chat{overflow:auto!important}@media(max-width:700px){html[data-orange-lab] #sheld{top:${geom.top}px!important;bottom:auto!important;height:${geom.height}px!important;min-height:0!important}}`;
+    pagePreview.update({deferRestore:true});chromePreview.update(config);pagePreview.restore();layerDrag.refresh();
   }
   function beginUploadFeedback(source,target,files){
     uploadFeedback={source,target,rows:files.map(f=>({name:f.name,size:f.size,status:'等待处理',busy:true})),added:[]};refreshUploadFeedback();return uploadFeedback;
@@ -659,7 +660,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(fromPreview&&(document.defaultView?.innerWidth||1200)<=700)ui.mobileView='preview';
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
     const container=shadow.querySelector('.fields');container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
-    if(ui.page!=='chat')title='此范围尚未接入';
+    if(ui.page!=='chat')title=PREVIEW_PAGES[ui.page]+' · 页面预览';
     else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':'添加到：'+(ui.region==='input'?'输入区':ui.region==='footer'?'尾部区':ui.region==='reasoning'?'思维区':ui.region==='overall'?'整张消息':'头像区');
     else if(ui.region==='overall'){
       kinds=[['card','整体样式'],['image','全局装饰']];if(ui.kind==='image'){objects=matchingLayers(config.layers,'overall').map(l=>[l.id,l.name]);selectedLayerId=ui.object;selected='decoration';title=config.layers.find(l=>l.id===ui.object)?.name||'全局装饰';}else{selected='global';title='当前消息卡片';keys=['surface','accent','radius','glass','surfaceOpacity','cardWidth'];}
@@ -683,7 +684,8 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     let extra;if(ui.page==='chat'&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='library';renderFields();});}
     let actions;if(ui.page==='chat'&&ui.mode==='edit'&&['header','footer'].includes(ui.region)&&ui.kind==='text'&&!(ui.region==='header'&&['name','time'].includes(ui.object))){const list=currentCaptions();actions=make('button','',`＋ 新增文案（${list.length}/${CAPTION_LIMIT}）${list.length>=CAPTION_LIMIT?' 已达上限':''}`);actions.id=ui.region==='footer'?'add-footer-caption':'add-caption';actions.disabled=list.length>=CAPTION_LIMIT;actions.title=actions.disabled?'已达20条文案上限':'新增一条文案';actions.addEventListener('click',()=>{remember();const cap=currentNewCaption({name:'文案'+(list.length+1),font:config.font,color:config.accent});list.push(cap);ui.object=currentCaptionKey(cap.id);apply();renderFields();});}
     const activeKind=ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
-    if(ui.page!=='chat'||!['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)&&ui.mode!=='library')container.append(make('p','hint','此入口仅保留位置，真实功能尚未接入。当前主题和保存未改变。'));
+    if(ui.page!=='chat')container.append(make('p','hint','当前是 '+PREVIEW_PAGES[ui.page]+' 的虚构页面预览。可展开分组、查看控件与滚动效果，不会修改酒馆数据。此页外观编辑尚未接入；从更多切回聊天可继续原来的编辑。'));
+    else if(!['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)&&ui.mode!=='library')container.append(make('p','hint','此入口仅保留位置，真实功能尚未接入。当前主题和保存未改变。'));
     else if(ui.mode==='library')renderSourceLibrary(container);
     else if(ui.mobileView==='layers')renderRegionLayers(container);
     else{
@@ -701,7 +703,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       if(ui.region==='header'&&ui.kind==='avatar')renderPhotoFields(container);
       if(ui.kind==='image')renderLayers(container);
     }
-    const canOperate=ui.page==='chat'&&(['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)||ui.mode==='library');for(const id of ['save','import','export','restore','undo','apply-live'])shadow.querySelector('#'+id).disabled=!canOperate||(id==='undo'&&!history.length);
+    const canOperate=ui.page!=='chat'||(['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)||ui.mode==='library');for(const id of ['save','import','export','restore','undo','apply-live'])shadow.querySelector('#'+id).disabled=!canOperate||(id==='undo'&&!history.length);
     for(const e of document.querySelectorAll('[data-orange-lab-fixture] .otl-selected'))e.classList.remove('otl-selected');
     if(ui.page==='chat'&&ui.mode==='edit')for(const e of document.querySelectorAll('[data-orange-lab-fixture] [data-pick]')){
       const matches=ui.kind==='image'?e.dataset.layerId===ui.object:['header','footer'].includes(ui.region)&&ui.kind==='text'?selectedCaption()?(ui.region==='footer'?e.dataset.footerCaptionId:e.dataset.captionId)===selectedCaption().id:e.dataset.textItem===textItemKey:ui.kind==='avatar'?e.dataset.pick==='photo'&&e.dataset.scope===photoScope:false;if(matches)e.classList.add('otl-selected');
@@ -726,7 +728,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     liveStyle.textContent+=canvasBackgroundRules(config,'html[data-orange-lab]');
     const sq='html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]';liveStyle.textContent+=sceneTextRules(config,selectors)+sceneFrameRules(sq,sq+' .otl-header')+`${sq} .otl-header>.otl-photo-group{position:absolute!important;left:24px!important;top:calc(24px + var(--sc-photo-top))!important;bottom:auto!important;z-index:${regionZ(config,'header','avatar')}!important;clip-path:polygon(var(--sc-avatar-clip))!important;}${sq} .otl-meta,${sq} .otl-name-row{position:static!important;width:auto!important;padding:0!important;z-index:auto!important;transform:none!important}`;
     liveStyle.textContent+=avatarDesignRules(sq,config,true)+avatarFillRules(sq,config,true);
-    liveStyle.textContent+=CHROME_PREVIEW_BASE+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
+    liveStyle.textContent+=CHROME_PREVIEW_BASE+PAGE_PREVIEW_CSS+chromeRules(config,PREVIEW_CHROME_SELECTORS,fontSession?.families()||{},interfaceFont(document),true);
     chromePreview.update(config);
     liveStyle.textContent+=chatFrameRules('html[data-orange-lab] #chat',sq,config);
     liveStyle.textContent+=bodyCardRules('html[data-orange-lab] #chat > .mes[data-orange-lab-fixture] > .mes_block > .mes_text','html[data-orange-lab] #chat > .mes[data-orange-lab-fixture]',config,'preview',fontSession?.families()?.body);
@@ -744,7 +746,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     renderPreviewNative();syncFooterSizes();layerDrag.refresh();
     scheduleFit();
     shadow.querySelector('[aria-label="基础模板"]').value=config.template;
-    shadow.querySelector('#undo').disabled=ui.page!=='chat'||!history.length;
+    shadow.querySelector('#undo').disabled=!history.length;
     for(const b of shadow.querySelectorAll('[data-object]')){const layer=config.layers.find(l=>l.id===b.dataset.object),cap=currentCaptions().find(c=>currentCaptionKey(c.id)===b.dataset.object);if(layer)b.textContent=layer.name;if(cap)b.textContent=cap.name+(cap.visible?'':' · 已隐藏');}
     if(ui.mode==='edit'&&ui.kind==='text'&&selectedCaption())shadow.querySelector('.selected-title').textContent=selectedCaption().name+'';
     if(ui.mode==='edit'&&ui.kind==='image'){const layer=config.layers.find(l=>l.id===ui.object);if(layer)shadow.querySelector('.selected-title').textContent=layer.name;}
@@ -764,7 +766,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(!layoutObserver)return;const wanted=new Set(document.querySelectorAll('[data-orange-lab-fixture] .otl-footer-flow,[data-orange-lab-fixture] .name_text,[data-orange-lab-fixture] .timestamp,[data-orange-lab-fixture] .otl-caption'));for(const node of previewFooterSizes)if(!wanted.has(node)){layoutObserver.unobserve?.(node);previewFooterSizes.delete(node);}for(const node of wanted)if(!previewFooterSizes.has(node)){layoutObserver.observe(node);previewFooterSizes.add(node);}
   }
   function close(){
-    if(!active)return;imageDisplay.clear();active=false;mobileFlow.setEditorOpen(false);previewAvatars={};scrollbarVisibility.stop();chromePreview.close();invalidateEditing();document.getElementById('orange-workbench-layout')?.remove();stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;layoutObserver?.disconnect();layoutObserver=null;previewFooterSizes.clear();cancelAnimationFrame(fitFrame);fitFrame=0;document.documentElement.removeAttribute('data-orange-lab');
+    if(!active)return;imageDisplay.clear();active=false;mobileFlow.setEditorOpen(false);previewAvatars={};scrollbarVisibility.stop();pagePreview.close();chromePreview.close();invalidateEditing();document.getElementById('orange-workbench-layout')?.remove();stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;layoutObserver?.disconnect();layoutObserver=null;previewFooterSizes.clear();cancelAnimationFrame(fitFrame);fitFrame=0;document.documentElement.removeAttribute('data-orange-lab');
     for(const attr of ['data-otl-layout','data-otl-time','data-otl-caption','data-otl-narrow','data-otl-preview-mode'])document.documentElement.removeAttribute(attr);
     document.querySelectorAll('[data-orange-lab-fixture]').forEach(e=>e.remove());liveStyle.remove();if(disabledStyle?.isConnected)disabledStyle.disabled=wasDisabled;fitInput()?.catch?.(error=>console.warn('[主题输入增高]',error.message));
     shadow.querySelector('.launcher').classList.remove('hidden');shadow.querySelector('.bar').classList.add('hidden');panel.classList.add('hidden');shadow.querySelector('.preview-tools').classList.add('hidden');shadow.querySelector('.splitter').classList.add('hidden');shadow.querySelector('.mobile-dock').classList.add('hidden');

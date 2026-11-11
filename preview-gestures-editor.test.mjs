@@ -31,5 +31,5 @@ test('preview text and images select directly across regions, gestures save and 
  // Leaving mid-gesture discards transient styles, and reopening starts collapsed.
  const current=node(`[data-layer-id="${image.id}"]`);pointer('pointerdown',current);pointer('pointermove',current,50,60);click('.mobile-toolbar-toggle');click('#close');assert.equal(document.querySelector('[data-orange-lab-fixture]'),null);click('.launcher');click('[data-flow=continue]');assert.equal(sh.querySelector('.bar').dataset.toolbarExpanded,'false');assert.deepEqual((await save()),withImage);
  assert.equal(values.get('formal-store'),'untouched');assert.equal(document.querySelector('#send_textarea').value,'真实草稿');assert.equal(document.querySelector('#real-message').textContent,'Original');
- window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('.bar').dataset.toolbarExpanded,'true');assert.equal(sh.querySelector('#save').textContent,'保存方案');assert.ok(sh.querySelector('.panel-head #page-scope'));
+ window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('.bar').dataset.toolbarExpanded,'true');assert.equal(sh.querySelector('#save').textContent,'保存方案');assert.ok(sh.querySelector('.desktop-scheme #page-scope'));
 });
