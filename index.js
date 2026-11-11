@@ -2,6 +2,9 @@ import {createImageDisplay} from './image-display.mjs';
 import {createSchemeStorage} from './scheme-storage.mjs';
 import {createFontLibrary,renderFontLibrary} from './font-library.mjs';
 import {createAssetLibrary} from './asset-library.mjs';
+import {createIconLibrary,renderIconLibrary,ICON_LIBRARY_CSS} from './icon-library.mjs';
+import {ICONS} from './icon-catalog.mjs';
+import {ICON_STYLE_DEFAULTS,iconStyle} from './icon-style.mjs';
 import {prepareImageUpload,inspectImageBlob,dataUrlToBlob} from './image-processing.mjs';
 import {normalizeImageUrl,validEmbeddedImage,MAX_IMAGE_DATA_LENGTH} from './image-sources.mjs';
 import {installLauncherDrag} from './launcher-drag.mjs';
@@ -57,8 +60,9 @@ await (async () => {
   for(const theme of Object.values(templates))if(!theme.photos)theme.photos={ai:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius}),user:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius})};
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
-  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
+  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, disabledStyle=null, wasDisabled=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', layoutObserver=null, fitFrame=0, fontSession=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, stopInterfaceWatch=null, libraryPurpose='layer', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry', previewFooterSizes=new Set(),previewChatWidth=0;
   const assetLibrary=createAssetLibrary();
+  const iconLibrary=createIconLibrary();let disposeIconLibrary=null;
   const fontLibrary=createFontLibrary();
   const host=document.createElement('div'); host.id='orange-theme-lab'; document.body.append(host);
   const shadow=host.attachShadow({mode:'open'});
@@ -175,11 +179,11 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header>.otl-meta{position:ab
 html[data-orange-lab][data-otl-layout=collage] .otl-meta .name_text{font-weight:400!important;line-height:1.4}
 html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.otl-meta{left:0;top:4px;width:72%}
 `;
-  shadow.innerHTML=workbenchMarkup();
+  shadow.innerHTML=workbenchMarkup();shadow.append(make('style','',ICON_LIBRARY_CSS+'[data-material-category][aria-pressed=true]{font-weight:700;background:#e7eee9;border-color:#6f8973}'));
   installLauncherDrag({launcher:shadow.querySelector('.launcher')});
   const colorPicker=createColorPicker({document,root:shadow});
   const numericStyle=make('style');numericStyle.textContent=NUMERIC_STEPPER_CSS;shadow.append(numericStyle);
-  const workbench=createWorkbench(shadow,{onBeforePageChange:()=>pagePreview.capture(),onNavigate:({pageChanged=false}={})=>{invalidateEditing();if(!pageChanged)libraryPurpose='layer';renderFields();},onLayout:()=>{if(!active)return;updateWorkbenchLayout();chromePreview.update(config);scheduleFit();}}),ui=workbench.ui;
+  const workbench=createWorkbench(shadow,{onBeforePageChange:()=>pagePreview.capture(),onNavigate:({pageChanged=false}={})=>{invalidateEditing();if(!pageChanged){libraryPurpose='layer';if(ui.mode==='library'&&['native','topbar'].includes(ui.region)){materialCategory='icons';iconTargetKey=ui.region==='native'?'native:more':'topbar:'+(DRAWERS.some(([id])=>id===ui.object)?ui.object:DRAWERS[0][0]);}else if(ui.mode==='library'&&ui.region==='input')iconTargetKey='input:'+(INPUT_ICONS.some(([id])=>id===ui.object)?ui.object:INPUT_ICONS[0][0]);}renderFields();},onLayout:()=>{if(!active)return;updateWorkbenchLayout();chromePreview.update(config);scheduleFit();}}),ui=workbench.ui;
   panel=shadow.querySelector('.panel');
   const extraStyle=make('style');
   extraStyle.textContent=`textarea{font:inherit;width:100%;min-height:100px;resize:vertical;border:1px solid #dce3d6;border-radius:9px;padding:10px;background:white;color:#344d3e;line-height:1.6}input[aria-invalid=true]{border-color:#b86b63}.layer-list{display:grid;gap:5px;max-height:180px;overflow:auto;margin:12px 0}.layer-list button{display:flex;align-items:center;gap:9px;text-align:left;padding:7px}.layer-list button[aria-pressed=true]{background:#edf3e9;border-color:#7d9a78}.layer-list img{width:34px;height:34px;object-fit:contain;background:#f1eee5;border-radius:5px}.layer-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.number-input{width:80px;padding:5px;border:1px solid #dce3d6;border-radius:6px}.crop-dialog{border:1px solid #dce3d6;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;padding:22px;color:#31493e;background:#fffdf8;font:14px/1.5 system-ui,sans-serif}.crop-dialog::backdrop{background:#1e302666}.crop-dialog canvas{display:block;max-width:100%;max-height:40vh;object-fit:contain;margin:14px auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50% / 16px 16px}.crop-dialog h3{margin:0 0 6px}.crop-dialog .actions{margin-top:16px}.layer-count{font-size:12px;color:#7c8975;margin-top:12px}`;
@@ -246,7 +250,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
   }
   function uploadFailure(error){return error?.code==='IMAGE_INPUT'?error.message:error?.message==='图片像素过大'?'图片超过 4000 万像素，请选择较小图片。':'读取或裁剪失败，原图未改变，请重新选择。';}
   function addReselect(container,input){const button=make('button','','重新选择文件');button.type='button';button.addEventListener('click',()=>input.click());container.append(button);}
-  function invalidateEditing(){imageUploadAbort?.abort();imageUploadAbort=null;colorPicker.cancel();layerDrag?.cancel();editEpoch++;if(uploadFeedback)for(const row of uploadFeedback.rows)if(row.busy){row.status='已取消，编辑对象或会话已改变。';row.busy=false;}refreshUploadFeedback();cancelCrop?.();cancelCrop=null;}
+  function invalidateEditing(){disposeIconLibrary?.();disposeIconLibrary=null;imageUploadAbort?.abort();imageUploadAbort=null;colorPicker.cancel();layerDrag?.cancel();editEpoch++;if(uploadFeedback)for(const row of uploadFeedback.rows)if(row.busy){row.status='已取消，编辑对象或会话已改变。';row.busy=false;}refreshUploadFeedback();cancelCrop?.();cancelCrop=null;}
   function currentTargetValid(epoch,original,target){return active&&editEpoch===epoch&&config===original&&(config.layers.includes(target)||Object.values(config.photos).includes(target));}
   function renderPreviewNative(){const messages=[...document.querySelectorAll('[data-orange-lab-fixture=message]')],last=latestAI(messages);for(const msg of messages)renderNative(msg,config,{headerSelector:'.otl-header',wrapperSelector:'.otl-demo-stat-home',latest:msg===last});}
   function scheduleFit(){if(!active||fitFrame)return;fitFrame=requestAnimationFrame(()=>{fitFrame=0;if(layerDrag.dragging)return;chromePreview.update(config);fitCollage();for(const msg of document.querySelectorAll('[data-orange-lab-fixture=message]'))measureFooter(msg,config);renderPreviewNative();placePreviewScenes();layerDrag.refresh();});}
@@ -294,7 +298,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     else{input.type=f.type;if(f.type==='range'){input.min=f.min;input.max=f.max;input.step=f.step||1;}}
     if(f.type==='text')input.maxLength=f.maxLength||(f.key==='name'?80:300);input.value=String(target[f.key]);let tracking=false,number=null,hex=null,colorChip=null;
     const update=value=>{if(f.type==='range'&&(!Number.isFinite(value)||value<f.min||value>f.max))return false;if(!tracking){remember();tracking=true;}target[f.key]=value;if(ui.region==='header'&&ui.kind==='avatar'&&config.avatarDesign==='unified'){const other=photoScope==='ai'?'user':'ai';if(target===config.photos[photoScope])config.photos[other]=clone(target);if(target===config.avatarFill[photoScope])config.avatarFill[other]=clone(target);}input.value=String(value);if(number)number.value=value;if(hex)hex.value=value;if(colorChip)colorChip.style.background=value;apply();onUpdate?.();notify(f.notice||'设置已更新');return true;};
-    input.addEventListener('input',()=>update(f.type==='range'?Number(input.value):['cardFullWidth','showArrow','enabled','gradient','borderEnabled','shadow','visible','bodyIndent','hideHistory','hideLatest'].includes(f.key)?input.value==='true':input.value));input.addEventListener('change',()=>{tracking=false;});if(!['range','color'].includes(f.type))label.append(input);
+    input.addEventListener('input',()=>update(f.type==='range'?Number(input.value):['cardFullWidth','showArrow','enabled','gradient','borderEnabled','shadow','visible','bodyIndent','hideHistory','hideLatest','tint'].includes(f.key)?input.value==='true':input.value));input.addEventListener('change',()=>{tracking=false;});if(!['range','color'].includes(f.type))label.append(input);
     if(f.type==='range'){number=make('input','number-input');number.type='number';number.min=f.min;number.max=f.max;number.step=f.step||1;number.value=target[f.key];number.setAttribute('aria-label',f.label+' 数值');number.addEventListener('input',()=>{if(number.value==='')return;number.setAttribute('aria-invalid',String(!update(Number(number.value))));});number.addEventListener('change',()=>{tracking=false;});numericRow(label,input,number,f.unit||'',['x','y'].includes(f.key));}
     if(f.type==='color'){hex=make('input','hex-input');hex.type='text';hex.maxLength=7;hex.value=target[f.key];hex.setAttribute('aria-label',f.label+' HEX');hex.addEventListener('input',()=>{const valid=/^#[a-f0-9]{6}$/i.test(hex.value);hex.setAttribute('aria-invalid',String(!valid));if(valid)update(hex.value);});hex.addEventListener('change',()=>{tracking=false;});input.type='hidden';label.append(input);
       const trigger=make('button','otl-color-launch');trigger.type='button';trigger.setAttribute('aria-label','选择'+f.label+'颜色');trigger.setAttribute('aria-haspopup','dialog');colorChip=make('span');colorChip.style.background=target[f.key];trigger.append(colorChip);
@@ -342,17 +346,56 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       }
     }
   }
+  function renderFontShelf(container){
+    const fontBox=make('details'),fontTitle=make('summary','','字体库');fontBox.open=true;fontBox.append(fontTitle);const fontURL=make('input');fontURL.type='url';fontURL.placeholder='字体文件直链';fontURL.setAttribute('aria-label','字体库直链');const fontWeight=make('select');fontWeight.setAttribute('aria-label','字体库文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;fontWeight.append(o);}fontBox.append(fontURL,fontWeight);renderFontLibrary(fontBox,{library:fontLibrary,link:fontURL,face:fontWeight,onError:notify});container.append(fontBox);
+  }
+  function seedIconStyle(target){for(const [key,value]of Object.entries(ICON_STYLE_DEFAULTS))if(target[key]===undefined)target[key]=key==='color'?config.accent:value;}
+  function renderIconAppearance(container,target,{native=false,prefix='图标'}={}){
+    target=new Proxy(target,{get:(object,key)=>Object.hasOwn(ICON_STYLE_DEFAULTS,key)?iconStyle(object)[key]:object[key]});
+    propertyHeading(container,prefix+'外观');
+    const control=(label,key,type,extra={},rerender=false)=>editorControl(container,field(label,key,type,{...extra,notice:'图标外观已更新，尚未保存'}),target,rerender?()=>renderFields():undefined);
+    control(prefix+'整体染色','tint','select',{options:[['false','保留原色'],['true','统一染色']]},true);
+    if(target.tint){
+      control(prefix+'填色方式','fillMode','select',{options:[['solid','纯色'],['gradient','双色渐变']]},true);
+      control(prefix+'颜色','color','color');
+      if(target.fillMode==='gradient'){control(prefix+'第二颜色','color2','color');control(prefix+'渐变方向','gradientAngle','range',{min:0,max:360,unit:'°'});}
+    }
+    if(!native){
+      const label=make('label','field',prefix+'大小来源'),select=make('select');select.setAttribute('aria-label',prefix+'大小来源');for(const [id,name]of [['auto','跟随区域'],['custom','单独调整']]){const option=make('option','',name);option.value=id;select.append(option);}select.value=target.size?'custom':'auto';select.addEventListener('change',()=>{remember();target.size=select.value==='auto'?0:22;apply();renderFields();});label.append(select);container.append(label);
+      if(target.size)control(prefix+'单独大小','size','range',{min:12,max:40,unit:'px'});
+    }
+    container.append(make('p','hint','统一染色按透明轮廓填色，可用纯色或双色渐变。带实色背景的图片会连背景一起染色，不会自动抠图；多色图会变为统一配色。'));
+  }
+  function renderIconShelf(container,chromeTarget,nativeTarget){
+    const purpose=libraryPurpose,choices=[...DRAWERS.map(([id,name])=>['topbar:'+id,'顶栏 · '+name]),...INPUT_ICONS.map(([id,name])=>['input:'+id,'输入区 · '+name]),['native:more','消息 · 更多'],['native:edit','消息 · 编辑']];
+    let key=chromeTarget?purpose.slice(7):nativeTarget?'native:'+(purpose==='native-more-icon'?'more':'edit'):iconTargetKey;
+    if(!choices.some(([id])=>id===key))key=choices[0][0];
+    if(!chromeTarget&&!nativeTarget){const label=make('label','field','用于哪个按钮'),select=make('select');select.setAttribute('aria-label','图标应用按钮');for(const [id,name]of choices){const option=make('option','',name);option.value=id;select.append(option);}select.value=key;select.addEventListener('change',()=>{key=select.value;iconTargetKey=key;});label.append(select);container.append(label);}else container.append(make('p','hint','应用到：'+choices.find(([id])=>id===key)[1]));
+    const shelf=make('div');container.append(shelf);
+    disposeIconLibrary=renderIconLibrary(shelf,{library:iconLibrary,tab:iconLibraryTab,onTab:tab=>{invalidateEditing();iconLibraryTab=tab;renderFields();},isCurrent:()=>active&&shelf.isConnected&&ui.mode==='library'&&libraryPurpose===purpose&&materialCategory==='icons',onError:error=>notify(error.message||String(error)),onUse:source=>{
+      if(!active||!shelf.isConnected||libraryPurpose!==purpose)return;
+      const [zone,id]=key.split(':'),target=zone==='native'?config.nativeStyle.actions[id]:config.chromeStyle[zone]?.icons[id];if(!target)return;
+      invalidateEditing();remember();seedIconStyle(target);target.mode='icon';target.icon=source.icon||'';target.tint=source.tint;
+      if(zone==='native'){target.source=source.image?{kind:'custom',asset:'',image:source.image}:null;workbench.choose('native','actions','actions');}
+      else{target.asset='';target.image=source.image||'';workbench.choose(zone,zone==='topbar'?'icons':'tools',id);}
+      libraryPurpose='layer';apply();renderFields();notify(zone!=='native'&&!config.chromeStyle[zone].enabled?'图标已选好。启用此区域美化后生效；保存后记住。':'图标已用于当前按钮，可继续调色和调整大小；保存后记住。');
+    }});
+  }
   function renderSourceLibrary(container,chromeTarget=null){
     if(!chromeTarget&&libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
     const isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose;
-    const fontBox=make('details'),fontTitle=make('summary','','字体库');fontBox.append(fontTitle);const fontURL=make('input');fontURL.type='url';fontURL.placeholder='字体文件直链';fontURL.setAttribute('aria-label','字体库直链');const fontWeight=make('select');fontWeight.setAttribute('aria-label','字体库文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;fontWeight.append(o);}fontBox.append(fontURL,fontWeight);renderFontLibrary(fontBox,{library:fontLibrary,link:fontURL,face:fontWeight,onError:notify});container.append(fontBox);
+    const categories=make('div','actions');categories.setAttribute('aria-label','素材类型');
+    for(const [id,label]of [['images','图片'],['shapes','图形'],['icons','图标'],['fonts','字体']]){const button=make('button','',label);button.type='button';button.dataset.materialCategory=id;button.setAttribute('aria-pressed',String(materialCategory===id));button.disabled=isSourceTarget&&(id==='shapes'||id==='fonts'||isBackground&&id==='icons');button.addEventListener('click',()=>{invalidateEditing();materialCategory=id;renderFields();});categories.append(button);}container.append(categories);
+    if(materialCategory==='fonts'){renderFontShelf(container);return;}
+
     propertyHeading(container,'添加目标');
     if(isSourceTarget){
       container.append(make('p','hint',chromeTarget?'选择图片作为当前按钮图形，不新增装饰素材。':isEditIcon?`选择图片作为${isMoreIcon?'更多':'编辑'}按钮图标。`:'选择图片作为思维入口背景，不新增装饰素材。'));
       const cancel=make('button','','取消选图');if(!chromeTarget)cancel.id=isEditIcon?(isMoreIcon?'native-more-cancel':'native-edit-cancel'):'reasoning-bg-cancel';cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='edit';renderFields(chromeTarget?undefined:targetGroup);});container.append(cancel);
-    }else if(ui.region==='reasoning'){
+    }else if(ui.region==='reasoning'&&materialCategory!=='icons'){
       const target=make('select'),label=make('label','field','添加到');target.setAttribute('aria-label','思维图片添加到');for(const [v,t]of [['reasoning-entry','思维入口'],['reasoning-body','思维正文']]){const o=make('option','',t);o.value=v;target.append(o);}target.value=reasoningAnchor;target.addEventListener('change',()=>{invalidateEditing();reasoningAnchor=target.value;});label.append(target);container.append(label);
     }
+    if(materialCategory==='icons'){renderIconShelf(container,chromeTarget,isEditIcon?backgroundTarget:null);return;}
     const anchor=()=>ui.region==='input'?'input':ui.region==='footer'?'footer':ui.region==='reasoning'?reasoningAnchor:ui.region==='overall'?'message':'header';
     function useSource(source){
       if(!active||libraryPurpose!==purpose)return;
@@ -363,11 +406,12 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       else {const layer=newLayer(source.shape?'shape':source.asset?'asset':'custom',{name:source.name,asset:source.asset||'',image:source.image||'',...(source.shape?{shape:source.shape}:{}),opacity:1,anchor:anchor()});config.layers.push(layer);selectedLayerId=layer.id;apply();renderFields('decoration');}
       notify('素材已放入当前目标，可撤销；保存方案后记住。');
     }
+    if(materialCategory==='shapes'){propertyHeading(container,'可调色形状');const shapes=make('div','actions');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const button=make('button','','添加'+name);button.type='button';button.dataset.addShape=shape;button.disabled=config.layers.length>=LAYER_LIMIT;button.addEventListener('click',()=>useSource({shape,name}));shapes.append(button);}container.append(shapes);return;}
     container.append(make('p','hint','我的素材保存在本浏览器，独立于当前方案。先存入素材库，再点击“使用素材”放入目标；导出只包含已经使用的图片。'));
     propertyHeading(container,'内置素材');
     const libraryLabel=make('label','field','内置素材库'),library=make('select');library.setAttribute('aria-label','内置素材库');for(const group of builtinAssetGroups()){const options=make('optgroup');options.label=group.name;for(const asset of group.assets){const option=make('option','',asset.name);option.value=asset.id;options.append(option);}library.append(options);}library.value=Object.keys(SHARED_ASSETS)[0];
     const addAsset=make('button','',chromeTarget?'使用所选按钮图片':isSourceTarget?(isEditIcon?(isMoreIcon?'使用所选更多图标':'使用所选编辑图标'):'使用所选背景'):'添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&config.layers.length>=LAYER_LIMIT;addAsset.addEventListener('click',()=>useSource({asset:library.value,name:ASSETS[library.value].name}));libraryLabel.append(library,addAsset);container.append(libraryLabel);
-    if(!isSourceTarget){propertyHeading(container,'可调色形状');const shapes=make('div','actions');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const button=make('button','','添加'+name);button.type='button';button.dataset.addShape=shape;button.disabled=config.layers.length>=LAYER_LIMIT;button.addEventListener('click',()=>useSource({shape,name}));shapes.append(button);}container.append(shapes);}
+
     propertyHeading(container,'上传到我的素材');
     const uploadLabel=make('label','field','上传图片到素材库'),upload=make('input');upload.type='file';upload.multiple=true;upload.accept='image/png,image/apng,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',chromeTarget?'上传按钮图片':'上传装饰图片');
     uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF（含动画）；自动优化较大的静态图，收益小则保留原素材，不另存一份原图。测试版单张最多 16 MiB、1600 万像素；上传不会改变当前方案。'),upload);container.append(uploadLabel);addReselect(uploadLabel,upload);
@@ -533,7 +577,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       reasoningControl(container,bg,field('入口背景','mode','select',{options:[['none','无背景'],['color','颜色'],['image','自选图片']]}),()=>renderFields());
       if(bg.mode==='color')reasoningControl(container,bg,field('入口背景颜色','color','color'));
       if(bg.mode==='image'){
-        const pick=make('button','','选择或替换背景图片');pick.id='reasoning-bg-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='reasoning-background';ui.mode='library';renderFields();});container.append(pick,make('p','hint',bg.source?(bg.source.kind==='asset'?ASSETS[bg.source.asset].name:'已选择上传图片'):'尚未选择图片'));
+        const pick=make('button','','选择或替换背景图片');pick.id='reasoning-bg-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='reasoning-background';materialCategory='images';ui.mode='library';renderFields();});container.append(pick,make('p','hint',bg.source?(bg.source.kind==='asset'?ASSETS[bg.source.asset].name:'已选择上传图片'):'尚未选择图片'));
         reasoningControl(container,bg,field('背景填充','fit','select',{options:[['cover','铺满（可能裁边）'],['contain','完整显示']]}));for(const [key,label]of [['x','背景横向取景'],['y','背景纵向取景']])reasoningControl(container,bg,field(label,key,'range',{min:0,max:100,unit:'%'}));
       }
       if(bg.mode!=='none')reasoningControl(container,bg,field('背景透明度','opacity','range',{min:0,max:1,step:.05}));
@@ -566,16 +610,18 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     if(ui.kind==='actions'){
       const actions=config.nativeStyle.actions,edit=actions.edit;
       propertyHeading(container,'编辑');nativePositionFields(container,edit);
-      nativeControl(container,edit,field('显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片']]}),()=>renderFields());
+      nativeControl(container,edit,field('显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片'],['icon','从图标库选择']]}),()=>{if(edit.mode==='icon')seedIconStyle(edit);renderFields();});
       if(edit.mode==='text')nativeControl(container,edit,field('文字','text','text',{maxLength:40}));
-      if(edit.mode==='image'){
-        const pick=make('button','','选择或替换编辑图标');pick.id='native-edit-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-edit-icon';ui.mode='library';renderFields();});container.append(pick);
+      if(['image','icon'].includes(edit.mode)){
+        const pick=make('button','','选择或替换编辑图标');pick.id='native-edit-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-edit-icon';materialCategory=edit.mode==='icon'?'icons':'images';ui.mode='library';renderFields();});container.append(pick);
         nativeControl(container,edit,field('图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
       }
+      if(edit.mode==='icon')renderIconAppearance(container,edit,{native:true,prefix:'编辑图标'});
       propertyHeading(container,'更多');nativePositionFields(container,actions.more);
-      nativeControl(container,actions.more,field('更多显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片']]}),()=>renderFields());
+      nativeControl(container,actions.more,field('更多显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片'],['icon','从图标库选择']]}),()=>{if(actions.more.mode==='icon')seedIconStyle(actions.more);renderFields();});
       if(actions.more.mode==='text')nativeControl(container,actions.more,field('更多文字','text','text',{maxLength:40}));
-      if(actions.more.mode==='image'){const pick=make('button','','选择或替换更多图标');pick.id='native-more-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-more-icon';ui.mode='library';renderFields();});container.append(pick);nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));}
+      if(['image','icon'].includes(actions.more.mode)){const pick=make('button','','选择或替换更多图标');pick.id='native-more-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-more-icon';materialCategory=actions.more.mode==='icon'?'icons':'images';ui.mode='library';renderFields();});container.append(pick);nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));}
+      if(actions.more.mode==='icon')renderIconAppearance(container,actions.more,{native:true,prefix:'更多图标'});
       propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
     }else if(ui.kind==='info'){
       const stats=config.nativeStyle.stats;
@@ -620,9 +666,10 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
       propertyHeading(container,'字体设计');controls(v,[['输入字体来源','fontMode','select',{options:[['interface','跟随界面字体'],['chat','跟随聊天正文'],['custom','自定义字体']]}]]);if(v.fontMode==='custom')controls(v,[['输入字体','font','select',{options:fonts}]]);controls(v,[range('输入字号','size',8,60),range('输入字重','weight',100,900,'',100),['输入文字颜色','textColor','color'],range('输入行高','lineHeight',1,3,'',.1)]);propertyHeading(container,'自动增高范围');controls(v,[range('输入最小高度','minHeight',32,160),range('输入最大高度','maxHeight',80,600)]);container.append(make('p','hint','最大高度需不小于最小高度，并受当前视口60%限制；真实输入仍由酒馆自动增高。'));if(v.fontMode==='custom'){propertyHeading(container,'外链字体');renderFontLinkFields(container,'chrome-input',v,'输入文字');}
     }else if(['tools','icons'].includes(ui.kind)){
       if(isInput){propertyHeading(container,'工具共用尺寸');controls(v,[range('输入图标大小','iconSize',12,40),range('输入点击槽','slot',28,64),range('输入工具间距','gap',0,24)]);}
-      propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];editorControl(container,field('按钮图形','mode','select',{options:[['native','保留原生'],['image','使用图片']],notice:'图形已更新，尚未保存'}),item,()=>renderFields());
-      if(item.mode==='image'){const pick=make('button','','选择或替换按钮图片');pick.id='chrome-icon-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='chrome:'+zone+':'+ui.object;ui.mode='library';renderFields();});container.append(pick,make('p','hint',item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择图片，保留原生图形'));}
-      const clear=make('button','','恢复原生图形');clear.addEventListener('click',()=>{invalidateEditing();remember();Object.assign(item,{mode:'native',asset:'',image:''});apply();renderFields();});container.append(clear,make('p','hint',isInput?'显隐、发送与停止状态由酒馆控制；这里不执行按钮业务。':'只换图形，保留原抽屉、提示和打开/连接状态。'));
+      propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];editorControl(container,field('按钮图形','mode','select',{options:[['native','保留原生'],['image','使用图片'],['icon','从图标库选择']],notice:'图形已更新，尚未保存'}),item,()=>{if(item.mode==='icon')seedIconStyle(item);renderFields();});
+      if(['image','icon'].includes(item.mode)){const pick=make('button','',item.mode==='icon'?'选择或替换图标':'选择或替换按钮图片');pick.id='chrome-icon-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='chrome:'+zone+':'+ui.object;materialCategory=item.mode==='icon'?'icons':'images';ui.mode='library';renderFields();});container.append(pick,make('p','hint',item.icon?ICONS[item.icon]?.name||'图标':item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择图片，保留原生图形'));}
+      if(item.mode==='icon')renderIconAppearance(container,item);
+      const clear=make('button','','恢复原生图形');clear.addEventListener('click',()=>{invalidateEditing();remember();Object.assign(item,{mode:'native',asset:'',image:'',icon:''});apply();renderFields();});container.append(clear,make('p','hint',isInput?'显隐、发送与停止状态由酒馆控制；这里不执行按钮业务。':'只换图形，保留原抽屉、提示和打开/连接状态。'));
     }
   }
   function renderChromeSourceLibrary(container){
@@ -659,7 +706,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     }
     if(fromPreview&&(document.defaultView?.innerWidth||1200)<=700)ui.mobileView='preview';
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
-    const container=shadow.querySelector('.fields');container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
+    const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
     if(ui.page!=='chat')title=PREVIEW_PAGES[ui.page]+' · 页面预览';
     else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':'添加到：'+(ui.region==='input'?'输入区':ui.region==='footer'?'尾部区':ui.region==='reasoning'?'思维区':ui.region==='overall'?'整张消息':'头像区');
     else if(ui.region==='overall'){
@@ -681,7 +728,7 @@ html[data-orange-lab][data-otl-layout=collage] .otl-header[data-stacked=true]>.o
     else if(ui.region==='native'){kinds=[['actions','编辑与更多'],['info','楼层信息'],['swipe','回复翻页']];if(!['actions','info','swipe'].includes(ui.kind))ui.kind='actions';selected='native';title=kinds.find(([key])=>key===ui.kind)[1];}
     else if(ui.region==='reasoning'){kinds=[['entry','思维入口'],['reason-body','思维正文'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'reasoning').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'思维图片';}else{if(ui.kind!=='reason-body')ui.kind='entry';selected='reasoning';title=ui.kind==='entry'?'思维入口':'思维正文';}}
     else title='此区域尚未开放';
-    let extra;if(ui.page==='chat'&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='library';renderFields();});}
+    let extra;if(ui.page==='chat'&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';materialCategory='images';ui.mode='library';renderFields();});}
     let actions;if(ui.page==='chat'&&ui.mode==='edit'&&['header','footer'].includes(ui.region)&&ui.kind==='text'&&!(ui.region==='header'&&['name','time'].includes(ui.object))){const list=currentCaptions();actions=make('button','',`＋ 新增文案（${list.length}/${CAPTION_LIMIT}）${list.length>=CAPTION_LIMIT?' 已达上限':''}`);actions.id=ui.region==='footer'?'add-footer-caption':'add-caption';actions.disabled=list.length>=CAPTION_LIMIT;actions.title=actions.disabled?'已达20条文案上限':'新增一条文案';actions.addEventListener('click',()=>{remember();const cap=currentNewCaption({name:'文案'+(list.length+1),font:config.font,color:config.accent});list.push(cap);ui.object=currentCaptionKey(cap.id);apply();renderFields();});}
     const activeKind=ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
     if(ui.page!=='chat')container.append(make('p','hint','当前是 '+PREVIEW_PAGES[ui.page]+' 的虚构页面预览。可展开分组、查看控件与滚动效果，不会修改酒馆数据。此页外观编辑尚未接入；从更多切回聊天可继续原来的编辑。'));

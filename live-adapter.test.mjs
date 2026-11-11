@@ -291,3 +291,13 @@ test('first apply prepares every message before measuring width and positions te
  }
  assert.deepEqual(adapter.start(config()),{messages:2});assert.equal(widths,2);assert.ok(headerReads>=4);adapter.stop();
 });
+
+test('native icon ownership restores DOM and listeners after repeat apply, failed load and stop',async()=>{
+ const {normalizeNativeConfig}=await import('./native.mjs'),{normalizeFooterConfig}=await import('./footer.mjs'),{normalizeReasoningConfig}=await import('./reasoning.mjs');
+ const {document,adapter,settle,queue}=environment(),msg=document.querySelector('.mes'),edit=msg.querySelector('.mes_edit'),before=msg.outerHTML;let clicks=0;edit.addEventListener('click',()=>clicks++);
+ const c=normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(config()))));Object.assign(c.nativeStyle.actions.edit,{mode:'icon',source:{kind:'custom',asset:'',image:'data:image/png;base64,AAAA'},tint:true,color:'#123456'});
+ adapter.start(c);await settle();assert.equal(edit.querySelectorAll('.otl-native-icon').length,1);assert.equal(edit.querySelector('.otl-native-icon').style.background,'#123456');edit.click();assert.equal(clicks,1);assert.equal(queue.size,0);
+ adapter.start(c);await settle();assert.equal(edit.querySelectorAll('.otl-native-icon').length,1);const late=edit.querySelector('img').onerror;edit.querySelector('img').onerror();await settle();assert.equal(edit.dataset.otlNativeMode,'default');assert.equal(edit.querySelector('.otl-native-icon'),null);
+ adapter.stop();late();assert.equal(msg.outerHTML,before);edit.click();assert.equal(clicks,2);assert.equal(document.querySelectorAll('.otl-native-icon').length,0);assert.equal(queue.size,0);
+ adapter.start(c);await settle();assert.equal(edit.querySelectorAll('.otl-native-icon').length,1,'stop/start retries the same failed image');edit.querySelector('img').onerror();await settle();assert.equal(edit.dataset.otlNativeMode,'default');adapter.start(c);await settle();assert.equal(edit.querySelectorAll('.otl-native-icon').length,1,'repeat apply retries the same failed image');adapter.stop();assert.equal(msg.outerHTML,before);
+});

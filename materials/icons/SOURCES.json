@@ -1,0 +1,312 @@
+[
+  {
+    "id": "kitty-top-presets",
+    "name": "小猫 · 生成参数",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-presets.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-presets",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1112
+  },
+  {
+    "id": "kitty-top-api",
+    "name": "小猫 · API连接",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-api.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-api",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1113
+  },
+  {
+    "id": "kitty-top-format",
+    "name": "小猫 · 回复格式",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-format.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-format",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1114
+  },
+  {
+    "id": "kitty-top-worldbook",
+    "name": "小猫 · 世界书",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-worldbook.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-worldbook",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1115
+  },
+  {
+    "id": "kitty-top-settings",
+    "name": "小猫 · 用户设置",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-settings.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-settings",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1116
+  },
+  {
+    "id": "kitty-top-backgrounds",
+    "name": "小猫 · 背景",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-backgrounds.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-backgrounds",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1117
+  },
+  {
+    "id": "kitty-top-extensions",
+    "name": "小猫 · 扩展",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-extensions.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-extensions",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1118
+  },
+  {
+    "id": "kitty-top-personas",
+    "name": "小猫 · 用户人设",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-personas.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-personas",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1119
+  },
+  {
+    "id": "kitty-top-characters",
+    "name": "小猫 · 角色卡",
+    "group": "小猫顶栏",
+    "file": "materials/icons/kitty-top-characters.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-tool-characters",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1120
+  },
+  {
+    "id": "snow-top-presets",
+    "name": "雪间 · 生成参数",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-presets.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-presets",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6402
+  },
+  {
+    "id": "snow-top-api",
+    "name": "雪间 · API连接",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-api.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-api",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6403
+  },
+  {
+    "id": "snow-top-format",
+    "name": "雪间 · 回复格式",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-format.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-formatting",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6401
+  },
+  {
+    "id": "snow-top-worldbook",
+    "name": "雪间 · 世界书",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-worldbook.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-worldbook",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6400
+  },
+  {
+    "id": "snow-top-settings",
+    "name": "雪间 · 用户设置",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-settings.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-settings",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6397
+  },
+  {
+    "id": "snow-top-backgrounds",
+    "name": "雪间 · 背景",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-backgrounds.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-backgrounds",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6404
+  },
+  {
+    "id": "snow-top-extensions",
+    "name": "雪间 · 扩展",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-extensions.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-extensions",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6399
+  },
+  {
+    "id": "snow-top-personas",
+    "name": "雪间 · 用户人设",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-personas.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-personas",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6405
+  },
+  {
+    "id": "snow-top-characters",
+    "name": "雪间 · 角色卡",
+    "group": "雪间顶栏",
+    "file": "materials/icons/snow-top-characters.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-top-characters",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6398
+  },
+  {
+    "id": "kitty-more",
+    "name": "猫爪 · 更多",
+    "group": "更多与魔棒",
+    "file": "materials/icons/kitty-more.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-more-icon",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1125
+  },
+  {
+    "id": "snow-more",
+    "name": "圆点 · 更多",
+    "group": "更多与魔棒",
+    "file": "materials/icons/snow-more.svg",
+    "theme": "雪间来信",
+    "variable": "letter-icon-more",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6420
+  },
+  {
+    "id": "kitty-wand",
+    "name": "星芒魔棒",
+    "group": "更多与魔棒",
+    "file": "materials/icons/kitty-wand.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-wand-icon",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1134
+  },
+  {
+    "id": "mucha-wand",
+    "name": "慕夏魔棒",
+    "group": "更多与魔棒",
+    "file": "materials/icons/mucha-wand.svg",
+    "theme": "慕夏风格探索",
+    "variable": "b-wand-icon",
+    "sourceFile": "🍊月与星·慕夏 v0.8.css",
+    "sourceLine": 2525
+  },
+  {
+    "id": "kitty-send",
+    "name": "小猫 · 实心星发送",
+    "group": "发送与停止",
+    "file": "materials/icons/kitty-send.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-send-icon",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1131
+  },
+  {
+    "id": "kitty-stop",
+    "name": "小猫 · 空心星停止",
+    "group": "发送与停止",
+    "file": "materials/icons/kitty-stop.svg",
+    "theme": "魔法小猫咪",
+    "variable": "b-stop-icon",
+    "sourceFile": "🍊魔法小猫咪·清亮绘本 v0.19(1).json",
+    "sourceLine": 1132
+  },
+  {
+    "id": "snow-send",
+    "name": "雪间 · 线框信封发送",
+    "group": "发送与停止",
+    "file": "materials/icons/snow-send.svg",
+    "theme": "雪间来信",
+    "variable": "letter-svg-send",
+    "sourceFile": "🍊一个可爱的橘子·雪间来信·冬日 v2.1.json",
+    "sourceLine": 6407
+  },
+  {
+    "id": "pink-send",
+    "name": "黑粉紫 · 实心蝶发送",
+    "group": "发送与停止",
+    "file": "materials/icons/pink-send.svg",
+    "theme": "黑粉紫",
+    "variable": "bp-input-solid",
+    "sourceFile": "🍊黑粉紫 v1.0.json",
+    "sourceLine": 1426
+  },
+  {
+    "id": "pink-stop",
+    "name": "黑粉紫 · 空心蝶停止",
+    "group": "发送与停止",
+    "file": "materials/icons/pink-stop.svg",
+    "theme": "黑粉紫",
+    "variable": "bp-input-outline",
+    "sourceFile": "🍊黑粉紫 v1.0.json",
+    "sourceLine": 1427
+  },
+  {
+    "id": "spring-send",
+    "name": "春日 · 实心信封发送",
+    "group": "发送与停止",
+    "file": "materials/icons/spring-send.svg",
+    "theme": "春日来信",
+    "variable": "春-send-icon",
+    "sourceFile": "春日来信-v0.28.json",
+    "sourceLine": 1149
+  },
+  {
+    "id": "spring-stop",
+    "name": "春日 · 空心信封停止",
+    "group": "发送与停止",
+    "file": "materials/icons/spring-stop.svg",
+    "theme": "春日来信",
+    "variable": "春-stop-icon",
+    "sourceFile": "春日来信-v0.28.json",
+    "sourceLine": 1150
+  },
+  {
+    "id": "mucha-send",
+    "name": "慕夏 · 实心八芒星发送",
+    "group": "发送与停止",
+    "file": "materials/icons/mucha-send.svg",
+    "theme": "慕夏风格探索",
+    "variable": "b-send-icon",
+    "sourceFile": "🍊月与星·慕夏 v0.8.css",
+    "sourceLine": 2526
+  },
+  {
+    "id": "mucha-stop",
+    "name": "慕夏 · 空心八芒星停止",
+    "group": "发送与停止",
+    "file": "materials/icons/mucha-stop.svg",
+    "theme": "慕夏风格探索",
+    "variable": "b-stop-icon",
+    "sourceFile": "🍊月与星·慕夏 v0.8.css",
+    "sourceLine": 2527
+  }
+]

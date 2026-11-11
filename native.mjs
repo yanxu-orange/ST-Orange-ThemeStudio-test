@@ -1,3 +1,4 @@
+import {ICON_STYLE_FIELDS,validateIconStyle,builtinIconUrl,styleIconElement} from './icon-style.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {validImage} from './layers.mjs';
 import {ASSETS,assetUrl} from './catalog.mjs';
@@ -25,12 +26,13 @@ export function validateNativeStyle(raw){
  for(const key of statKeys){object(raw.stats[key],['position','x','y',...(key==='floor'?['prefix','suffix']:[])]);placement(raw.stats[key]);}
  for(const key of ['prefix','suffix'])if(typeof raw.stats.floor[key]!=='string'||raw.stats.floor[key].length>40)throw Error('楼层号文字过长');
  placement(raw.swipe);number(raw.swipe.gap,0,40);choice(raw.swipe.layout,['compact','ends']);
- for(const [v,image]of [[raw.actions.edit,true],[raw.actions.more,true],[raw.swipe.left,false],[raw.swipe.right,false]]){object(v,image?['position','anchor','x','y','imageSize','mode','text','source']:['mode','text']);choice(v.mode,image?['default','text','image']:['default','text']);if(typeof v.text!=='string'||v.text.length>40)throw Error('原生功能文字过长');if(image&&v.source!==null){object(v.source,['kind','asset','image']);if(v.source.kind==='asset'){if(!Object.hasOwn(ASSETS,v.source.asset)||v.source.image!=='')throw Error('原生图标素材无效');}else if(v.source.kind!=='custom'||v.source.asset!==''||!validImage(v.source.image))throw Error('原生图标图片无效');}}
+ for(const [v,image]of [[raw.actions.edit,true],[raw.actions.more,true],[raw.swipe.left,false],[raw.swipe.right,false]]){object(v,image?['position','anchor','x','y','imageSize','mode','text','source',...ICON_STYLE_FIELDS]:['mode','text']);choice(v.mode,image?['default','text','image','icon']:['default','text']);if(typeof v.text!=='string'||v.text.length>40)throw Error('原生功能文字过长');if(image)validateIconStyle(v);if(image&&v.source!==null){object(v.source,['kind','asset','image']);if(v.source.kind==='asset'){if(!Object.hasOwn(ASSETS,v.source.asset)||v.source.image!=='')throw Error('原生图标素材无效');}else if(v.source.kind!=='custom'||v.source.asset!==''||!validImage(v.source.image))throw Error('原生图标图片无效');}}
  if(typeof raw.swipe.hideHistory!=='boolean'||typeof raw.swipe.hideLatest!=='boolean')throw Error('版本计数开关无效');return structuredClone(raw);
 }
 export function normalizeNativeConfig(raw){if(!raw||![1,2,3,4,5,6,7,8,9,10].includes(raw.version))throw Error('方案版本不支持');if(raw.version<7&&Object.hasOwn(raw,'nativeStyle'))throw Error('旧版本不能包含原生功能设置');return {...raw,version:Math.max(7,raw.version),nativeStyle:raw.version>=7?validateNativeStyle(raw.nativeStyle):structuredClone(NATIVE_DEFAULTS)};}
 export function nativeImageUrl(source){return source?.kind==='asset'?assetUrl(source.asset):source?.kind==='custom'?source.image:'';}
-export function effectiveNativeMode(v){return v.mode==='text'&&v.text.trim()?'text':v.mode==='image'&&nativeImageUrl(v.source)?'image':'default';}
+export const nativeIconUrl=v=>builtinIconUrl(v)||nativeImageUrl(v.source);
+export function effectiveNativeMode(v){return v.mode==='icon'&&nativeIconUrl(v)?'icon': v.mode==='text'&&v.text.trim()?'text':v.mode==='image'&&nativeImageUrl(v.source)?'image':'default';}
 export function latestAI(messages){return [...messages].reverse().find(m=>m.getAttribute('is_user')!=='true'&&m.getAttribute('is_system')!=='true'&&!m.classList.contains('smallSysMes'))||null;}
 export function nativeRules(q,c,header='.ch_name'){
  const s=c.nativeStyle,actions=s.actions,stats=s.stats,swipe=s.swipe,ac=actions.color==='auto'?c.accent:actions.color,sc=stats.color==='auto'?c.timeColor:stats.color,wc=swipe.color==='auto'?c.accent:swipe.color;
@@ -50,12 +52,14 @@ ${role('swipe-left')}{left:var(--on-swipe-left-x,0px)!important;top:var(--on-swi
 ${role('swipe-right')}{left:var(--on-swipe-right-x,0px)!important;top:var(--on-swipe-right-y,0px)!important;}
 ${q} :is(.swipe_left,.swipe_right,.swipes-counter){font-size:${swipe.size}px!important;color:${wc}!important;}
 ${q}[data-otl-native-hide-counter=true] .swipes-counter{display:none!important}
-${q} [data-otl-native-mode=text]::before,${q} [data-otl-native-mode=image]::before{display:none!important}
+${q} [data-otl-native-mode=text]::before,${q} [data-otl-native-mode=image]::before,${q} [data-otl-native-mode=icon]::before{display:none!important}
 ${q} :is(.mes_edit,.extraMesButtonsHint)[data-otl-native-mode=text],${q} [data-otl-native-mode=text]{font-size:0!important;width:max-content!important;min-width:25px!important;}
 ${q} .otl-native-label{font-family:${c.font}!important;font-size:inherit;pointer-events:none!important;white-space:pre-wrap;overflow-wrap:anywhere;}
 ${q} :is(.mes_edit,.extraMesButtonsHint) > .otl-native-label{font-size:${actions.size}px!important;line-height:1.5}
 ${q} :is(.swipe_left,.swipe_right) > .otl-native-label{font-size:${swipe.size}px!important;line-height:1.5}
 ${[['.mes_edit',actions.edit],['.extraMesButtonsHint',actions.more]].map(([selector,v])=>`${q} ${selector}[data-otl-native-mode=image]{font-size:0!important;background-image:url(${JSON.stringify(nativeImageUrl(v.source))})!important;background-size:contain!important;background-repeat:no-repeat!important;background-position:center!important;width:${v.imageSize}px!important;height:${v.imageSize}px!important;min-width:${v.imageSize}px!important;}`).join('\n')}
+${[['.mes_edit',actions.edit],['.extraMesButtonsHint',actions.more]].map(([selector,v])=>`${q} ${selector}[data-otl-native-mode=icon]{font-size:0!important;position:relative;width:${v.size||v.imageSize}px!important;height:${v.size||v.imageSize}px!important;min-width:${v.size||v.imageSize}px!important;background-image:none!important;}`).join('\n')}
+${q} .otl-native-icon{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none!important;}
 ${q} .mesIDDisplay[data-otl-native-floor-custom=true]{font-size:0!important;}
 ${q} .mesIDDisplay[data-otl-native-floor-custom=true]::before{display:none!important;}
 ${q} .mesIDDisplay[data-otl-native-floor-custom=true]::after{content:attr(data-otl-native-floor-label)!important;font-size:${stats.size}px!important;}
@@ -65,13 +69,23 @@ function box(node){if(!node||node.hidden)return {width:0,height:0};const css=nod
 const exists=d=>d.width>0&&d.height>0;
 export function nativeControlNodes(msg){return [...msg.querySelectorAll('.mes_buttons,.mes_edit,.mes_edit_buttons,.mesIDDisplay,.mes_timer,.tokenCounterDisplay,.swipe_left,.swipeRightBlock,.swipe_right,.swipes-counter,.extraMesButtonsHint,.extraMesButtons')];}
 export function renderNative(...args){return runLayoutPass([nativeLayout(...args)])[0];}
+const failedIcons=new WeakMap();
+export function clearNativeIconFailures(nodes){for(const node of nodes)failedIcons.delete(node);}
 export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,latest=false,headerSelector='.ch_name',wrapperSelector=':scope > .mesAvatarWrapper'}={}){
  const block=msg.querySelector(':scope > .mes_block'),header=msg.querySelector(headerSelector),wrapper=msg.querySelector(wrapperSelector);if(!block||!header||!wrapper)return;
  const create=createNode||((tag,cls,parent)=>{const n=msg.ownerDocument.createElement(tag);n.className=cls;parent.append(n);return n;}),remove=removeNode||(n=>n.remove()),attr=attribute||((n,k,v)=>{if(n.getAttribute(k)!==String(v))n.setAttribute(k,String(v));}),set=(k,v)=>variable?variable(msg,k,String(v)):msg.style.setProperty(k,String(v));
  const s=c.nativeStyle,normal=header.querySelector('.mes_buttons'),editing=header.querySelector('.mes_edit_buttons'),stats=['.mesIDDisplay','.mes_timer','.tokenCounterDisplay'].map(x=>wrapper.querySelector(x)),left=msg.querySelector(':scope > .swipe_left'),right=msg.querySelector(':scope > .swipeRightBlock'),edit=normal?.querySelector('.mes_edit'),extra=normal?.querySelector('.extraMesButtons'),rightArrow=right?.querySelector('.swipe_right');
  attr(msg,'data-otl-native-latest-ai',latest?'true':'false');attr(msg,'data-otl-native-hide-counter',(latest?s.swipe.hideLatest:s.swipe.hideHistory)?'true':'false');attr(msg,'data-otl-native-stats-footer',statKeys.some(k=>s.stats[k].position==='footer')?'true':'false');
  if(normal)attr(normal,'data-otl-native-role','actions');if(editing)attr(editing,'data-otl-native-role','editing');if(edit)attr(edit,'data-otl-native-role','edit');for(const [i,n]of stats.entries())if(n)attr(n,'data-otl-native-role','stat-'+i);if(left)attr(left,'data-otl-native-role','swipe-left');if(right)attr(right,'data-otl-native-role','swipe-right');
- for(const [node,style]of [[edit,s.actions.edit],[normal?.querySelector('.extraMesButtonsHint'),s.actions.more],[left,s.swipe.left],[rightArrow,s.swipe.right]]){if(!node)continue;const mode=effectiveNativeMode(style);attr(node,'data-otl-native-mode',mode);let label=node.querySelector(':scope > .otl-native-label');if(mode==='text'){if(!label)label=create('span','otl-native-label',node);if(label.textContent!==style.text)label.textContent=style.text;label.setAttribute('aria-hidden','true');}else if(label)remove(label);}
+ for(const [node,style]of [[edit,s.actions.edit],[normal?.querySelector('.extraMesButtonsHint'),s.actions.more],[left,s.swipe.left],[rightArrow,s.swipe.right]]){if(!node)continue;let mode=effectiveNativeMode(style);const src=mode==='icon'?nativeIconUrl(style):'';let icon=node.querySelector(':scope > .otl-native-icon');
+ if(icon&&icon.querySelector('img')?.getAttribute('src')!==src){remove(icon);icon=null;}
+ if(!src)failedIcons.delete(node);
+ if(mode==='icon'&&failedIcons.get(node)===src)mode='default';
+ if(mode==='icon'){
+  if(!icon){icon=create('span','otl-native-icon',node);const picture=create('img','',icon),current=icon;picture.onerror=()=>{if(current.isConnected&&current.parentNode===node&&node.querySelector(':scope > .otl-native-icon')===current&&picture.getAttribute('src')===src){failedIcons.set(node,src);remove(current);attr(node,'data-otl-native-mode','default');}};picture.src=src;}
+  styleIconElement(icon,icon.querySelector('img'),src,style,style.imageSize);
+ }else if(icon)remove(icon);
+ attr(node,'data-otl-native-mode',mode);let label=node.querySelector(':scope > .otl-native-label');if(mode==='text'){if(!label)label=create('span','otl-native-label',node);if(label.textContent!==style.text)label.textContent=style.text;label.setAttribute('aria-hidden','true');}else if(label)remove(label);}
  const floor=stats[0],mesid=msg.getAttribute('mesid');if(floor){const custom=/^\d+$/.test(mesid||'')&&(s.stats.floor.prefix!=='#'||s.stats.floor.suffix!=='');attr(floor,'data-otl-native-floor-custom',String(custom));attr(floor,'data-otl-native-floor-label',custom?s.stats.floor.prefix+mesid+s.stats.floor.suffix:'');}
  // Docks never change the fixed header height. Only the footer reserves flow space.
  set('--on-head-height','0px');

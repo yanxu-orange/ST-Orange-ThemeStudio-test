@@ -1,3 +1,4 @@
+import {ICON_STYLE_FIELDS,validateIconStyle,builtinIconUrl} from './icon-style.mjs';
 import {ASSETS,assetUrl} from './catalog.mjs';
 import {validImage,clone} from './layers.mjs';
 import {TIME_FONTS,validateTextItems} from './text-layout.mjs';
@@ -7,10 +8,10 @@ const source=()=>({mode:'native',asset:'',image:''});
 const surface=()=>({color:'#fffdf8',alpha:1,blur:0,radius:10,borderEnabled:true,borderColor:'#6f8973',borderWidth:1});
 export const CHROME_DEFAULTS={topbar:{enabled:false,...surface(),iconSize:22,slot:36,gap:4,padY:4,icons:Object.fromEntries(DRAWERS.map(([id])=>[id,source()]))},input:{enabled:false,...surface(),radius:12,width:100,leftGap:0,rightGap:0,padX:8,padY:8,layout:'inline',fontMode:'interface',font:'sans-serif',fontLink:null,size:16,weight:400,textColor:'#354b42',lineHeight:1.5,minHeight:44,maxHeight:320,iconSize:22,slot:36,gap:6,icons:Object.fromEntries(INPUT_ICONS.map(([id])=>[id,source()]))}};
 export function validateChromeSource(raw){
- if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).some(k=>!['mode','asset','image'].includes(k))||!['native','image'].includes(raw.mode)||typeof raw.asset!=='string'||raw.asset&&!Object.hasOwn(ASSETS,raw.asset)||typeof raw.image!=='string'||raw.image&&!validImage(raw.image))throw Error('按钮图片无效');
- return {mode:raw.mode,asset:raw.asset,image:raw.image};
+ if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).some(k=>!['mode','asset','image',...ICON_STYLE_FIELDS].includes(k))||!['native','image','icon'].includes(raw.mode)||typeof raw.asset!=='string'||raw.asset&&!Object.hasOwn(ASSETS,raw.asset)||typeof raw.image!=='string'||raw.image&&!validImage(raw.image))throw Error('按钮图片无效');
+ return {mode:raw.mode,asset:raw.asset,image:raw.image,...validateIconStyle(raw)};
 }
-export const chromeSourceUrl=v=>v.mode==='image'?(v.image||assetUrl(v.asset)||''):'';
+export const chromeSourceUrl=v=>v.mode==='icon'?(builtinIconUrl(v)||v.image||''):v.mode==='image'?(v.image||assetUrl(v.asset)||''):'';
 export function validateChromeStyle(raw){
  if(!raw||Object.keys(raw).some(k=>!['topbar','input'].includes(k)))throw Error('页面外观字段无效');
  const out=clone(CHROME_DEFAULTS);

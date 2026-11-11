@@ -1,3 +1,4 @@
+import {styleIconElement} from './icon-style.mjs';
 import {regionZ,imageKey} from './region-layers.mjs';
 import {layerSizeStyle} from './shape-assets.mjs';
 import {DRAWERS,INPUT_ICONS,LIVE_CHROME_SELECTORS,chromeRules,chromeSourceUrl,chromeTopMetrics} from './chrome.mjs';
@@ -18,10 +19,10 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
  function variable(node,key,value){let map=variables.get(node);if(!map){map=new Map();map.originalStyle=node.getAttribute('style');variables.set(node,map);}if(!map.has(key))map.set(key,{old:node.style.getPropertyValue(key),priority:typeof node.style.getPropertyPriority==='function'?node.style.getPropertyPriority(key):'',last:null});map.get(key).last=value;if(node.style.getPropertyValue(key)!==value)node.style.setProperty(key,value);}
  function icon(node,source,size,zone){
   if(!node)return;const src=chromeSourceUrl(source);let image=[...owned].find(n=>n.className==='otl-chrome-icon'&&n.parentNode===node);
-  if(image&&image.getAttribute('src')!==src){image.remove();owned.delete(image);image=null;}
+  if(image&&image.querySelector('img')?.getAttribute('src')!==src){image.remove();owned.delete(image);image=null;}
   if(!src||failed.get(node)===src){if(!src)failed.delete(node);if(image){image.remove();owned.delete(image);}if(attrs.has(node)){restore(node,attrs.get(node));attrs.delete(node);}return;}
-  if(!image){image=make('img','otl-chrome-icon',node);image.dataset.ocZone=zone;image.alt='';image.setAttribute('aria-hidden','true');const token=epoch,current=image;image.onerror=()=>{if(config&&epoch===token&&current.isConnected&&current.parentNode===node&&current.getAttribute('src')===src){failed.set(node,src);current.remove();owned.delete(current);if(attrs.has(node)){restore(node,attrs.get(node));attrs.delete(node);}}};image.src=src;}
-  image.style.setProperty('--oc-icon-size',size+'px');mark(node,'data-oc-image','true');attrs.get(node).zone=zone;
+  if(!image){image=make('span','otl-chrome-icon',node);image.dataset.ocZone=zone;const picture=document.createElement('img');image.append(picture);const token=epoch,current=image;picture.onerror=()=>{if(config&&epoch===token&&current.isConnected&&current.parentNode===node&&picture.getAttribute('src')===src){failed.set(node,src);current.remove();owned.delete(current);if(attrs.has(node)){restore(node,attrs.get(node));attrs.delete(node);}}};picture.src=src;}
+  styleIconElement(image,image.querySelector('img'),src,source.mode==='icon'?source:{},size);mark(node,'data-oc-image','true');attrs.get(node).zone=zone;
  }
  function artwork(){
   const form=document.querySelector('#send_form');if(!form||!config.chromeStyle.input.enabled)return;

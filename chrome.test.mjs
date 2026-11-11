@@ -74,3 +74,28 @@ test('repeated multiline input measurements do not clamp restored chat scroll po
  Object.defineProperty(textarea.style,'height',{configurable:true,get:()=>height,set:value=>{height=value;if(value==='1px')chat.scrollTop=Math.min(chat.scrollTop,320);}});Object.defineProperty(textarea,'scrollHeight',{configurable:true,get:()=>180});
  chat.scrollTop=500;for(let n=0;n<4;n++){preview.fit();assert.equal(chat.scrollTop,500);assert.equal(height,'180px');preview.update(c);assert.equal(chat.scrollTop,500);}preview.close();
 });
+
+test('new icon modes share tinted rendering across preview/live and updates preserve fallback and stop cleanup',()=>{
+ const {document}=dom(),c=config(),ui={page:'chat',previewMode:'page'},p=createChromePreview({document,ui}),adapter=createChromeAdapter({document});
+ c.layers=[];c.chromeStyle.input.enabled=true;const source=c.chromeStyle.input.icons.send_but={mode:'icon',asset:'',image:data,tint:true,fillMode:'gradient',color:'#123456',color2:'#abcdef',gradientAngle:45,size:30};
+ adapter.update(c);p.update(c);const live=document.querySelector('#send_but'),preview=document.querySelector('[data-chrome-pick=send_but]');
+ for(const node of [live,preview]){const span=node.querySelector('.otl-chrome-icon');assert.equal(span.style.background,'linear-gradient(45deg,#123456,#abcdef)');assert.equal(span.style.width,'30px');assert.equal(span.querySelector('img').style.opacity,'0');}
+ const first=live.querySelector('img');source.tint=false;source.size=0;adapter.update(c);p.update(c);assert.equal(live.querySelector('img'),first);for(const node of [live,preview]){assert.equal(node.querySelector('.otl-chrome-icon').style.maskImage,'');assert.equal(node.querySelector('img').style.opacity,'1');}
+ source.tint=true;source.fillMode='solid';adapter.update(c);p.update(c);assert.equal(live.querySelector('.otl-chrome-icon').style.background,'#123456');
+ const stale=first.onerror;source.image='data:image/png;base64,BBBB';adapter.update(c);p.update(c);const replacement=live.querySelector('img');stale();assert.equal(live.querySelector('img'),replacement);replacement.onerror();adapter.update(c);assert.equal(live.hasAttribute('data-oc-image'),false);assert.equal(live.querySelector('.otl-chrome-icon'),null);
+ const late=preview.querySelector('img').onerror;p.close();adapter.stop();late();assert.equal(document.querySelector('.otl-chrome-icon'),null);assert.equal(live.hasAttribute('data-oc-image'),false);
+});
+
+test('switching back to legacy images does not retain invisible icon tint or size controls',()=>{
+ const {document}=dom(),c=config(),ui={page:'chat',previewMode:'page'},p=createChromePreview({document,ui}),adapter=createChromeAdapter({document});c.layers=[];c.chromeStyle.input.enabled=true;
+ c.chromeStyle.input.icons.send_but={mode:'image',asset:'',image:data,tint:true,color:'#123456',size:40};adapter.update(c);p.update(c);
+ for(const node of [document.querySelector('#send_but'),document.querySelector('[data-chrome-pick=send_but]')]){const icon=node.querySelector('.otl-chrome-icon');assert.equal(icon.style.maskImage,'');assert.equal(icon.style.width,c.chromeStyle.input.iconSize+'px');assert.equal(icon.querySelector('img').style.opacity,'1');}
+ adapter.stop();p.close();
+});
+
+test('icon wrapper changes never rewrite unchanged input artwork image sources',()=>{
+ const {document}=dom(),c=config(),adapter=createChromeAdapter({document,resolveArtwork:l=>l.image});c.chromeStyle.input.enabled=true;adapter.update(c);
+ const art=document.querySelector('.otl-input-art>img');let writes=0;Object.defineProperty(art,'src',{configurable:true,get:()=>art.getAttribute('src'),set:value=>{writes++;art.setAttribute('src',value);}});
+ adapter.update(c);adapter.render();assert.equal(writes,0);assert.equal(document.querySelector('.otl-input-art>img'),art);
+ c.layers[0].image='data:image/png;base64,BBBB';adapter.update(c);assert.equal(writes,1);assert.equal(art.getAttribute('src'),c.layers[0].image);adapter.render();assert.equal(writes,1);adapter.stop();
+});

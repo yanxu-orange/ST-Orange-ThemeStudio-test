@@ -12,7 +12,7 @@ import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
 import {normalizeChromeConfig,chromeFontEntries} from './chrome.mjs';
 import {createChromeAdapter} from './chrome-adapter.mjs';
 import {normalizeTextScene,prepareScene,placeSceneLayout,sceneWidth,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
-import {normalizeNativeConfig,nativeRules,nativeLayout,latestAI,nativeControlNodes} from './native.mjs';
+import {normalizeNativeConfig,nativeRules,nativeLayout,latestAI,nativeControlNodes,clearNativeIconFailures} from './native.mjs';
 import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,footerLayout} from './footer.mjs';
 import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
 import {bodyCardSettings,bodyCardRules,chatFrameRules} from './body-card.mjs';
@@ -125,6 +125,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function owned(state,tag,cls,parent){const node=document.createElement(tag);node.className=cls;node.setAttribute(OWN,'');state.nodes.add(node);parent.append(node);return node;}
   function clearState(state){
+    clearNativeIconFailures(state.attributes.filter(r=>r.key==='data-otl-native-mode').map(r=>r.node));
     for(const node of state.nodes)node.remove();
     for(const r of state.attributes)if(r.node.getAttribute(r.key)===r.last){if(r.old===null)r.node.removeAttribute(r.key);else r.node.setAttribute(r.key,r.old);}
     for(const r of state.variables)if(r.node.style.getPropertyValue(r.key)===r.last){if(r.old)r.node.style.setProperty(r.key,r.old,r.priority);else r.node.style.removeProperty(r.key);}

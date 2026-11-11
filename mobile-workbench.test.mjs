@@ -13,7 +13,7 @@ test('mobile navigation changes transient UI only and can return from library to
  sh.querySelector('.mobile-dock [data-mobile-view=library]').click();assert.equal(wb.ui.mode,'library');
  sh.querySelector('.mobile-dock [data-mobile-view=preview]').click();assert.equal(wb.ui.mode,'edit');assert.equal(wb.ui.mobileView,'preview');
  wb.choose('header','avatar','ai');wb.render();assert.equal(wb.ui.mobileView,'adjust');assert.ok(nav>=4);assert.ok(layout>=3);
- sh.querySelector('[data-region=topbar]').click();assert.equal(sh.querySelector('.mobile-dock [data-mobile-view=library]').disabled,true);
+ sh.querySelector('[data-region=topbar]').click();assert.equal(sh.querySelector('.mobile-dock [data-mobile-view=library]').disabled,false);
 });
 
 test('safe-area is reserved in preview geometry and mobile crop rule outranks later base dialog rule',()=>{

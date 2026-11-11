@@ -121,3 +121,12 @@ test('nested edit and tray use the newly positioned actions parent',()=>{
  c.nativeStyle.actions.more.x=5;render();
  assert.equal(value('actions-x'),359);assert.equal(value('edit-x'),16);assert.equal(value('edit-y'),0);assert.equal(value('tools-x'),-159);assert.equal(value('tools-y'),31);
 });
+
+test('native icons keep action placement, use shared tint, recover safely from errors and remove on mode switch',()=>{
+ const {msg,c,render}=fixture(),edit=msg.querySelector('.mes_edit'),parent=edit.parentNode,action=c.nativeStyle.actions.edit;
+ Object.assign(action,{mode:'icon',source:{kind:'custom',asset:'',image:'data:image/png;base64,AAAA'},tint:true,fillMode:'gradient',color:'#123456',color2:'#abcdef',gradientAngle:180,size:0,imageSize:60});render();
+ let span=edit.querySelector('.otl-native-icon'),picture=span.querySelector('img');assert.equal(edit.dataset.otlNativeMode,'icon');assert.equal(span.style.width,'60px');assert.equal(span.style.background,'linear-gradient(180deg,#123456,#abcdef)');assert.equal(picture.style.opacity,'0');assert.equal(edit.parentNode,parent);
+ action.tint=false;render();assert.equal(edit.querySelector('img'),picture);assert.equal(span.style.maskImage,'');assert.equal(picture.style.opacity,'1');const stale=picture.onerror;
+ action.source.image='data:image/png;base64,BBBB';render();const replacement=edit.querySelector('img');stale();assert.equal(edit.querySelector('img'),replacement);replacement.onerror();render();assert.equal(edit.querySelector('.otl-native-icon'),null);assert.equal(edit.dataset.otlNativeMode,'default');
+ action.mode='default';render();action.mode='icon';render();assert.ok(edit.querySelector('.otl-native-icon'),'returning from native explicitly retries a failed source');const late=edit.querySelector('img').onerror;action.mode='text';action.text='修改';render();late();assert.equal(edit.dataset.otlNativeMode,'text');assert.equal(edit.querySelector('.otl-native-icon'),null);assert.equal(edit.querySelector('.otl-native-label').textContent,'修改');
+});
