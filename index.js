@@ -707,7 +707,7 @@ await (async () => {
     if(selection!==gestureSelection){gestureSelection=selection;layerDrag.refresh();}
   }
   function apply(){
-    config.regionOrder=syncRegionOrder(config).regionOrder;ui.previewMode='page';
+    config.regionOrder=syncRegionOrder(config).regionOrder;
     scrollbarVisibility.set(active&&normalizeScrollbars(config.hideScrollbars));if(scrollbarToggle)scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);
     layerDrag.cancel();if(active)liveAdapter.update(config,{validated:true});updateFontStatuses();
     shadow.querySelector('[aria-label="基础模板"]').value=config.template;
@@ -734,7 +734,7 @@ await (async () => {
     if(typeof window.confirm==='function'&&!window.confirm('这会替换当前草稿。原已保存方案不变，替换后可撤销。继续吗？'))return false;
     invalidateEditing();remember();
     if(id==='blank'){const blank=validate(clone(templates.blank));blank.layers=[];blank.captions=[];blank.footerCaptions=[];blank.photos=validatePhotos();blank.avatarFill.ai.enabled=false;blank.avatarFill.user.enabled=false;blank.reasoningStyle.entry.content='思考过程';config=validate(syncRegionOrder(blank));}else config=validate(clone(templates[id]));
-    selectedLayerId=config.layers[0]?.id;ui.mobileView='preview';ui.previewMode='page';if(active){apply();renderFields();}notify('新起点已载入，尚未保存');return true;
+    selectedLayerId=config.layers[0]?.id;ui.mobileView='preview';if(active){apply();renderFields();}notify('新起点已载入，尚未保存');return true;
   }
   const scrollbarLabel=make('label','field'),scrollbarToggle=make('input');scrollbarToggle.type='checkbox';scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);scrollbarToggle.setAttribute('aria-label','隐藏滚动条');scrollbarLabel.append(scrollbarToggle,make('span','','隐藏滚动条（仍可滚动）'));shadow.querySelector('.bar details .menu').append(scrollbarLabel);scrollbarToggle.addEventListener('change',()=>{remember();config.hideScrollbars=scrollbarToggle.checked;apply();notify('滚动条显示已更新，保存方案后记住');});
   const mobileFlow=installMobileFlow({shadow,onVisibility:visible=>scrollbarVisibility.set((active||visible)&&normalizeScrollbars(config.hideScrollbars)),onContinue:open,onTemplate:replaceStart,onBlank:()=>replaceStart('blank'),onImport:()=>{open();shadow.querySelector('#import-file').click();},onLayout:()=>{if(active)updateWorkbenchLayout();}});

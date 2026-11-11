@@ -38,7 +38,8 @@ test('layout and real page navigation retain native nodes, values, and independe
  canvas.stop();assert.equal(document.getElementById('orange-workbench-layout'),null);assert.equal(document.documentElement.hasAttribute('data-orange-editor'),false);assert.equal(input.value,'draft');assert.equal(chat.firstElementChild,message);
 });
 
-const tick=()=>new Promise(resolve=>setTimeout(resolve,60));
+// Deliver MutationObserver callbacks before starting the report debounce wait.
+const tick=async()=>{await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setTimeout(resolve,60));};
 test('native toggles and external class changes report actual page once without recursive clicks',async()=>{
  const {document}=documentFor(),pages=[],canvas=createLiveCanvas({document,onPage:page=>pages.push(page)});
  canvas.start();await tick();assert.deepEqual(pages,['chat']);

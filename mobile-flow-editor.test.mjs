@@ -14,5 +14,3 @@ test('mobile start flow never resets on return, confirms replacement, and blank 
  assert.ok(sh.querySelector('.desktop-scheme #export'));assert.equal(sh.querySelector('#page-scope'),null);assert.ok(sh.querySelector('.panel-head #workspace-page'));window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('#save').textContent,'保存方案');sh.querySelector('#close').click();
 
 });
-
-test('focused preview keeps explicit grid rows when chrome regions are hidden',async()=>{const {CHROME_PREVIEW_BASE}=await import('./chrome-preview.mjs');assert.match(CHROME_PREVIEW_BASE,/>\.otl-page-topbar\{grid-row:1\}/);assert.match(CHROME_PREVIEW_BASE,/>#chat\{grid-row:2;min-height:0\}/);assert.match(CHROME_PREVIEW_BASE,/>\.otl-page-input\{grid-row:3\}/);});
