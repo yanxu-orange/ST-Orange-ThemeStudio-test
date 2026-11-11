@@ -21,7 +21,7 @@ export function installMobileFlow({shadow,onContinue,onTemplate,onBlank,onImport
  function hide(){overlay.classList.add('hidden');onVisibility?.(false);}
  toggle.addEventListener('click',()=>{if(expanded)collapse({focus:true});else{expanded=true;renderToolbar();}});
  menu.addEventListener('change',e=>{if(mobile()&&e.target.id==='page-scope')collapse({focus:true});});
- menu.addEventListener('click',e=>{if(mobile()&&e.target.closest?.('#restore,#import,#export'))collapse();});
+ menu.addEventListener('click',e=>{if(mobile()&&e.target.closest?.('#restore,#import,#export,#layout-adjust'))collapse();});
  const dismissOutside=e=>{if(mobile()&&expanded&&!(e.composedPath?.()||[]).includes(bar)&&!bar.contains(e.target))collapse();};
  shadow.addEventListener('pointerdown',dismissOutside);doc.addEventListener('pointerdown',dismissOutside);
  const escape=e=>{if(e.key==='Escape'&&mobile()&&expanded){collapse({focus:true});e.preventDefault();}};
