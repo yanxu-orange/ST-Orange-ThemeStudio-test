@@ -1,5 +1,5 @@
 import {validateCaptionStyle} from './captions.mjs';
-export const BODY_CARD_DEFAULTS=Object.freeze({bodyFontLink:null,cardGutter:12,cardFullWidth:false,bodyWeight:'auto',bodyParagraphGap:12,bodyPaddingLeft:0,bodyPaddingRight:0,bodyIndent:false,cardBorderMode:'all',cardBorderColor:'auto',cardBorderWidth:1,cardBorderStyle:'solid',cardBorderTop:true,cardBorderRight:true,cardBorderBottom:true,cardBorderLeft:true});
+export const BODY_CARD_DEFAULTS=Object.freeze({bodyFontLink:null,cardGutter:12,cardFullWidth:false,bodyWeight:'auto',bodyParagraphGap:12,bodyPaddingLeft:10,bodyPaddingRight:10,bodyIndent:false,cardBorderMode:'all',cardBorderColor:'auto',cardBorderWidth:1,cardBorderStyle:'solid',cardBorderTop:true,cardBorderRight:true,cardBorderBottom:true,cardBorderLeft:true});
 export function bodyCardSettings(raw={}){
  const value={...BODY_CARD_DEFAULTS};for(const key of Object.keys(value))if(raw[key]!==undefined)value[key]=raw[key];
  value.bodyFontLink=validateCaptionStyle({fontLink:value.bodyFontLink}).fontLink;
