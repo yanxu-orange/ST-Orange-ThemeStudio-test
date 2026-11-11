@@ -145,7 +145,14 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   let pendingConfig=null,snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
   const observedSizes=new Map(),dirtyMessages=new Set();
-  let chat=null,messages=[],latest=null,fullPending=false,structurePending=false;
+  let chat=null,messages=[],latest=null,fullPending=false,structurePending=false,hostModes='';
+  const readHostModes=()=>['documentstyle','hideChatAvatars'].map(name=>document.body.classList.contains(name)).join(',');
+  function hostLayoutChanged(){
+    const next=readHostModes(),changed=next!==hostModes;hostModes=next;
+    // Geometry observers and the interface-font watcher handle other host CSS.
+    // Older hosts without ResizeObserver retain conservative invalidation.
+    if(changed||!resizer)schedule();
+  }
   function unobserveMessage(msg){
     for(const node of states.get(msg)?.observed||[]){resizer?.unobserve(node);observedSizes.delete(node);}
   }
@@ -313,12 +320,12 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
         if(nodes.some(node=>node.nodeType===1&&(node.id==='chat'||node.querySelector?.('#chat'))))schedule();
         continue;
       }
-      if((target===document.body||target===document.documentElement)&&['class','style'].includes(record.attributeName)){schedule();continue;}
+      if((target===document.body||target===document.documentElement)&&['class','style'].includes(record.attributeName)){hostLayoutChanged();continue;}
       if(record.attributeName==='style'&&!target.matches?.('.mes_buttons,.mes_edit_buttons,.mesIDDisplay,.mes_timer,.tokenCounterDisplay,.swipe_left,.swipeRightBlock,.swipe_right,.swipes-counter,.extraMesButtonsHint,.extraMesButtons,.avatar,.mesAvatarWrapper'))continue;
       if(target.parentElement===chat&&(states.has(target)||target.matches('.mes'))&&['class','is_user','is_system','data-orange-lab-fixture'].includes(record.attributeName)){structurePending=true;scheduleMessage(target);continue;}
       const msg=messageFor(target);
       if(msg)scheduleMessage(msg);
-      else if(target===chat)schedule();
+      else if(target===chat){if(['class','style'].includes(record.attributeName))hostLayoutChanged();else schedule();}
     }
   }
   function resized(entries){
@@ -340,7 +347,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function start(config){
     if(!document.querySelector('#chat'))throw Error('酒馆聊天区域尚未就绪');
-    const next=normalizeLiveConfig(config);stop();snapshot=next;
+    const next=normalizeLiveConfig(config);stop();snapshot=next;hostModes=readHostModes();
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
       scrollbarVisibility.set(snapshot.hideScrollbars);

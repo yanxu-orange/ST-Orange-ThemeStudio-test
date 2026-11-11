@@ -301,3 +301,22 @@ test('native icon ownership restores DOM and listeners after repeat apply, faile
  adapter.stop();late();assert.equal(msg.outerHTML,before);edit.click();assert.equal(clicks,2);assert.equal(document.querySelectorAll('.otl-native-icon').length,0);assert.equal(queue.size,0);
  adapter.start(c);await settle();assert.equal(edit.querySelectorAll('.otl-native-icon').length,1,'stop/start retries the same failed image');edit.querySelector('img').onerror();await settle();assert.equal(edit.dataset.otlNativeMode,'default');adapter.start(c);await settle();assert.equal(edit.querySelectorAll('.otl-native-icon').length,1,'repeat apply retries the same failed image');adapter.stop();assert.equal(msg.outerHTML,before);
 });
+
+test('geometry-observed hosts ignore unrelated global mutations but retain native host modes',async()=>{
+ class Resize{observe(){}unobserve(){}disconnect(){}}
+ const renders=[];const {document,adapter,settle,queue}=environment({ResizeObserver:Resize,onRender:r=>renders.push(r.updated)}),chat=document.querySelector('#chat');
+ adapter.start(config());await settle();renders.length=0;
+ for(let i=0;i<20;i++){document.body.classList.toggle('unrelated-host-state');document.body.style.setProperty('--unrelated-host-token',String(i));chat.classList.toggle('unrelated-chat-state');}
+ await settle();assert.deepEqual(renders,[]);assert.equal(queue.size,0);
+ for(const mode of ['documentstyle','hideChatAvatars']){
+  document.body.classList.add(mode);await settle();assert.equal(renders.at(-1),2);for(const msg of chat.children)assert.equal(msg.dataset.otlLiveAvatarHidden,'true');
+  document.body.classList.remove(mode);await settle();assert.equal(renders.at(-1),2);for(const msg of chat.children)assert.equal(msg.dataset.otlLiveAvatarHidden,'false');
+ }
+ renders.length=0;chat.firstElementChild.querySelector('.mes_buttons').style.display='none';await settle();assert.deepEqual(renders,[1],'native control styling remains targeted');adapter.stop();
+});
+
+test('without geometry observers global mutations keep conservative refresh fallback',async()=>{
+ const renders=[];const {document,adapter,settle}=environment({onRender:r=>renders.push(r.updated)});adapter.start(config());await settle();renders.length=0;
+ document.body.classList.add('unrelated-fallback');await settle();assert.deepEqual(renders,[2]);renders.length=0;
+ document.querySelector('#chat').classList.add('unrelated-fallback');await settle();assert.deepEqual(renders,[2]);adapter.stop();
+});

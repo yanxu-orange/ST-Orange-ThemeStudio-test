@@ -50,7 +50,7 @@ export function createLiveCanvas({document,onPage=()=>{}}={}){
   // it, and reserves the exact same CSS size regardless of style insertion order.
   const toolbar='var(--topBarBlockSize, 48px)',bodyTop=preserveTopbar?`max(${top}px, ${toolbar})`:`calc(${top}px + ${toolbar})`,bodyHeight=`max(1px, calc(${top+height}px - ${bodyTop}))`;
   const scope='html[data-orange-editor]';
-  style.textContent=`
+  const css=`
 ${scope}{--otl-canvas-left:${left}px;--otl-canvas-width:${width}px;--otl-canvas-top:${top}px;--otl-canvas-height:${height}px}
 ${scope} #sheld{position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}!important;bottom:auto!important;width:${width}px!important;height:${bodyHeight}!important;max-width:none!important;max-height:${bodyHeight}!important;min-width:0!important;min-height:0!important;margin:0!important;transform:none!important;display:flex!important;flex-direction:column!important;z-index:${preserveTopbar?30:10000}!important}
 ${scope} #chat{min-height:0!important;flex:1 1 0!important;overflow-y:auto!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
@@ -62,6 +62,7 @@ ${scope} body :is(.drawer-content.openDrawer,.drawer-content.open,#WorldInfo.ope
 ${scope} #movingDivs{position:relative;z-index:10020}
 ${scope} :is(#chat,.drawer-content){scroll-padding-block:12px}
 ${hidden?`${scope} :is(#sheld,#top-bar,#top-settings-holder,.drawer-content,#WorldInfo,#floatingPrompt){visibility:hidden!important;pointer-events:none!important}`:''}`;
+  if(style.textContent!==css)style.textContent=css;
  }
  // Acceptance is synchronous; callers changing editing targets should await navigateToPage.
  function showPage(page){

@@ -107,3 +107,16 @@ test('collapsed workbench restores native topbar geometry without moving native 
  }
  canvas.stop();assert.equal(document.getElementById('orange-workbench-layout'),null);
 });
+
+
+test('unchanged canvas geometry does not rewrite its stylesheet',()=>{
+ const {document}=documentFor(),canvas=createLiveCanvas({document});canvas.start();
+ const style=document.getElementById('orange-workbench-layout');let css='',writes=0;
+ Object.defineProperty(style,'textContent',{get:()=>css,set:value=>{writes++;css=value;},configurable:true});
+ canvas.layout({top:64,height:500});assert.equal(writes,1);
+ for(let i=0;i<20;i++)canvas.layout({top:64,height:500});assert.equal(writes,1);
+ canvas.layout({top:64,height:450});assert.equal(writes,2);
+ canvas.layout({top:6,height:800,preserveTopbar:true});assert.equal(writes,3);
+ for(let i=0;i<20;i++)canvas.layout({top:6,height:800,preserveTopbar:true});assert.equal(writes,3);
+ canvas.stop();canvas.start();canvas.layout({top:64,height:500});assert.ok(document.getElementById('orange-workbench-layout').textContent);canvas.stop();
+});

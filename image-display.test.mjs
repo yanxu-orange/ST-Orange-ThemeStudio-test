@@ -123,3 +123,16 @@ test('mutations discover newly added owned images without touching native avatar
 test('zero-size images are skipped before reading or decoding their source',async()=>{
  let inspected=0;const f=fixture({inspect:async()=>{inspected++;throw Error('should not inspect hidden image');}}),img=f.img();img.rect={width:0,height:0};f.manager.watch();await f.manager.whenIdle();assert.equal(inspected,0);assert.equal(f.calls.length,0);f.manager.clear();
 });
+
+test('a mutation batch refreshes only changed images and preserves ancestor selector eligibility',async()=>{
+ const {document}=parseHTML('<html><body><section class="enabled"></section></body></html>');let deliver,checks=0;
+ const win={MutationObserver:class{constructor(cb){deliver=cb;}observe(){}disconnect(){}},IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},addEventListener(){},removeEventListener(){}};
+ const proxy=new Proxy(document,{get(target,key){if(key==='defaultView')return win;const value=target[key];return typeof value==='function'?value.bind(target):value;}});
+ const parent=document.querySelector('section'),images=Array.from({length:200},()=>{const img=document.createElement('img');img.src='data:image/png;base64,YQ==';img.setAttribute('data-ltai-display-image','');parent.append(img);const matches=img.matches.bind(img);img.matches=selector=>{checks++;return matches(selector);};return img;});
+ const manager=createImageDisplay({document:proxy,selector:'.enabled img[data-ltai-display-image]'});manager.watch();checks=0;
+ deliver(images.slice(0,20).map(target=>({type:'attributes',attributeName:'style',target})));await manager.whenIdle();assert.equal(checks,20,'one eligibility check per changed dormant image, no N×K traversal');assert.equal(manager.stats().watched,200);
+ images[0].setAttribute('sizes','50vw');deliver([{type:'attributes',attributeName:'sizes',target:images[0]}]);assert.equal(manager.stats().watched,199);
+ parent.className='disabled';deliver([{type:'attributes',attributeName:'class',target:parent}]);assert.equal(manager.stats().watched,0);
+ parent.className='enabled';deliver([{type:'attributes',attributeName:'class',target:parent}]);assert.equal(manager.stats().watched,199);
+ images[1].remove();deliver([{type:'childList',target:parent,addedNodes:[],removedNodes:[images[1]]}]);assert.equal(manager.stats().watched,198);manager.clear();
+});

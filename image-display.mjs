@@ -40,6 +40,12 @@ export function createImageDisplay({document = globalThis.document,
         }
         // Streaming text/layout writes on unrelated containers are not image work.
         if (states.has(img) || img.matches?.(selector)) added.add(img);
+        // Ancestor selectors can change eligibility without changing the image.
+        if (record.attributeName === 'class' || record.attributeName === 'style') {
+          for (const child of img.querySelectorAll?.('img') || []) {
+            if (states.has(child) || child.matches(selector)) added.add(child);
+          }
+        }
       } else {
         for (const node of record.addedNodes || []) {
           if (node.nodeType !== 1) continue;
@@ -52,7 +58,7 @@ export function createImageDisplay({document = globalThis.document,
     if (removedElements) {
       for (const [img, state] of states) if (!img.isConnected) remove(img, state);
     }
-    for (const img of added) refresh(img);
+    for (const img of added) refreshImage(img);
   }) : null;
 
   function restore(img, state) {
@@ -145,20 +151,21 @@ export function createImageDisplay({document = globalThis.document,
       } catch { /* Decode/encode failure leaves the original source available. */ }
     }
   }
+  function refreshImage(img) {
+    let state = states.get(img);
+    if (!eligible(img, state)) { if (state) remove(img, state); return; }
+    if (!state) {
+      state = {visible: !intersection, applied: null, source: img.getAttribute('src')}; states.set(img, state);
+      intersection?.observe(img); resize?.observe(img);
+    } else if (state.source !== img.getAttribute('src')) {
+      restore(img, state); state.source = img.getAttribute('src');
+    }
+    enqueue(img);
+  }
   function refresh(root = document) {
     for (const [img, state] of states) if (!eligible(img, state)) remove(img, state);
     const images = [...(root?.matches?.(selector) ? [root] : []), ...root?.querySelectorAll?.(selector) || []];
-    for (const img of images) {
-      let state = states.get(img);
-      if (!eligible(img, state)) continue;
-      if (!state) {
-        state = {visible: !intersection, applied: null, source: img.getAttribute('src')}; states.set(img, state);
-        intersection?.observe(img); resize?.observe(img);
-      } else if (state.source !== img.getAttribute('src')) {
-        restore(img, state); state.source = img.getAttribute('src');
-      }
-      enqueue(img);
-    }
+    for (const img of images) refreshImage(img);
   }
   const refreshRoots = () => { for (const root of roots) refresh(root); };
   function watch(root = document) {

@@ -178,14 +178,15 @@ await (async () => {
   const kittyOption=make('option','','小猫咪 · 照片与窗景');kittyOption.value='kitty';shadow.querySelector('[aria-label="基础模板"]').append(kittyOption);const blankOption=make('option','','无装饰起稿 · 工具基础布局');blankOption.value='blank';shadow.querySelector('[aria-label="基础模板"]').append(blankOption);
   function updateWorkbenchLayout(){
     layerDrag.cancel();
-    const win=document.defaultView,vv=win?.visualViewport,mobile=(win?.innerWidth||1200)<=700,compact=mobile&&!!vv&&vv.height<(win?.innerHeight||800)*.75;shadow.host.dataset.wbCompact=String(compact);workbench.syncSizing();
+    const win=document.defaultView,vv=win?.visualViewport,mobile=(win?.innerWidth||1200)<=700,compact=mobile&&!!vv&&vv.height<(win?.innerHeight||800)*.75;if(shadow.host.dataset.wbCompact!==String(compact))shadow.host.dataset.wbCompact=String(compact);
+    const setProperty=(name,value)=>{if(shadow.host.style.getPropertyValue(name)!==value)shadow.host.style.setProperty(name,value);};
     const collapsed=ui.toolbarCollapsed;
     const barTop=mobile?parseFloat(win?.getComputedStyle?.(shadow.querySelector('.bar'))?.top)||vv?.offsetTop||0:0;
-    const barBottom=collapsed?0:shadow.querySelector('.bar').getBoundingClientRect?.().bottom||(mobile?barTop+52:104);shadow.host.style.setProperty('--wb-mobile-tools-top',(barBottom+4)+'px');
+    const barBottom=collapsed?0:shadow.querySelector('.bar').getBoundingClientRect?.().bottom||(mobile?barTop+52:104);setProperty('--wb-mobile-tools-top',(barBottom+4)+'px');
     const toolsBottom=barBottom;
     const safeBottom=parseFloat(win?.getComputedStyle?.(shadow.host)?.getPropertyValue('--wb-safe-bottom'))||0;
     const mobileTop=barBottom+6;
-    const geom=mobileGeometry(vv?.height||win?.innerHeight||800,mobileTop-(vv?.offsetTop||0),ui.mode==='library'||ui.mobileView!=='preview',vv?.offsetTop||0,compact,safeBottom,{share:ui.mobileSplit,fullscreen:ui.libraryExpanded,editing:ui.layoutEditing});shadow.host.style.setProperty('--wb-mobile-sheet',geom.sheet+'px');workbench.setMobileGeometry(geom);
+    const geom=mobileGeometry(vv?.height||win?.innerHeight||800,mobileTop-(vv?.offsetTop||0),ui.mode==='library'||ui.mobileView!=='preview',vv?.offsetTop||0,compact,safeBottom,{share:ui.mobileSplit,fullscreen:ui.libraryExpanded,editing:ui.layoutEditing});setProperty('--wb-mobile-sheet',geom.sheet+'px');workbench.setMobileGeometry(geom);
     const right=(ui.mobileView==='preview'&&ui.mode!=='library'?0:layoutWidths(document.defaultView?.innerWidth||1200,ui.split).previewRight)+'px';
     if(!active)return;
     const frame=previewFrameGeometry(previewChatWidth,win?.innerWidth||1200,parseFloat(right),ui.narrow);
@@ -718,7 +719,7 @@ await (async () => {
   }
   function open(){
     if(active)return;const chat=document.querySelector('#chat');if(!chat){notify('请先打开酒馆聊天界面');return;}
-    previewChatWidth=chat.getBoundingClientRect().width;active=true;invalidateEditing();mobileFlow.setEditorOpen(true);canvas.start();
+    previewChatWidth=chat.getBoundingClientRect().width;workbench.syncSizing();active=true;invalidateEditing();mobileFlow.setEditorOpen(true);canvas.start();
     try{if(liveAdapter.active)liveAdapter.update(config,{validated:true});else liveAdapter.start(config);}catch(error){active=false;canvas.stop();mobileFlow.setEditorOpen(false);notify('进入编辑失败：'+error.message);return;}
     liveBar.classList.add('hidden');imageDisplay.watch(shadow);scrollbarVisibility.set(normalizeScrollbars(config.hideScrollbars));
     entries.setEditing(true);entries.setApplied(false);shadow.querySelector('.bar').classList.remove('hidden');panel.classList.remove('hidden');shadow.querySelector('.splitter').classList.remove('hidden');shadow.querySelector('#narrow').setAttribute('aria-pressed',String(ui.narrow));renderFields();
@@ -737,7 +738,7 @@ await (async () => {
     selectedLayerId=config.layers[0]?.id;ui.mobileView='preview';if(active){apply();renderFields();}notify('新起点已载入，尚未保存');return true;
   }
   const scrollbarLabel=make('label','field'),scrollbarToggle=make('input');scrollbarToggle.type='checkbox';scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);scrollbarToggle.setAttribute('aria-label','隐藏滚动条');scrollbarLabel.append(scrollbarToggle,make('span','','隐藏滚动条（仍可滚动）'));shadow.querySelector('.bar details .menu').append(scrollbarLabel);scrollbarToggle.addEventListener('change',()=>{remember();config.hideScrollbars=scrollbarToggle.checked;apply();notify('滚动条显示已更新，保存方案后记住');});
-  const mobileFlow=installMobileFlow({shadow,onVisibility:visible=>scrollbarVisibility.set((active||visible)&&normalizeScrollbars(config.hideScrollbars)),onContinue:open,onTemplate:replaceStart,onBlank:()=>replaceStart('blank'),onImport:()=>{open();shadow.querySelector('#import-file').click();},onLayout:()=>{if(active)updateWorkbenchLayout();}});
+  const mobileFlow=installMobileFlow({shadow,onVisibility:visible=>scrollbarVisibility.set((active||visible)&&normalizeScrollbars(config.hideScrollbars)),onContinue:open,onTemplate:replaceStart,onBlank:()=>replaceStart('blank'),onImport:()=>{open();shadow.querySelector('#import-file').click();}});
   const launch=()=>{if(active){workbench.restoreWorkbench();return;}open();};
   const entries=createWorkshopEntries({document,launcher:shadow.querySelector('.launcher'),onOpen:launch,onStopApplied:stopApplied,onMessage:notify});shadow.querySelector('.bar .menu').append(entries.renderSettings());
   const entryStyle=make('style');entryStyle.textContent='[data-workshop-entry-settings] h4{margin:10px 0 4px}[data-workshop-entry-settings] p{font-size:12px}[data-workshop-entry-settings] .checkbox_label{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:13px}[data-workshop-entry-settings] input{width:20px;height:20px;flex:none}';shadow.append(entryStyle);
