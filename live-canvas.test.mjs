@@ -36,3 +36,57 @@ test('layout and real page navigation retain native nodes, values, and independe
  canvas.showPage('chat');assert.equal(document.querySelector('#WI-SP-button .drawer-content').classList.contains('openDrawer'),false);
  canvas.stop();assert.equal(document.getElementById('orange-workbench-layout'),null);assert.equal(document.documentElement.hasAttribute('data-orange-editor'),false);assert.equal(input.value,'draft');assert.equal(chat.firstElementChild,message);
 });
+
+const tick=()=>new Promise(resolve=>setTimeout(resolve,60));
+test('native toggles and external class changes report actual page once without recursive clicks',async()=>{
+ const {document}=documentFor(),pages=[],canvas=createLiveCanvas({document,onPage:page=>pages.push(page)});
+ canvas.start();await tick();assert.deepEqual(pages,['chat']);
+ document.querySelector('#user-settings-button .drawer-toggle').click();await tick();
+ assert.equal(canvas.currentPage,'settings');assert.deepEqual(pages,['chat','settings']);
+ document.querySelector('#user-settings-button .drawer-content').classList.remove('openDrawer');await tick();assert.equal(pages.at(-1),'chat');
+ assert.equal(await canvas.navigateToPage('worldbook'),true);await tick();assert.equal(pages.at(-1),'worldbook');
+ const count=pages.length;assert.equal(await canvas.navigateToPage('worldbook'),true);await tick();assert.equal(pages.length,count);
+ canvas.stop();document.querySelector('#WI-SP-button .drawer-toggle').click();await tick();assert.equal(pages.length,count);
+});
+test('unsupported, missing, hidden and disabled drawers leave existing page unchanged',async()=>{
+ const {document}=documentFor(),canvas=createLiveCanvas({document});canvas.start();await canvas.navigateToPage('worldbook');
+ for(const page of ['unknown','connection','home'])assert.equal(canvas.showPage(page),false);
+ const toggle=document.querySelector('#user-settings-button .drawer-toggle');toggle.disabled=true;assert.equal(canvas.showPage('settings'),false);toggle.disabled=false;
+ toggle.style.display='none';assert.equal(canvas.showPage('settings'),false);toggle.style.display='';toggle.remove();assert.equal(canvas.showPage('settings'),false);
+ assert.equal(canvas.currentPage,'worldbook');canvas.stop();
+});
+test('observes home without navigating or clearing chat; chat request only closes drawers',async()=>{
+ const {document}=documentFor(),pages=[],canvas=createLiveCanvas({document,onPage:page=>pages.push(page)});canvas.start();
+ const welcome=document.createElement('div');welcome.className='welcomePanel';document.querySelector('#chat').append(welcome);await tick();assert.equal(pages.at(-1),'home');
+ assert.equal(canvas.showPage('home'),false);await canvas.navigateToPage('settings');await canvas.navigateToPage('chat');assert.equal(canvas.currentPage,'home');assert.equal(welcome.isConnected,true);
+ welcome.remove();await tick();assert.equal(pages.at(-1),'chat');canvas.stop();
+});
+test('newer requests and stop cancel pending confirmation; restart has only one subscription',async()=>{
+ const {document}=documentFor(),pages=[],canvas=createLiveCanvas({document,onPage:page=>pages.push(page)});canvas.start();
+ const first=canvas.navigateToPage('settings'),second=canvas.navigateToPage('worldbook');assert.equal(await first,false);assert.equal(await second,true);assert.equal(canvas.currentPage,'worldbook');
+ const pending=canvas.navigateToPage('settings');canvas.stop();assert.equal(await pending,false);const count=pages.length;await tick();assert.equal(pages.length,count);
+ canvas.start();await tick();assert.equal(pages.length,count+1);canvas.stop();
+});
+test('delayed host transition reports actual state rather than the requested label',async()=>{
+ const {document}=documentFor(),pages=[];
+ const old=document.querySelector('#user-settings-button .drawer-toggle'),toggle=old.cloneNode();old.replaceWith(toggle);
+ toggle.addEventListener('click',()=>setTimeout(()=>toggle.parentElement.querySelector('.drawer-content').classList.add('openDrawer'),90));
+ const canvas=createLiveCanvas({document,onPage:page=>pages.push(page)});canvas.start();await tick();
+ const request=canvas.navigateToPage('settings');assert.equal(canvas.currentPage,'chat');await tick();assert.equal(pages.at(-1),'chat');assert.equal(await request,true);assert.equal(pages.at(-1),'settings');canvas.stop();
+});
+test('ignored native request fails confirmation and reports actual page for UI rollback',async()=>{
+ const {document}=documentFor(),pages=[];
+ const old=document.querySelector('#user-settings-button .drawer-toggle');old.replaceWith(old.cloneNode());
+ const canvas=createLiveCanvas({document,onPage:page=>pages.push(page)});canvas.start();await tick();
+ assert.equal(await canvas.navigateToPage('settings'),false);assert.deepEqual(pages,['chat','chat']);assert.equal(canvas.currentPage,'chat');canvas.stop();
+});
+
+test('streaming message and artwork changes do not read drawer layout',async()=>{
+ const {document,window}=documentFor();let reads=0;
+ window.getComputedStyle=()=>{reads++;return {display:''};};
+ const canvas=createLiveCanvas({document});canvas.start();await tick();const before=reads;
+ const message=document.querySelector('#chat .mes');
+ for(let n=0;n<30;n++){message.style.width=(100+n)+'px';const part=document.createElement('span');part.textContent='stream '+n;message.append(part);}
+ await tick();assert.equal(reads,before,'chat-only mutations must not schedule native drawer measurements');
+ document.querySelector('#user-settings-button .drawer-toggle').click();await tick();assert.ok(reads>before);canvas.stop();
+});

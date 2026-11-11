@@ -19,8 +19,12 @@ function mount(factory,{legacyValue='{"version":10,"headerHeight":999}'}={}){
   return {document,window,legacy:()=>({reads:legacyReads,writes:legacyWrites,value:values.get('orange.theme-lab.mobile-test.v1')})};
 }
 async function importFile(shadow,window,file){
-  const input=shadow.querySelector('#import-file');Object.defineProperty(input,'files',{value:[file],configurable:true});
-  const event=new window.Event('change');input.dispatchEvent(event);Object.defineProperty(event,'target',{value:input});await tick();
+  // Blob.text() is asynchronous for large files. Wait for that actual read rather
+  // than assuming one event-loop turn completes a 27 MiB import under load.
+  let readDone;const read=new Promise(resolve=>{readDone=resolve;});
+  const tracked={text:async()=>{try{return await file.text();}finally{readDone();}}};
+  const input=shadow.querySelector('#import-file');Object.defineProperty(input,'files',{value:[tracked],configurable:true});
+  const event=new window.Event('change');input.dispatchEvent(event);Object.defineProperty(event,'target',{value:input});if(file instanceof Blob)await read;await tick();
   assert.equal(input.value,'','import clears the picker for selecting the same file again');
 }
 

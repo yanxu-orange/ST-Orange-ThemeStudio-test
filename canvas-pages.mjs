@@ -1,3 +1,3 @@
 // Real SillyTavern 1.18 drawer entry points. These are navigation, not copied pages.
 export const PAGE_DRAWERS={chat:null,settings:'user-settings-button',worldbook:'WI-SP-button',extensions:'extensions-settings-button',presets:'ai-config-button',characters:'rightNavHolder',personas:'persona-management-button',connection:'sys-settings-button',formatting:'advanced-formatting-button',backgrounds:'backgrounds-button'};
-export const PREVIEW_PAGES={chat:'聊天',settings:'设置',worldbook:'世界书',extensions:'扩展',presets:'生成参数',characters:'角色卡',personas:'用户人设',connection:'API 连接',formatting:'回复格式',backgrounds:'背景'};
+export const PREVIEW_PAGES={home:'首页',chat:'聊天',settings:'设置',worldbook:'世界书',extensions:'扩展',presets:'预设',characters:'角色卡',personas:'用户人设',connection:'API',formatting:'回复格式',backgrounds:'背景'};
