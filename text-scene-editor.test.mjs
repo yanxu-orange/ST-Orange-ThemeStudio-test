@@ -1,3 +1,4 @@
+import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 test('stable scene editor keeps content edits at saved points, independent widths, large sizes without a local layout reset',async()=>{
@@ -7,7 +8,7 @@ test('stable scene editor keeps content edits at saved points, independent width
  go('time');edit('时间宽度模式','custom');edit('时间宽度占比 数值',40);edit('时间字号 数值',200);assert.equal((await save()).timeSize,200);
  go('text');edit('文案字号 数值',116);edit('文案内容','TO\nYOU\nWITH\nLOVE');edit('文案宽度模式','custom');edit('文案宽度占比 数值',100);value=(await save());assert.deepEqual(value.textItems.name,point.name);const first=structuredClone(value.captions[0]);sh.querySelector('#add-caption').click();assert.deepEqual((await save()).captions[0],first);assert.deepEqual((await save()).textItems.name,point.name);
  go('region');const beforeSwitch=(await save());assert.equal(sh.querySelector('[aria-label="头像区排版模板"]'),null);edit('头像区总高度 数值',400);assert.deepEqual((await save()).textItems,beforeSwitch.textItems);sh.querySelector('#undo').click();assert.deepEqual((await save()),beforeSwitch);
- sh.querySelector('[data-region="footer"]').click();sh.querySelector('#add-footer-caption').click();edit('文案字号 数值',200);assert.equal((await save()).footerCaptions[0].size,200);assert.equal(sh.querySelector('[aria-label="文案 上下移动 数值"]').max,400);assert.equal(sh.querySelector('[aria-label="文案 左右移动 数值"]').max,100);
+ navigateRegion(sh,'footer');sh.querySelector('#add-footer-caption').click();edit('文案字号 数值',200);assert.equal((await save()).footerCaptions[0].size,200);assert.equal(sh.querySelector('[aria-label="文案 上下移动 数值"]').max,400);assert.equal(sh.querySelector('[aria-label="文案 左右移动 数值"]').max,100);
  const importer=sh.querySelector('#import-file'),good=(await save());for(const size of [7,201]){const bad=structuredClone(good);bad.nameSize=size;Object.defineProperty(importer,'files',{value:[{size:100,text:async()=>JSON.stringify(bad)}],configurable:true});const event=new window.Event('change');importer.dispatchEvent(event);Object.defineProperty(event,'target',{value:importer});await new Promise(r=>setImmediate(r));assert.deepEqual((await save()),good);}
  sh.querySelector('#close').click();assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
 });

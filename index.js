@@ -1,3 +1,4 @@
+import {uniqueId} from './unique-id.mjs';
 import {createWorkshopEntries} from './workshop-entries.mjs';
 import {createLiveCanvas} from './live-canvas.mjs';
 import {normalizeCommonConfig} from './common-style.mjs';
@@ -60,7 +61,7 @@ await (async () => {
   let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', gestureSelection=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, libraryPurpose='layer', libraryTarget='', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry',previewChatWidth=0;
   config=normalizeCommonConfig(config);
   const assetLibrary=createAssetLibrary();
-  const iconLibrary=createIconLibrary();let disposeIconLibrary=null;
+  const iconLibrary=createIconLibrary();let disposeIconLibrary=null,disposeFontLibrary=null;
   const fontLibrary=createFontLibrary();
   const host=document.createElement('div'); host.id='orange-theme-lab'; document.body.append(host);
   const shadow=host.attachShadow({mode:'open'});
@@ -113,18 +114,26 @@ await (async () => {
   let noticeTimer;
   function notify(text,duration=4500){const n=shadow.querySelector('#notice');n.textContent=text;clearTimeout(noticeTimer);if(duration){noticeTimer=setTimeout(()=>{n.textContent='';},duration);noticeTimer.unref?.();}}
   function remember(){shadow.querySelector('#save-state').textContent='未保存的草稿';history.push(clone(config));if(history.length>40)history.shift();}
-  shadow.innerHTML=workbenchMarkup();shadow.append(make('style','',ICON_LIBRARY_CSS+'[data-material-category][aria-pressed=true]{font-weight:700;background:#e7eee9;border-color:#6f8973}'));
+  shadow.innerHTML=workbenchMarkup();shadow.append(make('style','',ICON_LIBRARY_CSS+'.material-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}.material-card{display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;padding:8px;min-width:0;font-size:12px}.material-card img{width:100%;height:84px;object-fit:contain}.material-grid[hidden]{display:none}.font-library-card{padding:12px 0;border-bottom:1px solid #d5ded7}.font-library-preview{font-size:22px;margin:10px 0}.font-library-form{padding:12px 0}.font-library-form[hidden]{display:none}'+'[data-material-category][aria-pressed=true]{font-weight:700;background:#e7eee9;color:#31493e;border-color:#6f8973}'));
   installLauncherDrag({launcher:shadow.querySelector('.launcher')});
   const colorPicker=createColorPicker({document,root:shadow});
   const numericStyle=make('style');numericStyle.textContent=NUMERIC_STEPPER_CSS;shadow.append(numericStyle);
-  const workbench=createWorkbench(shadow,{onBeforePageChange:async page=>{const ok=await canvas.navigateToPage(page);if(!ok)notify('未能打开此页面，请通过酒馆原生入口检查当前页面。');return {ok,viewPage:canvas.currentPage};},onNavigate:({pageChanged=false,libraryOpened=false}={})=>{invalidateEditing();if(pageChanged){libraryPurpose='layer';libraryTarget=targetForRegion();iconTargetKey='';}if(libraryOpened){libraryPurpose='layer';libraryTarget=targetForRegion();if(['native','topbar'].includes(ui.region)&&['home','chat'].includes(ui.page)){materialCategory='icons';iconTargetKey=ui.region==='native'?'native:more':'topbar:'+(DRAWERS.some(([id])=>id===ui.object)?ui.object:DRAWERS[0][0]);}else if(ui.region==='input'&&ui.page==='home')iconTargetKey='input:'+(INPUT_ICONS.some(([id])=>id===ui.object)?ui.object:INPUT_ICONS[0][0]);else iconTargetKey='';}renderFields();},onLayout:()=>{if(!active)return;updateWorkbenchLayout();}}),ui=workbench.ui;
+  let materialSession=null,managerReturn=null;
+  const workbench=createWorkbench(shadow,{onNavigate:({libraryOpened=false,previous}={})=>{invalidateEditing();if(libraryOpened){managerReturn={selection:materialSession?.selection||managerReturn?.selection||previous||{...ui,mode:'edit',mobileView:'adjust'},scroll:shadow.querySelector('.fields').scrollTop,inspectorScroll:shadow.querySelector('.inspector').scrollTop};materialCategory='images';}else managerReturn=null;materialSession=null;libraryPurpose='manager';libraryTarget='';iconTargetKey='';renderFields();},onLayout:()=>{if(active)updateWorkbenchLayout();}}),ui=workbench.ui;
+  shadow.querySelector('#material-back').addEventListener('click',returnFromMaterials);
+  shadow.addEventListener('keydown',event=>{if(event.key==='Escape'&&ui.mode==='library'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();returnFromMaterials();}});
+  function openMaterialPicker(purpose,category='images',target='',onUse=null){
+    invalidateEditing();managerReturn=null;materialSession=Object.freeze({purpose,target,onUse,selection:Object.freeze({...ui}),scroll:shadow.querySelector('.fields').scrollTop,inspectorScroll:shadow.querySelector('.inspector').scrollTop,config});
+    libraryPurpose=purpose;libraryTarget=target;materialCategory=category;ui.mode='library';renderFields();
+  }
+  function returnFromMaterials(){
+    const session=materialSession||managerReturn;invalidateEditing();materialSession=null;managerReturn=null;libraryPurpose='manager';libraryTarget='';
+    if(session)Object.assign(ui,session.selection);else ui.mode='edit';renderFields();
+    if(session){shadow.querySelector('.fields').scrollTop=session.scroll;shadow.querySelector('.inspector').scrollTop=session.inspectorScroll;}
+  }
   const MATERIAL_TARGETS=[['header','聊天 / 头像区'],['message','聊天 / 消息整体'],['reasoning-entry','聊天 / 思维入口'],['reasoning-body','聊天 / 思维正文'],['footer','聊天 / 尾部区'],['input','首页和全局 / 共用输入区']];
   function targetForRegion(){return ui.page==='home'&&ui.region==='input'?'input':ui.page==='chat'?({header:'header',overall:'message',reasoning:reasoningAnchor,footer:'footer'}[ui.region]||''):'';}
-  function revealMaterialTarget(region,kind,object){
-    const select=()=>{if(!active||kind==='image'&&!config.layers.some(layer=>layer.id===object))return;workbench.choose(region,kind,object);renderFields();};
-    if(['input','topbar'].includes(region)||['chat','home'].includes(canvas.currentPage)){select();return;}
-    Promise.resolve(workbench.choosePage('chat')).then(ok=>{if(ok)select();else if(active)notify('素材已用于所选聊天区域；未能自动打开聊天，请通过原生入口查看。');});
-  }
+  function revealMaterialTarget(region,kind,object){returnFromMaterials();if(kind==='image'){ui.kind=kind;ui.object=object;selectedLayerId=object;renderFields();}}
 
   panel=shadow.querySelector('.panel');
   const extraStyle=make('style');
@@ -151,7 +160,7 @@ await (async () => {
     return {parent:scene,height:parentHeightForWidth(item.width),parentHeightForWidth};
   }
   const layerDrag=createLayerDrag({document,scopeSelector:'.mes[data-otl-live],#send_form',selector:'.mes[data-otl-live] :is([data-layer-id],.name_text,.timestamp,.otl-live-caption[data-caption-id],[data-footer-caption-id],.otl-live-reasoning),#send_form [data-layer-id]',getState:()=>({active,...ui,page:ui.page==='home'&&ui.region==='input'?'chat':ui.page,layers:config.layers,regionFor:layerRegion}),getTextTarget:previewTextTarget,getLayerTarget:previewLayerTarget,onCommit:(item,next)=>{remember();Object.assign(item,next);apply();renderFields();notify('位置或大小已更新，尚未保存');}});
-  const applyButton=make('button','primary','应用到酒馆');applyButton.type='button';applyButton.id='apply-live';shadow.querySelector('#close').before(applyButton);
+  const applyButton=make('button','primary','应用到酒馆');applyButton.type='button';applyButton.id='apply-live';shadow.querySelector('#save').after(applyButton);
   const liveBar=make('section','live-bar hidden');const liveStatus=make('span','','当前方案已应用到酒馆');liveStatus.setAttribute('role','status');
   const editLive=make('button','','返回编辑');editLive.type='button';const stopLive=make('button','','退出应用');stopLive.type='button';liveBar.append(liveStatus,editLive,stopLive);shadow.append(liveBar);
   const liveBarStyle=make('style');liveBarStyle.textContent='.live-bar{position:fixed;right:24px;top:66px;z-index:20020;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);padding:9px 12px;border:1px solid #dce5dc;border-radius:12px;background:#fffdf8;box-shadow:0 5px 20px #0002}.live-bar span{font-size:12px;color:#63765e}.live-bar button{white-space:nowrap}.bar #apply-live{white-space:nowrap}@media(max-width:900px){.bar small{display:none}.bar select{max-width:180px}.live-bar{right:12px}}';shadow.append(liveBarStyle);
@@ -166,11 +175,11 @@ await (async () => {
     const win=document.defaultView,vv=win?.visualViewport,mobile=(win?.innerWidth||1200)<=700,compact=mobile&&!!vv&&vv.height<(win?.innerHeight||800)*.75;shadow.host.dataset.wbCompact=String(compact);workbench.syncSizing();
     const barTop=mobile?parseFloat(win?.getComputedStyle?.(shadow.querySelector('.bar'))?.top)||vv?.offsetTop||0:0;
     const barBottom=shadow.querySelector('.bar').getBoundingClientRect?.().bottom||(mobile?barTop+52:104);shadow.host.style.setProperty('--wb-mobile-tools-top',(barBottom+4)+'px');
-    const toolsBottom=shadow.querySelector('.preview-tools').getBoundingClientRect?.().bottom||barBottom+(mobile?100:48);
-    const dockPadding=win?.getComputedStyle?.(shadow.querySelector('.mobile-dock'))?.paddingBottom,safeBottom=Math.max(0,(parseFloat(dockPadding)||6)-6);
-    const mobileTop=ui.libraryExpanded||compact?(shadow.querySelector('.bar').getBoundingClientRect?.().bottom||barTop+52)+6:compact?barBottom+6:Math.max(barBottom+(mobile?6:52),toolsBottom+6);
+    const toolsBottom=barBottom;
+    const safeBottom=parseFloat(win?.getComputedStyle?.(shadow.host)?.getPropertyValue('--wb-safe-bottom'))||0;
+    const mobileTop=barBottom+6;
     const geom=mobileGeometry(vv?.height||win?.innerHeight||800,mobileTop-(vv?.offsetTop||0),ui.mode==='library'||ui.mobileView!=='preview',vv?.offsetTop||0,compact,safeBottom,{share:ui.mobileSplit,fullscreen:ui.libraryExpanded,editing:ui.layoutEditing});shadow.host.style.setProperty('--wb-mobile-sheet',geom.sheet+'px');workbench.setMobileGeometry(geom);
-    const right=layoutWidths(document.defaultView?.innerWidth||1200,ui.split).previewRight+'px';
+    const right=(ui.mobileView==='preview'&&ui.mode!=='library'?0:layoutWidths(document.defaultView?.innerWidth||1200,ui.split).previewRight)+'px';
     if(!active)return;
     const frame=previewFrameGeometry(previewChatWidth,win?.innerWidth||1200,parseFloat(right),ui.narrow);
     canvas.layout({left:frame.left,width:frame.width,top:mobile?geom.top:toolsBottom+6,height:mobile?geom.height:Math.max(100,(win?.innerHeight||800)-toolsBottom-24),hidden:ui.libraryExpanded});
@@ -191,7 +200,7 @@ await (async () => {
   }
   function uploadFailure(error){return error?.code==='IMAGE_INPUT'?error.message:error?.message==='图片像素过大'?'图片超过 4000 万像素，请选择较小图片。':'读取或裁剪失败，原图未改变，请重新选择。';}
   function addReselect(container,input){const button=make('button','','重新选择文件');button.type='button';button.addEventListener('click',()=>input.click());container.append(button);}
-  function invalidateEditing(){disposeIconLibrary?.();disposeIconLibrary=null;imageUploadAbort?.abort();imageUploadAbort=null;colorPicker.cancel();layerDrag?.cancel();editEpoch++;if(uploadFeedback)for(const row of uploadFeedback.rows)if(row.busy){row.status='已取消，编辑对象或会话已改变。';row.busy=false;}refreshUploadFeedback();cancelCrop?.();cancelCrop=null;}
+  function invalidateEditing(){disposeIconLibrary?.();disposeIconLibrary=null;disposeFontLibrary?.();disposeFontLibrary=null;imageUploadAbort?.abort();imageUploadAbort=null;colorPicker.cancel();layerDrag?.cancel();editEpoch++;if(uploadFeedback)for(const row of uploadFeedback.rows)if(row.busy){row.status='已取消，编辑对象或会话已改变。';row.busy=false;}refreshUploadFeedback();cancelCrop?.();cancelCrop=null;}
   function currentTargetValid(epoch,original,target){return active&&editEpoch===epoch&&config===original&&(config.layers.includes(target)||Object.values(config.photos).includes(target));}
   function numericRow(label,range,number,unit='',nudge=false){
     const row=make('span','control-row numeric-row'),shortUnit=unit.includes('（')?unit.split('（')[0]:unit;row.append(number,make('span','control-unit',shortUnit));
@@ -226,7 +235,7 @@ await (async () => {
     select.addEventListener('change',()=>{remember();config.avatarDesign=select.value;if(select.value==='unified'){const other=photoScope==='ai'?'user':'ai';config.photos[other]=clone(config.photos[photoScope]);config.avatarFill[other]=clone(config.avatarFill[photoScope]);}apply();renderFields();});
     if(config.avatarDesign==='separate'){const label=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const o=make('option','',text);o.value=value;scope.append(o);}scope.value=photoScope;label.append(scope);container.append(label);scope.addEventListener('change',()=>{photoScope=scope.value;ui.object='photo-'+photoScope;renderFields();});}
     const p=config.photos[photoScope],fill=config.avatarFill[photoScope];
-    container.append(make('p','hint','画布使用当前酒馆的真实头像。请在酒馆中自行选择角色和测试聊天。'));
+
     propertyHeading(container,'显示方式');editorControl(container,field('铺满卡片顶部','enabled','select',{options:[['false','普通显示'],['true','铺满卡片顶部']]}),fill,()=>renderFields());
     if(fill.enabled){
       editorControl(container,field('渐变遮罩','gradient','select',{options:[['false','关闭'],['true','开启']]}),fill,()=>renderFields());if(fill.gradient)for(const f of [field('渐变颜色','color','color'),field('渐变强度','opacity','range',{min:0,max:1,step:.05}),field('渐变开始位置','start','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
@@ -242,7 +251,11 @@ await (async () => {
   }
   function artworkUrl(layer){return layer.kind==='shape'?shapeDataUrl(layer):layer.kind==='asset'?assetUrl(layer.asset):layer.kind==='custom'?layer.image:decorations[layer.kind]?svgUrl(decorations[layer.kind]):'';}
   function renderFontShelf(container){
-    const fontBox=make('details'),fontTitle=make('summary','','字体库');fontBox.open=true;fontBox.append(fontTitle);const fontURL=make('input');fontURL.type='url';fontURL.placeholder='字体文件直链';fontURL.setAttribute('aria-label','字体库直链');const fontWeight=make('select');fontWeight.setAttribute('aria-label','字体库文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;fontWeight.append(o);}fontBox.append(fontURL,fontWeight);renderFontLibrary(fontBox,{library:fontLibrary,link:fontURL,face:fontWeight,onError:notify});container.append(fontBox);
+    const session=materialSession;
+    disposeFontLibrary=renderFontLibrary(container,{library:fontLibrary,onError:notify,onUse:session?.onUse?record=>{if(materialSession!==session||config!==session.config)return;session.onUse(record);returnFromMaterials();}:undefined});
+  }
+  function fontPickerButton(container,item,commit){
+    const button=make('button','','从字体库选择');button.type='button';button.addEventListener('click',()=>openMaterialPicker('font','fonts','',record=>{commit(record);}));container.append(button);
   }
   function seedIconStyle(target){for(const [key,value]of Object.entries(ICON_STYLE_DEFAULTS))if(target[key]===undefined)target[key]=key==='color'?config.accent:value;}
   function renderIconAppearance(container,target,{native=false,prefix='图标'}={}){
@@ -259,67 +272,58 @@ await (async () => {
       const label=make('label','field',prefix+'大小来源'),select=make('select');select.setAttribute('aria-label',prefix+'大小来源');for(const [id,name]of [['auto','跟随区域'],['custom','单独调整']]){const option=make('option','',name);option.value=id;select.append(option);}select.value=target.size?'custom':'auto';select.addEventListener('change',()=>{remember();target.size=select.value==='auto'?0:22;apply();renderFields();});label.append(select);container.append(label);
       if(target.size)control(prefix+'单独大小','size','range',{min:12,max:40,unit:'px'});
     }
-    container.append(make('p','hint','统一染色按透明轮廓填色，可用纯色或双色渐变。带实色背景的图片会连背景一起染色，不会自动抠图；多色图会变为统一配色。'));
+    container.append(make('p','hint','统一染色会覆盖原图配色，不会去除实色背景。'));
   }
   function renderIconShelf(container,chromeTarget,nativeTarget){
     const purpose=libraryPurpose,choices=[...DRAWERS.map(([id,name])=>['topbar:'+id,'顶栏 · '+name]),...INPUT_ICONS.map(([id,name])=>['input:'+id,'输入区 · '+name]),['native:more','消息 · 更多'],['native:edit','消息 · 编辑']];
     let key=chromeTarget?purpose.slice(7):nativeTarget?'native:'+(purpose==='native-more-icon'?'more':'edit'):iconTargetKey;
     if(!choices.some(([id])=>id===key))key='';
-    if(!chromeTarget&&!nativeTarget){const label=make('label','field','用于哪个按钮'),select=make('select');select.setAttribute('aria-label','图标应用按钮');for(const [id,name]of [['','先选择实际支持的按钮'],...choices]){const option=make('option','',name);option.value=id;select.append(option);}select.value=key;select.addEventListener('change',()=>{key=select.value;iconTargetKey=key;});label.append(select);container.append(label);}else container.append(make('p','hint','应用到：'+choices.find(([id])=>id===key)[1]));
     const shelf=make('div');container.append(shelf);
-    disposeIconLibrary=renderIconLibrary(shelf,{library:iconLibrary,tab:iconLibraryTab,onTab:tab=>{invalidateEditing();iconLibraryTab=tab;renderFields();},isCurrent:()=>active&&shelf.isConnected&&ui.mode==='library'&&libraryPurpose===purpose&&materialCategory==='icons',onError:error=>notify(error.message||String(error)),onUse:source=>{
-      if(!active||!shelf.isConnected||libraryPurpose!==purpose)return;if(!key){notify('请先选择图标实际应用的按钮，素材库仍可浏览和管理。');return;}
+    disposeIconLibrary=renderIconLibrary(shelf,{library:iconLibrary,tab:iconLibraryTab,onTab:tab=>{invalidateEditing();iconLibraryTab=tab;renderFields();},isCurrent:()=>active&&shelf.isConnected&&ui.mode==='library'&&libraryPurpose===purpose&&materialCategory==='icons',onError:error=>notify(error.message||String(error)),onUse:materialSession?source=>{
+      if(!active||!materialSession||materialSession.config!==config||!shelf.isConnected||libraryPurpose!==purpose)return;if(!key){notify('请先选择图标实际应用的按钮，素材库仍可浏览和管理。');return;}
       const [zone,id]=key.split(':'),target=zone==='native'?config.nativeStyle.actions[id]:config.chromeStyle[zone]?.icons[id];if(!target)return;
       invalidateEditing();remember();seedIconStyle(target);target.mode='icon';target.icon=source.icon||'';target.tint=source.tint;
       if(zone==='native'){target.source=source.image?{kind:'custom',asset:'',image:source.image}:null;}
       else{target.asset='';target.image=source.image||'';}
-      libraryPurpose='layer';apply();revealMaterialTarget(zone,zone==='native'?'actions':zone==='topbar'?'icons':'tools',zone==='native'?'actions':id);notify(zone!=='native'&&!config.chromeStyle[zone].enabled?'图标已选好。启用此区域美化后生效；保存后记住。':'图标已用于当前按钮，可继续调色和调整大小；保存后记住。');
-    }});
+      libraryPurpose='layer';apply();revealMaterialTarget(zone,zone==='native'?'actions':zone==='topbar'?'icons':'tools',zone==='native'?'actions':id);notify(zone!=='native'&&!config.chromeStyle[zone].enabled?'已选择图标，启用区域美化后生效':'已更新图标');
+    }:undefined});
   }
   function renderSourceLibrary(container,chromeTarget=null){
     if(!chromeTarget&&libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
-    const isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose;
-    const categories=make('div','actions');categories.setAttribute('aria-label','素材类型');
-    for(const [id,label]of [['images','图片'],['shapes','图形'],['icons','图标'],['fonts','字体']]){const button=make('button','',label);button.type='button';button.dataset.materialCategory=id;button.setAttribute('aria-pressed',String(materialCategory===id));button.disabled=isSourceTarget&&(id==='shapes'||id==='fonts'||isBackground&&id==='icons');button.addEventListener('click',()=>{invalidateEditing();materialCategory=id;renderFields();});categories.append(button);}container.append(categories);
+    const isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose,session=materialSession;
+    const categories=make('div','actions material-categories');categories.setAttribute('aria-label','素材类型');
+    for(const [id,label]of [['images','图片'],['shapes','图形'],['icons','图标'],['fonts','字体']]){const button=make('button','',label);button.type='button';button.dataset.materialCategory=id;button.setAttribute('aria-pressed',String(materialCategory===id));button.disabled=!!materialSession&&(libraryPurpose==='font'?id!=='fonts':libraryPurpose==='layer'?!['images','shapes'].includes(id):id==='shapes'||id==='fonts'||isBackground&&id==='icons');if(button.disabled)continue;button.addEventListener('click',()=>{invalidateEditing();materialCategory=id;renderFields();});categories.append(button);}shadow.querySelector('#library-expand').before(categories);
     if(materialCategory==='fonts'){renderFontShelf(container);return;}
 
-    propertyHeading(container,'添加目标');
-    if(isSourceTarget){
-      container.append(make('p','hint',chromeTarget?'选择图片作为当前按钮图形，不新增装饰素材。':isEditIcon?`选择图片作为${isMoreIcon?'更多':'编辑'}按钮图标。`:'选择图片作为思维入口背景，不新增装饰素材。'));
-      const cancel=make('button','','取消选图');if(!chromeTarget)cancel.id=isEditIcon?(isMoreIcon?'native-more-cancel':'native-edit-cancel'):'reasoning-bg-cancel';cancel.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';ui.mode='edit';renderFields(chromeTarget?undefined:targetGroup);});container.append(cancel);
-    }else if(materialCategory!=='icons'){
-      const target=make('select'),label=make('label','field','使用到');target.setAttribute('aria-label','素材应用区域');for(const [value,name]of [['','先选择实际支持的区域'],...MATERIAL_TARGETS]){const option=make('option','',name);option.value=value;target.append(option);}target.value=libraryTarget;target.addEventListener('change',()=>{invalidateEditing();libraryTarget=target.value;renderFields();});label.append(target);container.append(label,make('p','hint','仅列出已支持装饰素材的区域。其他页面可浏览、上传和管理素材，但尚不能放置装饰。'));
-    }
     if(materialCategory==='icons'){renderIconShelf(container,chromeTarget,isEditIcon?backgroundTarget:null);return;}
-    const anchor=()=>MATERIAL_TARGETS.some(([id])=>id===libraryTarget)?libraryTarget:'';
+    const anchor=()=>session&&MATERIAL_TARGETS.some(([id])=>id===session.target)?session.target:'';
     function useSource(source){
-      if(!active||libraryPurpose!==purpose)return;
+      if(!active||!session||materialSession!==session||session.config!==config||libraryPurpose!==purpose)return;
       if(!isSourceTarget&&!anchor()){notify('请先选择素材实际应用的区域，不会自动放入头像区。');return;}
       if(!isSourceTarget&&config.layers.length>=LAYER_LIMIT){notify(`最多放置 ${LAYER_LIMIT} 层素材；素材库可继续保存图片。`);return;}
       invalidateEditing();remember();
-      if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||''});libraryPurpose='layer';ui.mode='edit';apply();renderFields();}
-      else if(isSourceTarget){backgroundTarget.source={kind:source.asset?'asset':'custom',asset:source.asset||'',image:source.image||''};backgroundTarget.mode='image';libraryPurpose='layer';apply();renderFields(targetGroup);}
+      if(chromeTarget){Object.assign(chromeTarget,{mode:'image',asset:source.asset||'',image:source.image||''});apply();returnFromMaterials();}
+      else if(isSourceTarget){backgroundTarget.source={kind:source.asset?'asset':'custom',asset:source.asset||'',image:source.image||''};backgroundTarget.mode='image';apply();returnFromMaterials();}
       else {const layer=newLayer(source.shape?'shape':source.asset?'asset':'custom',{name:source.name,asset:source.asset||'',image:source.image||'',...(source.shape?{shape:source.shape}:{}),opacity:1,anchor:anchor()});config.layers.push(layer);selectedLayerId=layer.id;apply();revealMaterialTarget(layerRegion(layer),'image',layer.id);}
-      notify('素材已放入当前目标，可撤销；保存方案后记住。');
+      notify('已添加，尚未保存');
     }
-    if(materialCategory==='shapes'){propertyHeading(container,'可调色形状');const shapes=make('div','actions');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const button=make('button','','添加'+name);button.type='button';button.dataset.addShape=shape;button.disabled=!anchor()||config.layers.length>=LAYER_LIMIT;button.addEventListener('click',()=>useSource({shape,name}));shapes.append(button);}container.append(shapes);return;}
-    container.append(make('p','hint','我的素材保存在本浏览器，独立于当前方案。先存入素材库，再点击“使用素材”放入目标；导出只包含已经使用的图片。'));
-    propertyHeading(container,'内置素材');
-    const libraryLabel=make('label','field','内置素材库'),library=make('select');library.setAttribute('aria-label','内置素材库');for(const group of builtinAssetGroups()){const options=make('optgroup');options.label=group.name;for(const asset of group.assets){const option=make('option','',asset.name);option.value=asset.id;options.append(option);}library.append(options);}library.value=Object.keys(SHARED_ASSETS)[0];
-    const addAsset=make('button','',chromeTarget?'使用所选按钮图片':isSourceTarget?(isEditIcon?(isMoreIcon?'使用所选更多图标':'使用所选编辑图标'):'使用所选背景'):'添加所选素材');addAsset.type='button';addAsset.disabled=!isSourceTarget&&(!anchor()||config.layers.length>=LAYER_LIMIT);addAsset.addEventListener('click',()=>useSource({asset:library.value,name:ASSETS[library.value].name}));libraryLabel.append(library,addAsset);container.append(libraryLabel);
+    if(materialCategory==='shapes'){const shapes=make('div','material-grid');for(const [shape,name]of Object.entries(SHAPE_NAMES)){const card=make(materialSession?'button':'div','material-card'),preview=make('img');preview.src=shapeDataUrl(newLayer('shape',{shape}));preview.alt=name;card.dataset.addShape=shape;card.append(preview,make('span','',name));if(materialSession){card.type='button';card.disabled=!anchor()||config.layers.length>=LAYER_LIMIT;card.addEventListener('click',()=>useSource({shape,name}));}shapes.append(card);}container.append(shapes);return;}
+    const filters=make('div','actions material-filters'),builtin=make('div','material-grid'),mine=make('div');
+    for(const [id,title]of [['builtin','内置'],['mine','我的']]){const tab=make('button','',title);tab.type='button';tab.dataset.imageFilter=id;tab.setAttribute('aria-pressed',String(id==='builtin'));tab.addEventListener('click',()=>{builtin.hidden=id!=='builtin';mine.hidden=id!=='mine';for(const t of filters.children)t.setAttribute('aria-pressed',String(t===tab));});filters.append(tab);}container.append(filters,builtin,mine);mine.hidden=true;
+    for(const group of builtinAssetGroups())for(const asset of group.assets){const card=make(materialSession?'button':'div','material-card'),preview=make('img');card.dataset.builtinAsset=asset.id;preview.src=assetUrl(asset.id);preview.alt='';preview.loading='lazy';card.append(preview,make('span','',asset.name));if(materialSession){card.type='button';card.setAttribute('aria-label','使用素材：'+asset.name);card.addEventListener('click',()=>useSource({asset:asset.id,name:asset.name}));}builtin.append(card);}
+    const imports=make('div','material-import'),add=make('button','','添加图片');imports.hidden=true;add.type='button';add.setAttribute('aria-expanded','false');add.addEventListener('click',()=>{imports.hidden=!imports.hidden;add.setAttribute('aria-expanded',String(!imports.hidden));});mine.append(add,imports);
 
-    propertyHeading(container,'上传到我的素材');
     const uploadLabel=make('label','field','上传图片到素材库'),upload=make('input');upload.type='file';upload.multiple=true;upload.accept='image/png,image/apng,image/jpeg,image/webp,image/gif';upload.setAttribute('aria-label',chromeTarget?'上传按钮图片':'上传装饰图片');
-    uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF（含动画）；自动优化较大的静态图，收益小则保留原素材，不另存一份原图。测试版单张最多 16 MiB、1600 万像素；上传不会改变当前方案。'),upload);container.append(uploadLabel);addReselect(uploadLabel,upload);
+    uploadLabel.append(make('p','hint','PNG、JPG、WebP、GIF；最大 16 MiB、1600 万像素。'),upload);imports.append(uploadLabel);addReselect(uploadLabel,upload);
     const feedbackSource=chromeTarget?'chrome':'library',feedbackTarget=chromeTarget?purpose.slice(7):'';attachUploadFeedback(uploadLabel,feedbackSource+':'+feedbackTarget);
-    propertyHeading(container,'图片链接');
-    const urlLabel=make('label','field','HTTP(S) 图片链接'),urlInput=make('input');urlInput.type='url';urlInput.placeholder='https://example.com/image.png';urlInput.setAttribute('aria-label','图片链接');urlInput.autocomplete='off';const saveUrl=make('button','','保存链接到素材库');saveUrl.type='button';urlLabel.append(urlInput,saveUrl);container.append(urlLabel,make('p','hint','建议使用 HTTPS。链接会原样保存，依赖来源网站可用；不下载或嵌入远程图片。HTTP 图片可能被浏览器拦截。'));
+
+    const urlLabel=make('label','field','HTTP(S) 图片链接'),urlInput=make('input');urlInput.type='url';urlInput.placeholder='https://example.com/image.png';urlInput.setAttribute('aria-label','图片链接');urlInput.autocomplete='off';const saveUrl=make('button','','保存链接到素材库');saveUrl.type='button';urlLabel.append(urlInput,saveUrl);imports.append(urlLabel,make('p','hint','链接图片依赖来源网站可用。'));
     const status=make('p','hint');status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.dataset.assetLibraryStatus='';container.append(status);
-    propertyHeading(container,'我的素材');const list=make('div','asset-library-list');list.dataset.assetLibraryList='';container.append(list);let listVersion=0;
+    const list=make('div','asset-library-list');list.dataset.assetLibraryList='';mine.append(list);let listVersion=0;
     const visible=()=>active&&list.isConnected&&ui.mode==='library'&&libraryPurpose===purpose;
     async function refreshLibrary(){
       const version=++listVersion;list.textContent='正在读取素材库…';
-      try{const records=await assetLibrary.list();if(!visible()||version!==listVersion)return;list.replaceChildren();if(!records.length)list.append(make('p','hint','还没有自定义素材。上传图片或保存图片链接后，可在所有选图入口复用。'));
+      try{const records=await assetLibrary.list();if(!visible()||version!==listVersion)return;list.replaceChildren();if(!records.length)list.append(make('p','hint','暂无图片，点击“添加图片”上传或粘贴链接。'));
         for(const record of records){const card=make('div','asset-library-card');card.dataset.libraryAsset=record.id;Object.assign(card.style,{display:'grid',gridTemplateColumns:'52px minmax(0,1fr)',gap:'8px',padding:'10px',border:'1px solid #d5ded7',borderRadius:'10px',marginBottom:'8px'});const preview=make('img');preview.src=record.image;preview.alt=record.name;preview.loading='lazy';preview.referrerPolicy='no-referrer';Object.assign(preview.style,{width:'52px',height:'52px',objectFit:'contain'});const detail=make('div'),name=make('p','',record.name),source=make('small','',record.kind==='url'?'链接素材':'已保存在本浏览器');Object.assign(name.style,{margin:'0 0 4px',overflowWrap:'anywhere'});const use=make('button','','使用素材');use.type='button';use.setAttribute('aria-label','使用素材：'+record.name);use.disabled=!isSourceTarget&&(!anchor()||config.layers.length>=LAYER_LIMIT);use.addEventListener('click',()=>useSource(record));preview.addEventListener('error',()=>{source.textContent=record.kind==='url'?'图片加载失败，请检查链接或来源网站限制。':'图片无法预览，请重新上传。';});const remove=make('button','','从素材库删除');remove.type='button';remove.setAttribute('aria-label','从素材库删除：'+record.name);
           remove.addEventListener('click',async()=>{
             if(remove.disabled||!visible()||!card.isConnected)return;
@@ -329,20 +333,20 @@ await (async () => {
             catch(error){if(visible())status.textContent=`未删除“${record.name}”：素材库删除失败，请重试。`;}
             finally{remove.disabled=false;}
           });
-          const actions=make('div','actions');actions.append(use,remove);detail.append(name,source,actions);card.append(preview,detail);list.append(card);}
+          const actions=make('div','actions');if(materialSession)actions.append(use);actions.append(remove);detail.append(name,source,actions);card.append(preview,detail);list.append(card);}
       }catch(error){if(visible()&&version===listVersion){list.replaceChildren(make('p','hint',error.message));const retry=make('button','','重试读取素材库');retry.type='button';retry.addEventListener('click',refreshLibrary);list.append(retry);}}
     }
     saveUrl.addEventListener('click',async()=>{
       if(saveUrl.disabled)return;let image;try{image=normalizeImageUrl(urlInput.value);urlInput.removeAttribute('aria-invalid');}catch(error){urlInput.setAttribute('aria-invalid','true');status.textContent=error.message;return;}
       saveUrl.disabled=true;status.textContent='正在保存链接…';
-      try{const parsed=new URL(image),last=parsed.pathname.split('/').filter(Boolean).pop();await assetLibrary.add({name:(last||parsed.hostname).slice(0,80),image});if(visible()){status.textContent='链接已存入素材库。点击“使用素材”放入当前目标。';urlInput.value='';await refreshLibrary();}}
+      try{const parsed=new URL(image),last=parsed.pathname.split('/').filter(Boolean).pop();await assetLibrary.add({name:(last||parsed.hostname).slice(0,80),image});if(visible()){status.textContent='链接已保存';urlInput.value='';await refreshLibrary();}}
       catch(error){if(visible())status.textContent=error.message;}finally{saveUrl.disabled=false;}
     });
     upload.addEventListener('change',async()=>{
       const files=[...upload.files];if(!files.length)return;upload.value='';invalidateEditing();imageUploadAbort=new AbortController();const signal=imageUploadAbort.signal,epoch=editEpoch,report=beginUploadFeedback(feedbackSource,feedbackTarget,files),valid=()=>visible()&&epoch===editEpoch&&uploadFeedback===report;
       for(let index=0;index<files.length;index++){
         const file=files[index];if(!valid())break;
-        try{feedbackStatus(report,index,'读取与自动优化中…',true);const result=await prepareImageUpload(file,{valid,signal});if(!result||!valid())break;feedbackStatus(report,index,'正在存入素材库…',true);const record=await assetLibrary.add({name:file.name.slice(0,80)||'我的图片',image:result.image});if(!valid())break;report.added.push(record.id);const detail=result.optimized?`已优化为 ${(result.bytes/1024).toFixed(0)} KiB，尺寸不变；`:result.animated?'已保留动画原素材；':'已保留原素材；';feedbackStatus(report,index,detail+'已存入素材库；点击“使用素材”放入当前目标。');}
+        try{feedbackStatus(report,index,'读取与自动优化中…',true);const result=await prepareImageUpload(file,{valid,signal});if(!result||!valid())break;feedbackStatus(report,index,'正在存入素材库…',true);const record=await assetLibrary.add({name:file.name.slice(0,80)||'我的图片',image:result.image});if(!valid())break;report.added.push(record.id);const detail=result.optimized?`已优化为 ${(result.bytes/1024).toFixed(0)} KiB，尺寸不变；`:result.animated?'已保留动画原素材；':'已保留原素材；';feedbackStatus(report,index,detail+'已存入素材库');}
         catch(error){if(valid())feedbackStatus(report,index,error.code?error.message:uploadFailure(error));}
       }
       if(valid()&&report.added.length){await refreshLibrary();if(valid())notify(`已存入 ${report.added.length} 张图片，当前方案尚未改变。`);}
@@ -350,10 +354,10 @@ await (async () => {
     refreshLibrary();
   }
   function renderLayers(container){
-    container.append(make('p','hint','点选画面中的素材后，单指拖动、双指缩放；空白处和未选中的内容仍可滚动。重叠时从列表选择，数值可精调，保存方案后记住。'));
+
     const layer=config.layers.find(l=>l.id===selectedLayerId);if(!layer){container.append(make('p','hint','这里还没有图片。点击“添加图片”选择来源。'));return;}
     propertyHeading(container,'基本信息');const commands=make('div','actions');
-    const duplicate=make('button','','复制素材');duplicate.type='button';duplicate.disabled=config.layers.length>=LAYER_LIMIT;duplicate.addEventListener('click',()=>{remember();const copy=newLayer(layer.kind,{...clone(layer),id:crypto.randomUUID(),name:(layer.name+' 副本').slice(0,80),x:Math.min(600,layer.x+15),y:Math.min(600,layer.y+15)});config.layers.push(copy);selectedLayerId=copy.id;apply();renderFields('decoration');});
+    const duplicate=make('button','','复制素材');duplicate.type='button';duplicate.disabled=config.layers.length>=LAYER_LIMIT;duplicate.addEventListener('click',()=>{remember();const copy=newLayer(layer.kind,{...clone(layer),id:uniqueId(),name:(layer.name+' 副本').slice(0,80),x:Math.min(600,layer.x+15),y:Math.min(600,layer.y+15)});config.layers.push(copy);selectedLayerId=copy.id;apply();renderFields('decoration');});
     const remove=make('button','','移除素材');remove.type='button';remove.addEventListener('click',()=>{invalidateEditing();remember();const region=ui.region;config.layers=config.layers.filter(l=>l.id!==layer.id);selectedLayerId=matchingLayers(config.layers,region)[0]?.id;workbench.choose(region,'image',selectedLayerId||'');apply();renderFields();notify('已移除素材，可撤销。');});commands.append(duplicate,remove);
     if(layer.kind==='custom'&&layer.image){const crop=make('button','','裁剪此图片');crop.type='button';crop.addEventListener('click',async()=>{invalidateEditing();const epoch=editEpoch,originalConfig=config,report=beginUploadFeedback('crop',layer.id,[{name:layer.name}]),valid=()=>currentTargetValid(epoch,originalConfig,layer)&&uploadFeedback===report;try{feedbackStatus(report,0,'准备裁剪…',true);const output=await cropImage(layer.image,layer.image.startsWith('data:image/gif')?'image/gif':'image/png',valid);if(!valid())return;if(!output){feedbackStatus(report,0,'已取消裁剪，原图未改变。');return;}remember();layer.image=output;apply();feedbackStatus(report,0,'裁剪已应用，尚未保存方案。');renderFields('decoration');notify('裁剪已应用，可撤销；保存后记住。');}catch(error){if(valid())feedbackStatus(report,0,uploadFailure(error));}});commands.append(crop);}container.append(commands);attachUploadFeedback(container,'crop:'+layer.id);attachUploadFeedback(container,'result:'+layer.id);
     if(layer.kind==='asset'){const replacementLabel=make('label','field','替换内置素材'),replacement=make('select');replacement.setAttribute('aria-label','替换内置素材');for(const group of builtinAssetGroups(layer.asset)){const options=make('optgroup');options.label=group.name;for(const asset of group.assets){const option=make('option','',asset.name);option.value=asset.id;options.append(option);}replacement.append(options);}replacement.value=layer.asset;replacement.addEventListener('change',()=>{remember();layer.asset=replacement.value;layer.name=ASSETS[layer.asset].name;apply();renderFields('decoration');notify('已换素材，位置与层级保持。');});replacementLabel.append(replacement);container.append(replacementLabel);}
@@ -410,10 +414,10 @@ await (async () => {
     const faceLabel=make('label','field','链接文件类型'),face=make('select');face.setAttribute('aria-label',labelName+' 链接文件类型');
     for(const [value,title]of [['100','极细字体'],['200','纤细字体'],['300','细体字体'],['400','常规字体'],['500','中等字体'],['600','半粗字体'],['700','粗体字体'],['800','特粗字体'],['900','重体字体'],['100 900','可变字体']]){const option=make('option','',title);option.value=value;face.append(option);}face.value=item.fontLink?.faceWeight||'400';faceLabel.append(face);linkRow.append(faceLabel,linkLabel);
     const commit=()=>{try{const next=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null},{stable:ui.region==='header'});remember();item.fontLink=next.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};
-    renderFontLibrary(container,{library:fontLibrary,link,face,onSelect:commit,onError:notify});
+    fontPickerButton(container,item,record=>{link.value=record.fontLink.url;face.value=record.fontLink.faceWeight;commit();});
     link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});
     const status=make('p','hint');status.dataset.fontStatus=key;container.append(status);updateFontStatuses();
-    const retry=make('button','','重新加载链接字体');retry.type='button';retry.addEventListener('click',()=>liveAdapter.retryFonts());container.append(retry,make('p','hint','链接须直接返回字体文件并允许跨域。失败沿用预设；导出只携带引用，字重效果取决于字体文件。'));
+    const retry=make('button','','重新加载链接字体');retry.type='button';retry.addEventListener('click',()=>liveAdapter.retryFonts());container.append(retry,make('p','hint','字体链接须允许跨域；加载失败时使用预设字体。'));
   }
   function renderTextFields(container){
     const key=textItemKey,cap=selectedCaption(),item=cap||config.textItems[key],labelName=cap?'文案':({name:'名字',time:'时间'})[key];
@@ -434,7 +438,7 @@ await (async () => {
     propertyHeading(container,'外链字体');renderFontLinkFields(container,key,item,labelName);
     if(cap){
     const actions=make('div','actions'),copy=make('button','','复制文案'),remove=make('button','','删除文案');copy.disabled=currentCaptions().length>=CAPTION_LIMIT;
-    copy.addEventListener('click',()=>{remember();const value=currentNewCaption({...clone(cap),id:crypto.randomUUID(),name:(cap.name+' 副本').slice(0,80)});currentCaptions().push(value);ui.object=currentCaptionKey(value.id);textItemKey=ui.object;apply();renderFields();});
+    copy.addEventListener('click',()=>{remember();const value=currentNewCaption({...clone(cap),id:uniqueId(),name:(cap.name+' 副本').slice(0,80)});currentCaptions().push(value);ui.object=currentCaptionKey(value.id);textItemKey=ui.object;apply();renderFields();});
     remove.addEventListener('click',()=>{invalidateEditing();remember();const list=currentCaptions(),index=list.indexOf(cap);list.splice(index,1);ui.object=list[Math.min(index,list.length-1)]?currentCaptionKey(list[Math.min(index,list.length-1)].id):ui.region==='footer'?'':'caption';apply();renderFields();});actions.append(copy,remove);container.append(actions);
     }
   }
@@ -453,11 +457,11 @@ await (async () => {
       const row=make('div','actions');
       for(const [page,label]of [['settings','查看设置页'],['worldbook','查看世界书']]){const button=make('button','',label);button.type='button';button.addEventListener('click',()=>workbench.choosePage(page));row.append(button);}container.append(row);
     }
-    container.append(make('p','hint','统一用于酒馆抽屉、弹窗和菜单中的共用界面。画布中的设置、世界书和聊天均是真实内容，原生操作会直接生效。聊天正文、顶栏与输入区继续单独设计。'));
+    container.append(make('p','hint','用于各页面共用界面；聊天正文、顶栏和输入区单独设置。'));
     const part=ui.commonPart,item=config.commonStyle[part],control=f=>editorControl(container,{...f,notice:'界面共用外观已更新，尚未保存'},item);
     if(part==='text'){
       control(field('界面字体','font','select',{options:[['auto','沿用酒馆界面字体'],...fonts]}));
-      control(field('界面字号','size','range',{min:12,max:24,unit:'px'}));container.append(make('p','hint','手机输入和选择控件最小使用 16px，避免聚焦时页面放大。'));
+      control(field('界面字号','size','range',{min:12,max:24,unit:'px'}));
       for(const [key,label]of [['color','界面文字颜色'],['muted','辅助文字颜色'],['accent','界面强调颜色']])control(field(label,key,'color'));
       propertyHeading(container,'外链字体');renderFontLinkFields(container,'common',item,'界面');
     }else if(part==='panel'){
@@ -468,10 +472,10 @@ await (async () => {
       control(field('标题字重','weight','select',{numeric:true,options:[[100,'100 · 极细'],[200,'200 · 纤细'],[300,'300 · 细体'],[400,'400 · 常规'],[500,'500 · 中等'],[600,'600 · 半粗'],[700,'700 · 粗体'],[800,'800 · 特粗'],[900,'900 · 重体']]}));control(field('标题圆角','radius','range',{min:0,max:32,unit:'px'}));
     }else if(part==='button'){
       for(const [key,label]of [['color','按钮文字颜色'],['background','按钮底色'],['border','按钮边框颜色'],['hover','按钮悬停底色']])control(field(label,key,'color'));
-      control(field('按钮圆角','radius','range',{min:0,max:32,unit:'px'}));container.append(make('p','hint','保留危险操作的警示颜色；焦点、选中和禁用状态会随共用配色变化。'));
+      control(field('按钮圆角','radius','range',{min:0,max:32,unit:'px'}));
     }else{
       for(const [key,label]of [['color','控件文字颜色'],['background','控件底色'],['border','控件边框颜色'],['focus','控件焦点颜色']])control(field(label,key,'color'));
-      control(field('控件圆角','radius','range',{min:0,max:32,unit:'px'}));container.append(make('p','hint','包括输入框、多行文字、原生下拉与 Select2；勾选和滑块使用界面强调色。只读、禁用及焦点状态仍保持可辨认。'));
+      control(field('控件圆角','radius','range',{min:0,max:32,unit:'px'}));
     }
   }
   function reasoningControl(container,target,f,onUpdate){editorControl(container,{...f,notice:'思维样式已更新，尚未保存'},target,onUpdate);}
@@ -482,7 +486,7 @@ await (async () => {
     const item=config.reasoningStyle[part],prefix=part==='entry'?'入口':'思维正文';
     if(part==='entry'){propertyHeading(container,'入口内容');reasoningControl(container,item,field('入口文字','content'));reasoningControl(container,item,field('显示入口箭头','showArrow','select',{options:[['false','隐藏'],['true','显示']]}));propertyHeading(container,'入口文字位置');for(const [key,label]of [['x','入口文字水平位置'],['y','入口文字纵向位置']])reasoningControl(container,item.labelPosition,field(label,key,'range',{min:-500,max:500,unit:'px'}));}propertyHeading(container,'字体设计');
     reasoningControl(container,item,field('字体来源','fontSource','select',{options:[['body','跟随聊天正文'],['interface','跟随界面'],['custom','自定义']]}),()=>renderFields());
-    container.append(make('p','hint','跟随只影响字体，字号、字重和颜色单独设置。'));
+
     const fontRow=pairedFields(container);if(item.fontSource==='custom')reasoningControl(fontRow,item,field(prefix+'字体','font','select',{options:fonts}));
     const weightLabel=make('label','field',prefix+'字重'),weight=make('select');weight.setAttribute('aria-label',prefix+'字重');for(const [v,t]of [['auto','常规（沿用）'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]){const o=make('option','',t);o.value=v;weight.append(o);}weight.value=String(item.weight);weight.addEventListener('change',()=>{remember();item.weight=weight.value==='auto'?'auto':Number(weight.value);apply();});weightLabel.append(weight);fontRow.append(weightLabel);
     reasoningControl(container,item,field(prefix+'字号','size','range',{min:10,max:part==='entry'?34:28,unit:'px'}));
@@ -490,8 +494,8 @@ await (async () => {
     if(item.fontSource==='custom'){propertyHeading(container,'外链字体');const linkRow=pairedFields(container);linkRow.classList.add('font-link-row');
       const label=make('label','field','字体文件直链（留空用预设）'),link=make('input');link.type='url';link.maxLength=2048;link.value=item.fontLink?.url||'';link.setAttribute('aria-label',prefix+' 字体直链');label.append(link);
       const faceLabel=make('label','field','链接文件类型'),face=make('select');face.setAttribute('aria-label',prefix+' 链接文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;face.append(o);}face.value=item.fontLink?.faceWeight||'400';faceLabel.append(face);linkRow.append(faceLabel,label);
-      const commit=()=>{try{const value=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null});remember();item.fontLink=value.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};renderFontLibrary(container,{library:fontLibrary,link,face,onSelect:commit,onError:notify});
-    link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});const status=make('p','hint');status.dataset.fontStatus='reasoning:'+part;container.append(status);const retry=make('button','','重新加载链接字体');retry.addEventListener('click',()=>liveAdapter.retryFonts());container.append(retry,make('p','hint','链接须直接返回字体文件并允许跨域；失败使用预设。导出携带链接，不包含字体文件。'));updateFontStatuses();
+      const commit=()=>{try{const value=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null});remember();item.fontLink=value.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};fontPickerButton(container,item,record=>{link.value=record.fontLink.url;face.value=record.fontLink.faceWeight;commit();});
+    link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});const status=make('p','hint');status.dataset.fontStatus='reasoning:'+part;container.append(status);const retry=make('button','','重新加载链接字体');retry.addEventListener('click',()=>liveAdapter.retryFonts());container.append(retry,make('p','hint','字体链接须允许跨域；导出保留链接。'));updateFontStatuses();
     }
 
     if(part==='entry'){
@@ -499,7 +503,7 @@ await (async () => {
       reasoningControl(container,bg,field('入口背景','mode','select',{options:[['none','无背景'],['color','颜色'],['image','自选图片']]}),()=>renderFields());
       if(bg.mode==='color')reasoningControl(container,bg,field('入口背景颜色','color','color'));
       if(bg.mode==='image'){
-        const pick=make('button','','选择或替换背景图片');pick.id='reasoning-bg-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='reasoning-background';materialCategory='images';ui.mode='library';renderFields();});container.append(pick,make('p','hint',bg.source?(bg.source.kind==='asset'?ASSETS[bg.source.asset].name:'已选择上传图片'):'尚未选择图片'));
+        const pick=make('button','','选择或替换背景图片');pick.id='reasoning-bg-pick';pick.addEventListener('click',()=>{openMaterialPicker('reasoning-background');});container.append(pick,make('p','hint',bg.source?(bg.source.kind==='asset'?ASSETS[bg.source.asset].name:'已选择上传图片'):'尚未选择图片'));
         reasoningControl(container,bg,field('背景填充','fit','select',{options:[['cover','铺满（可能裁边）'],['contain','完整显示']]}));for(const [key,label]of [['x','背景横向取景'],['y','背景纵向取景']])reasoningControl(container,bg,field(label,key,'range',{min:0,max:100,unit:'%'}));
       }
       if(bg.mode!=='none')reasoningControl(container,bg,field('背景透明度','opacity','range',{min:0,max:1,step:.05}));
@@ -535,14 +539,14 @@ await (async () => {
       nativeControl(container,edit,field('显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片'],['icon','从图标库选择']]}),()=>{if(edit.mode==='icon')seedIconStyle(edit);renderFields();});
       if(edit.mode==='text')nativeControl(container,edit,field('文字','text','text',{maxLength:40}));
       if(['image','icon'].includes(edit.mode)){
-        const pick=make('button','','选择或替换编辑图标');pick.id='native-edit-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-edit-icon';materialCategory=edit.mode==='icon'?'icons':'images';ui.mode='library';renderFields();});container.append(pick);
+        const pick=make('button','','选择或替换编辑图标');pick.id='native-edit-pick';pick.addEventListener('click',()=>{openMaterialPicker('native-edit-icon',edit.mode==='icon'?'icons':'images');});container.append(pick);
         nativeControl(container,edit,field('图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
       }
       if(edit.mode==='icon')renderIconAppearance(container,edit,{native:true,prefix:'编辑图标'});
       propertyHeading(container,'更多');nativePositionFields(container,actions.more);
       nativeControl(container,actions.more,field('更多显示方式','mode','select',{options:[['default','原生图标'],['text','自定义文字'],['image','自定义图片'],['icon','从图标库选择']]}),()=>{if(actions.more.mode==='icon')seedIconStyle(actions.more);renderFields();});
       if(actions.more.mode==='text')nativeControl(container,actions.more,field('更多文字','text','text',{maxLength:40}));
-      if(['image','icon'].includes(actions.more.mode)){const pick=make('button','','选择或替换更多图标');pick.id='native-more-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='native-more-icon';materialCategory=actions.more.mode==='icon'?'icons':'images';ui.mode='library';renderFields();});container.append(pick);nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));}
+      if(['image','icon'].includes(actions.more.mode)){const pick=make('button','','选择或替换更多图标');pick.id='native-more-pick';pick.addEventListener('click',()=>{openMaterialPicker('native-more-icon',actions.more.mode==='icon'?'icons':'images');});container.append(pick);nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));}
       if(actions.more.mode==='icon')renderIconAppearance(container,actions.more,{native:true,prefix:'更多图标'});
       propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
     }else if(ui.kind==='info'){
@@ -583,13 +587,13 @@ await (async () => {
     if(ui.kind==='surface'){
       if(isInput){propertyHeading(container,'排版与宽度');controls(v,[['输入区排版','layout','select',{options:[['inline','原生横排'],['stacked','文字首行 · 功能第二行']]}],range('输入区宽度','width',50,100,'%'),range('左侧留白','leftGap',0,80),range('右侧留白','rightGap',0,80),range('左右内距','padX',0,32),range('上下内距','padY',0,32)]);}
       propertyHeading(container,'底色与玻璃');controls(v,[['区域底色','color','color'],range('背景透明度','alpha',0,1,'',.05),range('玻璃模糊','blur',0,24)]);propertyHeading(container,'边框与圆角');controls(v,[['显示边框','borderEnabled','select',{options:[['true','显示'],['false','隐藏']]}],['区域边框颜色','borderColor','color'],range('区域边框粗细','borderWidth',0,6,'px',.25),range('区域圆角','radius',0,40)]);
-      if(!isInput){propertyHeading(container,'图形与点击槽');controls(v,[range('顶栏图标大小','iconSize',12,40),range('顶栏点击槽','slot',28,64),range('顶栏按钮间距','gap',0,16),range('顶栏上下内距','padY',0,16)]);container.append(make('p','hint','窄处按九格可用空间收窄点击槽；打开项、焦点和异常提示保持可辨。'));}
+      if(!isInput){propertyHeading(container,'图形与点击槽');controls(v,[range('顶栏图标大小','iconSize',12,40),range('顶栏点击槽','slot',28,64),range('顶栏按钮间距','gap',0,16),range('顶栏上下内距','padY',0,16)]);}
     }else if(ui.kind==='text'){
       propertyHeading(container,'字体设计');controls(v,[['输入字体来源','fontMode','select',{options:[['interface','跟随界面字体'],['chat','跟随聊天正文'],['custom','自定义字体']]}]]);if(v.fontMode==='custom')controls(v,[['输入字体','font','select',{options:fonts}]]);controls(v,[range('输入字号','size',8,60),range('输入字重','weight',100,900,'',100),['输入文字颜色','textColor','color'],range('输入行高','lineHeight',1,3,'',.1)]);propertyHeading(container,'自动增高范围');controls(v,[range('输入最小高度','minHeight',32,160),range('输入最大高度','maxHeight',80,600)]);container.append(make('p','hint','最大高度需不小于最小高度，并受当前视口60%限制；真实输入仍由酒馆自动增高。'));if(v.fontMode==='custom'){propertyHeading(container,'外链字体');renderFontLinkFields(container,'chrome-input',v,'输入文字');}
     }else if(['tools','icons'].includes(ui.kind)){
       if(isInput){propertyHeading(container,'工具共用尺寸');controls(v,[range('输入图标大小','iconSize',12,40),range('输入点击槽','slot',28,64),range('输入工具间距','gap',0,24)]);}
       propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];editorControl(container,field('按钮图形','mode','select',{options:[['native','保留原生'],['image','使用图片'],['icon','从图标库选择']],notice:'图形已更新，尚未保存'}),item,()=>{if(item.mode==='icon')seedIconStyle(item);renderFields();});
-      if(['image','icon'].includes(item.mode)){const pick=make('button','',item.mode==='icon'?'选择或替换图标':'选择或替换按钮图片');pick.id='chrome-icon-pick';pick.addEventListener('click',()=>{invalidateEditing();libraryPurpose='chrome:'+zone+':'+ui.object;materialCategory=item.mode==='icon'?'icons':'images';ui.mode='library';renderFields();});container.append(pick,make('p','hint',item.icon?ICONS[item.icon]?.name||'图标':item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择图片，保留原生图形'));}
+      if(['image','icon'].includes(item.mode)){const pick=make('button','',item.mode==='icon'?'选择或替换图标':'选择或替换按钮图片');pick.id='chrome-icon-pick';pick.addEventListener('click',()=>{openMaterialPicker('chrome:'+zone+':'+ui.object,item.mode==='icon'?'icons':'images');});container.append(pick,make('p','hint',item.icon?ICONS[item.icon]?.name||'图标':item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择图片，保留原生图形'));}
       if(item.mode==='icon')renderIconAppearance(container,item);
       const clear=make('button','','恢复原生图形');clear.addEventListener('click',()=>{invalidateEditing();remember();Object.assign(item,{mode:'native',asset:'',image:'',icon:''});apply();renderFields();});container.append(clear,make('p','hint',isInput?'显隐、发送与停止状态由酒馆控制；这里不执行按钮业务。':'只换图形，保留原抽屉、提示和打开/连接状态。'));
     }
@@ -628,11 +632,11 @@ await (async () => {
     }
     if(fromPreview&&(document.defaultView?.innerWidth||1200)<=700)ui.mobileView='preview';
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
-    const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
+    shadow.querySelector('.inspector-head .material-categories')?.remove();const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;disposeFontLibrary?.();disposeFontLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
     const commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&(!['home','chat'].includes(ui.page)||ui.region==='home-design');
     if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}
     else if(unavailable)title=ui.region==='home-design'?'首页独立设计尚未接入':PAGE_NAMES[ui.page]+'独立设计尚未接入';
-    else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':'独立素材库 · '+(MATERIAL_TARGETS.find(([id])=>id===libraryTarget)?.[1]||'使用前请选择目标');
+    else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮图片':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':materialSession?'选择素材':'素材库';
     else if(ui.region==='overall'){
       kinds=[['card','整体样式'],['image','消息装饰']];if(ui.kind==='image'){objects=matchingLayers(config.layers,'overall').map(l=>[l.id,l.name]);selectedLayerId=ui.object;selected='decoration';title=config.layers.find(l=>l.id===ui.object)?.name||'消息装饰';}else{selected='global';title='当前消息卡片';keys=['surface','accent','radius','glass','surfaceOpacity','cardWidth'];}
     }else if(ui.region==='header'){
@@ -652,10 +656,10 @@ await (async () => {
     else if(ui.region==='native'){kinds=[['actions','编辑与更多'],['info','楼层信息'],['swipe','回复翻页']];if(!['actions','info','swipe'].includes(ui.kind))ui.kind='actions';selected='native';title=kinds.find(([key])=>key===ui.kind)[1];}
     else if(ui.region==='reasoning'){kinds=[['entry','思维入口'],['reason-body','思维正文'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'reasoning').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'思维图片';}else{if(ui.kind!=='reason-body')ui.kind='entry';selected='reasoning';title=ui.kind==='entry'?'思维入口':'思维正文';}}
     else title='此区域尚未开放';
-    let extra;if(supportsLayers(ui)&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{invalidateEditing();libraryPurpose='layer';libraryTarget=targetForRegion();materialCategory='images';ui.mode='library';renderFields();});}
+    let extra;if(supportsLayers(ui)&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{openMaterialPicker('layer','images',targetForRegion());});}
     let actions;if(ui.page==='chat'&&ui.mode==='edit'&&['header','footer'].includes(ui.region)&&ui.kind==='text'&&!(ui.region==='header'&&['name','time'].includes(ui.object))){const list=currentCaptions();actions=make('button','',`＋ 新增文案（${list.length}/${CAPTION_LIMIT}）${list.length>=CAPTION_LIMIT?' 已达上限':''}`);actions.id=ui.region==='footer'?'add-footer-caption':'add-caption';actions.disabled=list.length>=CAPTION_LIMIT;actions.title=actions.disabled?'已达20条文案上限':'新增一条文案';actions.addEventListener('click',()=>{remember();const cap=currentNewCaption({name:'文案'+(list.length+1),font:config.font,color:config.accent});list.push(cap);ui.object=currentCaptionKey(cap.id);apply();renderFields();});}
     const activeKind=commonEditing?ui.commonPart:ui.region==='header'&&ui.kind==='text'&&['name','time'].includes(ui.object)?ui.object:ui.kind;workbench.render({kinds,objects,title,extra,actions,activeKind});
-    if(unavailable){container.append(make('p','hint','本页尚未独立设计，当前沿用已支持的全局外观。这里不会把全局参数冒充为本页专属设置。'));if(ui.region==='home-design')container.append(make('p','hint','选择首页和全局不会关闭当前聊天。要查看首页，请使用酒馆原生返回首页；该操作会关闭当前聊天。'));const global=make('button','','前往全局基础');global.type='button';global.addEventListener('click',()=>{workbench.choose('common','text','common');renderFields();});container.append(global);}
+    if(unavailable){container.append(make('p','hint','本页沿用全局外观，专属样式尚未开放。'));const global=make('button','','前往全局基础');global.type='button';global.addEventListener('click',()=>{workbench.choose('common','text','common');renderFields();});container.append(global);}
     else if(commonEditing)renderCommonFields(container);
     else if(!['overall','header','body','reasoning','footer','native','input','topbar'].includes(ui.region)&&ui.mode!=='library')container.append(make('p','hint','此入口仅保留位置，真实功能尚未接入。当前主题和保存未改变。'));
     else if(ui.mode==='library')renderSourceLibrary(container);
@@ -666,7 +670,7 @@ await (async () => {
       if(ui.region==='overall'&&ui.kind!=='image'){propertyHeading(container,'画布与卡片');const desktopWidth=make('div','desktop-card-width');container.append(desktopWidth);editorControl(desktopWidth,{...field('卡片宽度','cardFullWidth','select',{options:[['false','限制最大宽度'],['true','铺满聊天区']]}),notice:'卡片宽度已更新，尚未保存'},config,()=>renderFields());if(!config.cardFullWidth)renderConfigFields(desktopWidth,['cardWidth']);editorControl(container,{...field('卡片两侧留白','cardGutter','range',{min:0,max:80,unit:'px'}),notice:'卡片留白已更新，尚未保存'},config);renderConfigFields(container,['radius']);
       container.append(make('p','muted','整体背景由酒馆管理；换图请使用酒馆背景设置。'));
       if(config.canvasBackground==='legacy-solid'){const notice=make('p','muted','此旧方案保留原纯色背景。'),migrate=make('button','','改为跟随酒馆背景');migrate.type='button';migrate.addEventListener('click',()=>{remember();config.canvasBackground='tavern';apply();renderFields();notify('已跟随酒馆背景；可撤销，保存后记住');});container.append(notice,migrate);}propertyHeading(container,'配色与透明');renderConfigFields(container,['surface','accent','surfaceOpacity','glass']);}
-      if(ui.region==='header'&&ui.kind==='region'){propertyHeading(container,'头像区基础');renderConfigFields(container,['headerHeight']);container.append(make('p','hint','这是从卡片顶部到正文前的总高度。内容可自由移出区域，超出的部分不显示；调高后会重新露出。'));}
+      if(ui.region==='header'&&ui.kind==='region'){renderConfigFields(container,['headerHeight']);container.append(make('p','hint','超出区域高度的内容会被裁切。'));}
       if(['input','topbar'].includes(ui.region)&&ui.kind!=='image')renderChromeFields(container);
       if(ui.region==='native')renderNativeFields(container);if(ui.region==='body')renderBodySettings(container);if(ui.region==='reasoning'&&ui.kind!=='image')renderReasoningFields(container,ui.kind==='reason-body'?'body':'entry');
       if(ui.region==='overall'&&ui.kind!=='image')renderCardBorderSettings(container);
@@ -695,13 +699,13 @@ await (async () => {
     previewChatWidth=chat.getBoundingClientRect().width;active=true;invalidateEditing();mobileFlow.setEditorOpen(true);canvas.start();
     try{if(liveAdapter.active)liveAdapter.update(config,{validated:true});else liveAdapter.start(config);}catch(error){active=false;canvas.stop();mobileFlow.setEditorOpen(false);notify('进入编辑失败：'+error.message);return;}
     liveBar.classList.add('hidden');imageDisplay.watch(shadow);scrollbarVisibility.set(normalizeScrollbars(config.hideScrollbars));
-    entries.setEditing(true);entries.setApplied(false);shadow.querySelector('.bar').classList.remove('hidden');panel.classList.remove('hidden');shadow.querySelector('.preview-tools').classList.remove('hidden');shadow.querySelector('.splitter').classList.remove('hidden');shadow.querySelector('.mobile-dock').classList.remove('hidden');shadow.querySelector('#narrow').setAttribute('aria-pressed',String(ui.narrow));renderFields();
+    entries.setEditing(true);entries.setApplied(false);shadow.querySelector('.bar').classList.remove('hidden');panel.classList.remove('hidden');shadow.querySelector('.splitter').classList.remove('hidden');shadow.querySelector('#narrow').setAttribute('aria-pressed',String(ui.narrow));renderFields();
     if(loadError)notify('保存的方案未载入：'+loadError.message+' 点击“恢复已保存”重试。',0);
   }
   function close({keepApplied=false}={}){
-    if(!active)return;invalidateEditing();layerDrag.reset();active=false;workbench.resetLayoutSession();imageDisplay.clear();mobileFlow.setEditorOpen(false);scrollbarVisibility.stop();canvas.stop();document.documentElement.removeAttribute('data-otl-narrow');gestureSelection=null;
+    if(!active)return;if(materialSession||managerReturn)returnFromMaterials();invalidateEditing();layerDrag.reset();active=false;workbench.resetLayoutSession();imageDisplay.clear();mobileFlow.setEditorOpen(false);scrollbarVisibility.stop();canvas.stop();document.documentElement.removeAttribute('data-otl-narrow');gestureSelection=null;
     if(!keepApplied)liveAdapter.stop();fitInput()?.catch?.(error=>console.warn('[主题输入增高]',error.message));
-    entries.setEditing(false);entries.setApplied(keepApplied);shadow.querySelector('.bar').classList.add('hidden');panel.classList.add('hidden');shadow.querySelector('.preview-tools').classList.add('hidden');shadow.querySelector('.splitter').classList.add('hidden');shadow.querySelector('.mobile-dock').classList.add('hidden');
+    entries.setEditing(false);entries.setApplied(keepApplied);shadow.querySelector('.bar').classList.add('hidden');panel.classList.add('hidden');shadow.querySelector('.splitter').classList.add('hidden');
   }
 
   function replaceStart(id){
@@ -712,7 +716,7 @@ await (async () => {
   }
   const scrollbarLabel=make('label','field','隐藏滚动条（仍可滚动）'),scrollbarToggle=make('input');scrollbarToggle.type='checkbox';scrollbarToggle.checked=normalizeScrollbars(config.hideScrollbars);scrollbarToggle.setAttribute('aria-label','隐藏滚动条');scrollbarLabel.append(scrollbarToggle);shadow.querySelector('.bar details .menu').append(scrollbarLabel);scrollbarToggle.addEventListener('change',()=>{remember();config.hideScrollbars=scrollbarToggle.checked;apply();notify('滚动条显示已更新，保存方案后记住');});
   const mobileFlow=installMobileFlow({shadow,onVisibility:visible=>scrollbarVisibility.set((active||visible)&&normalizeScrollbars(config.hideScrollbars)),onContinue:open,onTemplate:replaceStart,onBlank:()=>replaceStart('blank'),onImport:()=>{open();shadow.querySelector('#import-file').click();},onLayout:()=>{if(active)updateWorkbenchLayout();}});
-  const launch=()=>active?open():mobileFlow.mobile()?mobileFlow.show():open();
+  const launch=()=>open();
   const entries=createWorkshopEntries({document,launcher:shadow.querySelector('.launcher'),onOpen:launch,onStopApplied:stopApplied,onMessage:notify});shadow.querySelector('.bar .menu').append(entries.renderSettings());
   const entryStyle=make('style');entryStyle.textContent='[data-workshop-entry-settings] h4{margin:10px 0 4px}[data-workshop-entry-settings] p{font-size:12px}[data-workshop-entry-settings] .checkbox_label{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:13px}[data-workshop-entry-settings] input{width:20px;height:20px;flex:none}';shadow.append(entryStyle);
   shadow.querySelector('.launcher').addEventListener('click',launch);shadow.querySelector('#close').addEventListener('click',close);

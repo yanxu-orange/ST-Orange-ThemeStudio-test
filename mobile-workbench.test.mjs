@@ -1,31 +1,6 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
-import {mobileGeometry,workbenchMarkup,createWorkbench} from './workbench-ui.mjs';
-test('mobile geometry fits normal, keyboard and short viewport without negative dimensions',()=>{
- for(const h of [160,300,500,844])for(const open of [true,false])for(const compact of [true,false]){const g=mobileGeometry(h,180,open,35,compact);assert.ok(g.height>=0&&g.sheet>=0);assert.ok(g.top+g.height+g.sheet<=35+h);if(!open)assert.equal(g.sheet,0);if(compact&&open)assert.equal(g.height,0);}
- assert.ok(mobileGeometry(844,180,false).height>mobileGeometry(844,180,true).height);
-});
-test('mobile navigation changes transient UI only and can return from library to preview',()=>{
- const {document,window}=parseHTML('<html><body></body></html>');const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
- const host=document.createElement('div');document.body.append(host);const sh=host.attachShadow({mode:'open'});sh.innerHTML=workbenchMarkup();let nav=0,layout=0;const wb=createWorkbench(sh,{onNavigate:()=>{nav++;wb.render();},onLayout:()=>layout++});wb.render();
- assert.equal(wb.ui.mobileView,'preview');assert.equal(sh.querySelector('.panel').dataset.mobileView,'preview');
- sh.querySelector('.mobile-dock [data-mobile-view=regions]').click();assert.equal(sh.querySelector('.panel').dataset.mobileView,'regions');
- sh.querySelector('[data-region=body]').click();assert.equal(wb.ui.region,'body');assert.equal(sh.querySelector('.panel').dataset.mobileView,'adjust');
- sh.querySelector('.mobile-dock [data-mobile-view=library]').click();assert.equal(wb.ui.mode,'library');
- sh.querySelector('.mobile-dock [data-mobile-view=preview]').click();assert.equal(wb.ui.mode,'edit');assert.equal(wb.ui.mobileView,'preview');
- wb.choose('header','avatar','ai');wb.render();assert.equal(wb.ui.mobileView,'adjust');assert.ok(nav>=4);assert.ok(layout>=3);
- sh.querySelector('[data-region=topbar]').click();assert.equal(sh.querySelector('.mobile-dock [data-mobile-view=library]').disabled,false);
-});
-
-test('safe-area is reserved in preview geometry and mobile crop rule outranks later base dialog rule',()=>{
- const normal=mobileGeometry(844,180,true,0,false,0),safe=mobileGeometry(844,180,true,0,false,34);
- assert.ok(Math.abs(normal.height+normal.sheet-safe.height-safe.sheet-34)<1e-8);
- const panelTop=844-64-34-safe.sheet;assert.ok(safe.top+safe.height<=panelTop);
- assert.match(workbenchMarkup(),/:host textarea,select\{font-size:16px\}/);
- assert.match(workbenchMarkup(),/:host \.crop-dialog\{max-height:calc\(var\(--wb-vv-height,100dvh\) - 16px\)/);
-});
-
-test('layers has a dedicated mobile and desktop entrance without changing the selected region',()=>{
- const {document,window}=parseHTML('<html><body></body></html>'),desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});const host=document.createElement('div');document.body.append(host);const sh=host.attachShadow({mode:'open'});sh.innerHTML=workbenchMarkup();const wb=createWorkbench(sh,{onNavigate:()=>wb.render()});wb.render();assert.equal(wb.ui.previewMode,'page');assert.deepEqual([...sh.querySelectorAll('.mobile-dock button')].map(b=>b.textContent),['预览','区域','调整','图层','素材']);
- sh.querySelector('.mobile-dock [data-mobile-view=layers]').click();assert.equal(wb.ui.mobileView,'layers');assert.equal(wb.ui.region,'header');assert.equal(wb.ui.mode,'edit');assert.equal(sh.querySelector('.panel').dataset.mobileView,'layers');assert.equal(sh.querySelector('#mode-layers').getAttribute('aria-pressed'),'true');assert.equal(sh.querySelector('.wb-main').dataset.simple,'true');wb.render({kinds:[['text','文字']],objects:[['name','名字']],title:'名字'});assert.equal(sh.querySelector('.selection').classList.contains('hidden'),true);
- sh.querySelector('.mobile-dock [data-mobile-view=layers]').click();assert.equal(wb.ui.mobileView,'preview');sh.querySelector('#mode-layers').click();assert.equal(wb.ui.mobileView,'layers');sh.querySelector('#mode-edit').click();assert.equal(wb.ui.mobileView,'adjust');
-});
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {mobileGeometry,workbenchMarkup} from './workbench-ui.mjs';import {shell} from './test-support/workbench-shell.mjs';
+test('phone geometry fits keyboard and safe areas without dock reservation',()=>{for(const h of [160,300,500,844])for(const open of [true,false])for(const compact of [true,false]){const g=mobileGeometry(h,64,open,35,compact,34);assert.ok(g.height>=0&&g.sheet>=0);assert.ok(g.panelTop+g.sheet<=35+h-42+.01);if(!open)assert.equal(g.sheet,0);if(compact&&open)assert.equal(g.height,0);}assert.match(workbenchMarkup(),/textarea,select\{font-size:16px\}/);});
+test('full view and property sheet work repeatedly at phone, tablet and desktop widths',()=>{for(const width of [390,768,1366]){const {bench,shadow,click,change}=shell(width);assert.equal(bench.ui.mobileView,'adjust');change('#region-select','body');for(let i=0;i<3;i++){click('#full-view');assert.equal(bench.ui.mobileView,'preview');assert.equal(shadow.host.dataset.fullView,'true');click('#full-view');assert.equal(bench.ui.mobileView,'adjust');assert.equal(bench.ui.region,'body');}assert.equal(shadow.querySelector('.wb-nav'),null);}});
+test('layers and independent library keep selected scope while sharing one header navigation',()=>{const {bench,shadow,click,change}=shell();click('#mode-layers');assert.equal(bench.ui.mobileView,'layers');assert.equal(bench.ui.region,'header');bench.render({kinds:[['text','文字']],objects:[['name','名字']],title:'名字'});assert.equal(shadow.querySelector('.selection').classList.contains('hidden'),true);click('#mode-library');assert.equal(bench.ui.mode,'library');assert.equal(shadow.querySelector('.panel-head').hidden,true);click('#mode-edit');assert.equal(bench.ui.region,'header');change('#workspace-page','settings');assert.equal(shadow.querySelector('#mode-layers').disabled,true);assert.equal(shadow.querySelector('#mode-library').disabled,false);});
+test('property navigation is two rows with one contextual layers action and global library',()=>{const {shadow,click,change}=shell();assert.equal(shadow.querySelector('.mode-tabs'),null);assert.ok(shadow.querySelector('.bar > #mode-library'));assert.ok(shadow.querySelector('.scope-controls > #mode-layers'));assert.equal(shadow.querySelector('#mode-layers').hidden,false);assert.equal(shadow.querySelector('#mode-edit').hidden,true);assert.equal(shadow.querySelector('.inspector-head').hidden,true);click('#mode-layers');assert.equal(shadow.querySelector('#mode-layers').hidden,true);assert.equal(shadow.querySelector('#mode-edit').hidden,false);click('#mode-edit');change('#region-select','body');assert.equal(shadow.querySelector('#mode-layers').hidden,true);assert.equal(shadow.querySelector('#mode-edit').hidden,true);assert.equal(shadow.querySelector('.scope-controls').dataset.layers,'false');});

@@ -1,3 +1,4 @@
+import {createFontSession} from './font-sources.mjs';
 import {validateCaptionStyle} from './captions.mjs';
 export const FONT_LIBRARY_KEY='orange.theme-lab.font-library.v1';
 export function createFontLibrary(storage=globalThis.localStorage){
@@ -8,12 +9,21 @@ export function createFontLibrary(storage=globalThis.localStorage){
   remove(name){storage.setItem(FONT_LIBRARY_KEY,JSON.stringify(read().filter(r=>r.name!==name)));}
  };
 }
-export function renderFontLibrary(container,{library,link,face,onSelect=()=>{},onError=()=>{}}){
+/** A manager never receives a theme object. Selection is available only to a caller. */
+export function renderFontLibrary(container,{library,onUse,onError=()=>{}}){
  const d=container.ownerDocument,make=(tag,text)=>{const n=d.createElement(tag);if(text)n.textContent=text;return n;};
- const row=make('div');row.className='paired-fields';const label=make('label','我的字体'),select=make('select');select.setAttribute('aria-label','我的字体');label.className='field';label.append(select);row.append(label);container.append(row);
- const refresh=()=>{try{select.replaceChildren();const first=make('option','选择已保存字体');first.value='';select.append(first);for(const r of library.list()){const o=make('option',r.name);o.value=r.name;select.append(o);}}catch(e){onError(e.message);}};
- select.addEventListener('change',()=>{try{const record=library.list().find(r=>r.name===select.value);if(!record)return;link.value=record.fontLink.url;face.value=record.fontLink.faceWeight;name.value=record.name;onSelect();}catch(e){onError(e.message);}});
- const details=make('details'),summary=make('summary','保存字体'),name=make('input');name.type='text';name.maxLength=80;name.placeholder='字体名称';name.setAttribute('aria-label','字体名称');details.append(summary,name);
- const save=make('button','保存到字体库');save.type='button';save.addEventListener('click',()=>{try{const record=library.save(name.value,{url:link.value.trim(),faceWeight:face.value});refresh();select.value=record.name;}catch(e){onError(e.message);}});
- const remove=make('button','从字体库移除');remove.type='button';remove.addEventListener('click',()=>{if(!select.value)return;try{library.remove(select.value);refresh();}catch(e){onError(e.message);}});details.append(save,remove);container.append(details);refresh();
+ const button=(text,action)=>{const n=make('button',text);n.type='button';n.addEventListener('click',action);return n;};
+ const toolbar=make('div'),list=make('div'),form=make('form'),status=make('p');list.className='font-library-list';status.setAttribute('role','status');form.hidden=true;form.className='font-library-form';
+ const name=make('input'),url=make('input'),weight=make('select');name.type='text';name.maxLength=80;url.type='url';url.maxLength=2048;
+ for(const [control,label] of [[name,'字体名称'],[url,'字体文件直链'],[weight,'字体文件字重']]){control.setAttribute('aria-label',label);const field=make('label',label);field.className='field';field.append(control);form.append(field);}
+ for(const [value,title] of [['400','常规'],['700','粗体'],['100 900','可变'],['100','极细'],['200','纤细'],['300','细体'],['500','中等'],['600','半粗'],['800','特粗'],['900','重体']]){const option=make('option',title);option.value=value;weight.append(option);}
+ let editing=null,disposed=false;const previews=new Map();
+ const session=createFontSession({document:d,onChange:()=>{if(disposed)return;const families=session.families();for(const [key,node]of previews){node.style.fontFamily=families[key]?`"${families[key]}"`:'serif';const state=session.status(key);node.title=state==='error'?'字体加载失败，显示默认字体':state==='loading'?'字体加载中':'';}}});
+ function edit(record){editing=record?.name||null;name.value=record?.name||'';url.value=record?.fontLink.url||'';weight.value=record?.fontLink.faceWeight||'400';form.hidden=false;name.focus();}
+ toolbar.append(button('添加字体',()=>edit(null)));container.append(toolbar,list,form,status);
+ const save=button('保存字体',()=>{try{const old=editing;const record=library.save(name.value,{url:url.value.trim(),faceWeight:weight.value});if(old&&old!==record.name)library.remove(old);form.hidden=true;refresh();status.textContent='字体已保存';}catch(error){status.textContent=error.message;onError(error.message);}}),cancel=button('取消',()=>{form.hidden=true;});form.append(save,cancel);form.addEventListener('submit',event=>{event.preventDefault();save.click();});
+ function refresh(){try{const records=library.list();list.replaceChildren();previews.clear();const items={};if(!records.length)list.append(make('p','暂无字体，点击“添加字体”保存名称和链接。'));
+  records.forEach((record,index)=>{const card=make('div'),title=make('strong',record.name),preview=make('p','山川与日月 · Aa 0123'),actions=make('div');card.className='font-library-card';preview.className='font-library-preview';const key='font'+index;items[key]=record;previews.set(key,preview);actions.className='actions';if(onUse)actions.append(button('使用字体',()=>onUse(record)));actions.append(button('编辑',()=>edit(record)),button('移除',()=>{try{library.remove(record.name);refresh();status.textContent='已从字体库移除';}catch(error){onError(error.message);}}));card.append(title,preview,actions);list.append(card);});session.update(items);
+ }catch(error){onError(error.message);status.textContent=error.message;}}
+ refresh();return ()=>{disposed=true;session.dispose();};
 }

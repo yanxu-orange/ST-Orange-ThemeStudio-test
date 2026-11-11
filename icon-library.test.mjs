@@ -39,7 +39,7 @@ test('icon persistence is separate from image assets and deletion cannot break p
 test('built-in groups render local SVG previews and tinted selections', async () => {
   const {container} = fixture(); const selections = [];
   renderIconLibrary(container, {onUse: item => selections.push(item)});
-  assert.match(container.textContent, /不会去除不透明背景/);
+  assert.equal(container.querySelector('.icon-library-help'),null);
   assert.ok(container.querySelectorAll('.icon-library-group').length > 0);
   const button = container.querySelector('.icon-library-use');
   assert.match(button.querySelector('img').src, /\.svg/);

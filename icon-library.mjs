@@ -46,7 +46,7 @@ export function renderIconLibrary(container, {library, tab = 'builtin', onTab,
     item.setAttribute('role', 'tab'); item.setAttribute('aria-selected', String(key === tab));
     tabs.append(item);
   }
-  container.append(tabs, el('p', '内置图标默认使用统一颜色；上传图标默认保留原图颜色。整体染色依赖图片透明度（Alpha），不会去除不透明背景，也不会保留原图多色；实色背景可能变成整块颜色。', 'icon-library-help'));
+  container.append(tabs);
   const status = el('p', '', 'icon-library-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   container.append(status);
   function fail(error) {
@@ -60,8 +60,8 @@ export function renderIconLibrary(container, {library, tab = 'builtin', onTab,
   }
   function card(name, src, value) {
     const node = el('div', '', 'icon-library-card');
-    const select = button('', () => use(value), 'icon-library-use');
-    select.setAttribute('aria-label', `使用图标：${name}`);
+    const select = onUse ? button('', () => use(value), 'icon-library-use') : el('div', '', 'icon-library-use');
+    select.setAttribute('aria-label', `${onUse?'使用图标':'图标'}：${name}`);
     const img = el('img'); img.src = src; img.alt = ''; img.loading = 'lazy';
     select.append(img, el('span', name)); node.append(select); return node;
   }

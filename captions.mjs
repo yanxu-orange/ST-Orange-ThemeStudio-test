@@ -1,3 +1,4 @@
+import {uniqueId} from './unique-id.mjs';
 import {TIME_FONTS,validateTextItems} from './text-layout.mjs';
 export const CAPTION_LIMIT=20;
 export const CAPTION_SCOPES=Object.freeze(['both','ai','user']);
@@ -8,7 +9,7 @@ export const captionKey=id=>'caption:'+id;
 export const captionToken=id=>'cap-'+id;
 export function styleOf(value={}){return Object.fromEntries(['x','y','weight','z','fontLink'].filter(k=>value[k]!==undefined).map(k=>[k,value[k]]));}
 export function validateCaptionStyle(value,{stable=false}={}){return validateTextItems({caption:styleOf(value)},{stable}).caption;}
-export function newCaption(overrides={}){return {id:crypto.randomUUID(),name:'文案',content:'新的一句文案',font:'serif',size:14,color:'#7e9477',visible:true,scope:'both',position:'below',width:'auto',...validateCaptionStyle({}),...overrides};}
+export function newCaption(overrides={}){return {id:uniqueId(),name:'文案',content:'新的一句文案',font:'serif',size:14,color:'#7e9477',visible:true,scope:'both',position:'below',width:'auto',...validateCaptionStyle({}),...overrides};}
 export function validateCaptions(raw,{large=false,header=false}={}){
  if(!Array.isArray(raw)||raw.length>CAPTION_LIMIT)throw Error('文案列表无效或超过20条');const ids=new Set();
  return raw.map(c=>{

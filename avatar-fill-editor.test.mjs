@@ -1,3 +1,4 @@
+import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
@@ -8,7 +9,7 @@ test('workbench fill and gradient save, restore, undo and keep independent norma
  const scheme=await editorStorage(null);seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme);
- sh.querySelector('.launcher').click();sh.querySelector('[data-region="header"]').click();sh.querySelector('[data-kind="avatar"]').click();edit('设计对象','separate');
+ sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="avatar"]').click();edit('设计对象','separate');
  const before=(await save());assert.equal(before.photos.ai.enabled,false);edit('铺满卡片顶部','true');edit('头像取景水平位置 数值',25);edit('渐变遮罩','true');edit('渐变强度 数值',.7);
  let c=(await save());assert.equal(c.version,10);assert.equal(c.avatarFill.ai.enabled,true);assert.equal(c.avatarFill.ai.x,25);assert.equal(c.avatarFill.ai.gradient,true);assert.equal(c.avatarFill.ai.opacity,.7);assert.equal(c.avatarFill.user.enabled,false);assert.deepEqual(c.photos,before.photos);
  assert.match([...document.querySelectorAll('style')].map(n=>n.textContent).join('\n'),/object-position:25% 50%/);

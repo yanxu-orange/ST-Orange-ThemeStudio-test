@@ -24,6 +24,6 @@ for(const region of ['header','footer'])test(`${region} captions use a native se
 test('image objects keep buttons and pressed state; native region is renamed',()=>{
  const f=fixture();f.bench.choose('header','image','image-b');f.bench.render({objects:[['image-a','图片一'],['image-b','图片二']],title:'图片二'});
  assert.equal(f.shadow.querySelector('[aria-label="选择文案"]'),null);assert.equal(f.shadow.querySelector('[data-object="image-b"]').getAttribute('aria-pressed'),'true');f.shadow.querySelector('[data-object="image-a"]').click();assert.equal(f.bench.ui.object,'image-a');
- assert.equal(REGION_NAMES.native,'消息卡片 / 其余设置');assert.equal(f.shadow.querySelector('[data-region="native"]').textContent,'其余设置');
+ assert.equal(REGION_NAMES.native,'消息控件');assert.equal(f.shadow.querySelector('#region-select [value=native]').textContent,'消息控件');
  assert.match(f.shadow.querySelector('style').textContent,/\.object-list\[data-caption-selector=true\]\{[^}]*max-height:none;overflow:visible/);
 });

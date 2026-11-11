@@ -1,3 +1,4 @@
+import {uniqueId} from './unique-id.mjs';
 import {validEmbeddedImage, validImageUrl} from './image-sources.mjs';
 
 export const ASSET_LIBRARY_DB = 'orange.theme-lab.mobile-test.assets.v1';
@@ -17,7 +18,7 @@ function storageError(error) {
   return new AssetLibraryError('STORAGE', '素材库读写失败，请重试。图片不会自动放入当前方案。', error);
 }
 
-export function createAssetRecord({name = '我的图片', image} = {}, {id = globalThis.crypto.randomUUID(), createdAt = Date.now()} = {}) {
+export function createAssetRecord({name = '我的图片', image} = {}, {id = uniqueId(), createdAt = Date.now()} = {}) {
   const kind = validEmbeddedImage(image) ? 'upload' : validImageUrl(image) ? 'url' : '';
   if (!kind) throw new AssetLibraryError('INVALID_IMAGE', '素材图片格式无效，请使用 PNG、JPG、WebP、GIF 或 HTTP(S) 图片链接。');
   if (typeof name !== 'string' || !name.trim() || name.length > 80) throw new AssetLibraryError('INVALID_NAME', '素材名称需要 1 至 80 个字符。');
@@ -40,7 +41,7 @@ function readRecord(value) {
  * No fallback pretends an unsuccessful IndexedDB write was persisted.
  */
 export function createAssetLibrary({indexedDB = globalThis.indexedDB, databaseName = ASSET_LIBRARY_DB,
-  createId = () => globalThis.crypto.randomUUID(), now = () => Date.now()} = {}) {
+  createId = () => uniqueId(), now = () => Date.now()} = {}) {
   let database = null, opening = null, closed = false;
 
   function open() {

@@ -20,7 +20,7 @@ test('ordinary chat preview survives updates and reopening without state placeho
   const native=document.querySelector('#form_sheld'),before=native.outerHTML;
   const ui=createWorkbenchState(),c={font:'serif',layers:[],chromeStyle:structuredClone(CHROME_DEFAULTS)};
   c.chromeStyle.topbar.enabled=true;
-  const themeBefore=JSON.stringify(c),p=createChromePreview({document,ui});
+  ui.mobileView='preview';const themeBefore=JSON.stringify(c),p=createChromePreview({document,ui});
   for(let opening=0;opening<2;opening++){
    for(let update=0;update<2;update++){
     p.update(c);

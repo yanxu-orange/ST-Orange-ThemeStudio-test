@@ -1,3 +1,4 @@
+import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,7 +24,7 @@ test('library deletion requires selection and confirmation, commits before refre
   shadow.querySelector('.launcher').click();await show();
   assert.equal(confirmations,0);assert.equal((await library.list()).length,2,'opening the library never deletes records');
   remove().click();await tick();assert.ok(card());assert.equal((await library.list()).length,2,'cancel keeps the selected source');
-  card().querySelector('[aria-label^="使用素材："]').click();const placed=(await save());assert.equal(placed.layers.at(-1).image,record.image);
+  navigateRegion(shadow,'header');shadow.querySelector('[data-kind=image]').click();shadow.querySelector('#add-current-image').click();await tick();card().querySelector('[aria-label^="使用素材："]').click();const placed=(await save());assert.equal(placed.layers.at(-1).image,record.image);
   await show();confirmed=true;controls.failNext='AbortError';remove().click();await tick();
   assert.match(shadow.querySelector('[data-asset-library-status]').textContent,/未删除/);assert.ok(card());assert.equal(remove().disabled,false);assert.equal((await library.get(record.id)).image,record.image);assert.deepEqual((await save()),placed);
   controls.holdCommit=true;remove().click();const pendingButton=remove();pendingButton.click();await tick();

@@ -1,3 +1,4 @@
+import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -56,7 +57,7 @@ test('large schemes save, reload and roundtrip in IndexedDB; failed replacement 
 test('pending save commits its snapshot once and never marks newer edits or imports saved',async()=>{
   const {factory,controls,databases}=indexedDatabase(),storage=createSchemeStorage({indexedDB:factory}),{document,window}=mount(factory);await import('./index.js?save-races');
   const shadow=document.querySelector('#orange-theme-lab').shadowRoot;shadow.querySelector('.launcher').click();await settleNativeCanvas();const initial=await saveEditorScheme(shadow,storage);
-  shadow.querySelector('[data-region="header"]').click();shadow.querySelector('[data-kind="region"]').click();
+  navigateRegion(shadow,'header');shadow.querySelector('[data-kind="region"]').click();
   controls.holdCommit=true;shadow.querySelector('#save').click();await tick();assert.equal(shadow.querySelector('#save').disabled,true);assert.equal(shadow.querySelector('#save-state').textContent,'正在保存…');
   const pendingCommit=controls.finish;shadow.querySelector('#save').click();await tick();assert.equal(controls.finish,pendingCommit,'repeated clicks cannot start a second write');
   const field=shadow.querySelector('[aria-label="头像区总高度 数值"]');field.value='350';field.dispatchEvent(new window.Event('input'));field.dispatchEvent(new window.Event('change'));

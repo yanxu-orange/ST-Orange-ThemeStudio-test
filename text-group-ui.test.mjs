@@ -1,3 +1,4 @@
+import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +14,7 @@ test('individual text editor hides batch controls but preserves legacy offsets t
  const scheme=await editorStorage(raw);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const save=()=>saveEditorScheme(sh,scheme);
  const retained=c=>{assert.equal(c.textAlign,'end');assert.equal(c.textInset,13);assert.equal(c.textTop,63);};
- const region=()=>{sh.querySelector('[data-region="header"]').click();sh.querySelector('[data-kind="region"]').click();assert.ok(!sh.innerHTML.includes('文字区整体排版'));for(const label of ['文字区对齐','文字区两侧内缩','文字区上方留白'])assert.equal(sh.querySelector(`[aria-label="${label}"]`),null);};
+ const region=()=>{navigateRegion(sh,'header');sh.querySelector('[data-kind="region"]').click();assert.ok(!sh.innerHTML.includes('文字区整体排版'));for(const label of ['文字区对齐','文字区两侧内缩','文字区上方留白'])assert.equal(sh.querySelector(`[aria-label="${label}"]`),null);};
  sh.querySelector('.launcher').click();assert.equal((await scheme.load()),raw);region();const before=(await save());retained(before);
  const point=itemPoint(before,before.textItems.name,300);assert.deepEqual(point,{x:300*(before.textItems.name.x+13)/100,y:before.textItems.name.y+63});
  assert.match(sceneTextRules(before,{name:'.name'}),/text-align:end!important/);
