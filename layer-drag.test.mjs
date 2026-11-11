@@ -19,3 +19,12 @@ test('only selected fixture decoration drags; release commits once and cancellat
  state.object='other';drag.refresh();assert.equal(node.style.touchAction,'auto');event('pointerdown',node);event('pointermove',node,70,80);event('pointerup',node);assert.equal(commits.length,1);
  state.region='body';drag.refresh();assert.equal(node.style.pointerEvents,'auto');assert.equal(node.style.touchAction,'auto');
 });
+test('removed native message subtrees release editor markers before host reuse',async()=>{
+ const {document,window}=parseHTML('<html><body><div id="chat"><div class="mes"><span class="name_text" style="color:red">Native</span></div></div></body></html>');
+ const name=document.querySelector('.name_text'),msg=name.parentNode,state={active:true,page:'chat',mode:'edit'},item={x:0,y:0};
+ const drag=createLayerDrag({document,selector:'.mes .name_text',scopeSelector:'.mes',getState:()=>state,getTextTarget:()=>({item,selected:true}),onCommit:()=>{}});
+ drag.refresh();assert.equal(name.dataset.previewDraggable,'true');msg.remove();await new Promise(r=>setImmediate(r));
+ assert.equal(name.hasAttribute('data-preview-draggable'),false);assert.equal(name.style.color,'red');assert.ok(!name.style.getPropertyValue('touch-action'));
+ name.style.touchAction='pan-x';drag.reset();assert.equal(name.style.touchAction,'pan-x','released nodes are no longer restored by closing the editor');
+ document.querySelector('#chat').append(msg);drag.refresh();assert.equal(name.style.touchAction,'none');drag.reset();assert.equal(name.style.touchAction,'pan-x');
+});

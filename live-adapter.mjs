@@ -90,8 +90,50 @@ ${commonStyleRules(config,{family:families.common||''})}
 `;
 }
 
+function normalizeLiveConfig(config){
+  const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
+  Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle});
+  next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
+}
+// Drafts already normalized by the editor need object isolation, not another
+// structuredClone of every embedded image string. Strings are immutable/shared.
+function copyDraft(value){
+  if(!value||typeof value!=='object')return value;
+  if(Array.isArray(value))return value.map(copyDraft);
+  return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,copyDraft(item)]));
+}
+const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground']);
+const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
+const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
+function cssOnlyField(path,key){
+  if(!path.length)return cssRootFields.has(key);
+  const [root,group,part]=path;
+  if(path.length===2){
+    if(['captions','footerCaptions','nativeStyle','avatarFill'].includes(root))return key==='color';
+    if(root==='photos')return key==='frameColor';
+    if(root==='chromeStyle')return cssChromeFields.has(key);
+    if(root==='commonStyle')return cssCommonFields.has(key);
+    if(root==='reasoningStyle')return key==='color';
+  }
+  if(root==='reasoningStyle'&&path.length===3){
+    if(group==='entry'&&part==='background')return key==='color'||key==='opacity';
+    if(group==='body'&&part==='container')return key==='color'||key==='borderColor';
+  }
+  return false;
+}
+// Compare scalar leaves directly. In particular, never serialize/base64-copy
+// image sources to detect a change. No global source cache retains old images.
+function sameLayout(a,b,path=[]){
+  if(a===b)return true;
+  if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;
+  const keys=Object.keys(a).filter(key=>!cssOnlyField(path,key));
+  if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
+  return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
+}
+function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config)};}
+
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
-export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput}={}) {
+export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {
   const imageDisplay=createImageDisplay({document,selector:'img[data-layer-id][data-otl-live-owned]'});
   const chrome=createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize});
   const win=document.defaultView;
@@ -100,7 +142,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   const Observer=Observe||win?.MutationObserver;
   const ResizeObs=Resize||win?.ResizeObserver;
   const scrollbarVisibility=createScrollbarVisibility({document});
-  let snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
+  let pendingConfig=null,snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
   const observedSizes=new Map(),dirtyMessages=new Set();
   let chat=null,messages=[],latest=null,fullPending=false,structurePending=false;
@@ -137,8 +179,11 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const attached=r=>r.node===msg||msg.contains(r.node);
     for(const r of state.attributes)if(!attached(r)&&r.node.getAttribute(r.key)===r.last){if(r.old===null)r.node.removeAttribute(r.key);else r.node.setAttribute(r.key,r.old);}
     state.attributes=state.attributes.filter(attached);
+    // Hosts can cache and reuse replaced native nodes. Restore our variables
+    // before forgetting them, preserving any concurrent host writes.
+    for(const r of state.variables)if(!attached(r)&&r.node.style.getPropertyValue(r.key)===r.last){if(r.old)r.node.style.setProperty(r.key,r.old,r.priority);else r.node.style.removeProperty(r.key);}
     state.variables=state.variables.filter(attached);
-    for(const node of state.styleOrigins.keys())if(node!==msg&&!msg.contains(node))state.styleOrigins.delete(node);
+    for(const [node,existed]of state.styleOrigins)if(node!==msg&&!msg.contains(node)){if(!existed&&!node.getAttribute('style'))node.removeAttribute('style');state.styleOrigins.delete(node);}
     for(const node of [...state.nodes])if(!msg.contains(node)){node.remove();state.nodes.delete(node);}
   }
   function artContainer(state,parent,role){
@@ -154,12 +199,17 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const c=snapshot,user=msg.getAttribute('is_user')==='true',p=c.photos[user?'user':'ai'],names=name.parentElement;
     if(state.meta&&state.meta!==names){const hidden=state.nativeHidden;unobserveMessage(msg);clearState(state);state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden:hidden};states.set(msg,state);}state.meta=names;
     attribute(state,msg,FLAG,'');attribute(state,msg,'data-otl-live-layout',c.layout);attribute(state,names,'data-otl-live-meta','');
+    const captionIds=new Set(c.captions.map(cap=>cap.id));
+    for(const node of [...state.nodes])if(node.classList.contains('otl-live-caption')&&!captionIds.has(node.dataset.captionId)){node.remove();state.nodes.delete(node);}
     for(const cap of c.captions){
       let parent=names;
       if(cap.width!=='auto'){let slot=[...state.nodes].find(n=>n.className==='otl-live-caption-slot'&&n.dataset.captionId===cap.id&&n.parentNode===names);if(!slot){slot=owned(state,'div','otl-live-caption-slot',names);slot.dataset.captionId=cap.id;}parent=slot;}
-      let node=[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id&&n.parentNode===parent);if(!node){node=owned(state,'div','otl-live-caption',parent);node.dataset.captionId=cap.id;}
+      let node=[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id);
+      if(!node){node=owned(state,'div','otl-live-caption',parent);node.dataset.captionId=cap.id;}
+      else if(node.parentNode!==parent)parent.append(node);
       if(node.textContent!==cap.content)node.textContent=cap.content;node.hidden=!cap.visible||!captionMatchesScope(cap,user);
     }
+    for(const node of [...state.nodes])if(node.classList.contains('otl-live-caption-slot')&&!node.querySelector('.otl-live-caption')){node.remove();state.nodes.delete(node);}
     const details=block.querySelector('.mes_reasoning_details'),reasonBody=details?.querySelector('.mes_reasoning'),nativeTitle=details?.querySelector('.mes_reasoning_header_title');
     const hasReason=details&&details.dataset.state!=='none'&&reasonBody&&(reasonBody.textContent.trim()||reasonBody.querySelector('img:not([data-otl-live-owned]),video,audio,pre,textarea'));
     const reasonEntry=hasReason?details.querySelector('.mes_reasoning_header'):null,reasoning=hasReason?nativeTitle:null;
@@ -217,12 +267,21 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function flush(){
     if(!snapshot)return 0;
+    let chromeChanged=false;
+    if(pendingConfig){
+      const next=pendingConfig;pendingConfig=null;
+      const needsLayout=!sameLayout(snapshot,next);
+      snapshot=next;scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
+      const css=styleText(snapshot,fontSession?.families()||{},currentInterface);if(style.textContent!==css)style.textContent=css;
+      chrome.update(snapshot,fontSession?.families()||{});chromeChanged=true;
+      if(needsLayout)for(const msg of messages)dirtyMessages.add(msg);
+    }
     const full=fullPending;
     if(full||structurePending)syncMessages();
     fullPending=false;structurePending=false;
     if(full){
       const nextInterface=interfaceFont(document);if(currentInterface!==nextInterface){currentInterface=nextInterface;if(style)style.textContent=styleText(snapshot,fontSession?.families()||{},currentInterface);}
-      chrome.update(snapshot,fontSession?.families()||{});
+      chrome.update(snapshot,fontSession?.families()||{});chromeChanged=true;
       for(const msg of messages)dirtyMessages.add(msg);
     }
     const pending=[...dirtyMessages].filter(isMessage);dirtyMessages.clear();
@@ -232,6 +291,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     runLayoutPass(prepared.map(({msg,state})=>nativeLayout(msg,snapshot,nativeOptions(msg,state,msg===latest))));
     runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
     for(const {msg}of prepared)observeMessage(msg);
+    onRender?.({messages:states.size,updated:prepared.length,nodes:prepared.map(({msg})=>msg),chromeChanged});
     return prepared.length;
   }
   function reconcile(){fullPending=true;return flush();}
@@ -272,7 +332,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function stop(){
     if(!snapshot)return;
-    imageDisplay.clear();scrollbarVisibility.stop();snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
+    imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
     if(rootOriginal===null)document.documentElement.removeAttribute('data-orange-live');else document.documentElement.setAttribute('data-orange-live',rootOriginal);
@@ -280,13 +340,13 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function start(config){
     if(!document.querySelector('#chat'))throw Error('酒馆聊天区域尚未就绪');
-    const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle});next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);stop();snapshot=next;
+    const next=normalizeLiveConfig(config);stop();snapshot=next;
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
-      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update({body:{fontLink:snapshot.bodyFontLink},...textEntries(snapshot),...reasoningFontEntries(snapshot),...footerTextEntries(snapshot),...chromeFontEntries(snapshot),...commonFontEntries(snapshot)});stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
+      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;style.textContent=styleText(snapshot,fontSession.families(),currentInterface);schedule();}});fontSession.update(fontEntries(snapshot));stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
       if(ResizeObs)resizer=new ResizeObs(resized);
       const token=++session;const count=reconcile();imageDisplay.watch(document.querySelector('#chat'));
       if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['mesid','is_user','is_system','data-orange-lab-fixture','class','src','data-duration','data-state','open','style','hidden']});}
@@ -294,6 +354,12 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       return {messages:count};
     }catch(error){stop();throw error;}
   }
-  return {start,stop,reconcile,get active(){return !!snapshot;},get messageCount(){return states.size;}};
+  // validated is for complete, normalized editor drafts only. External/imported
+  // schemes use the default validation path; an inactive adapter always validates.
+  function update(config,{validated=false}={}){
+    if(!snapshot)return start(config);
+    pendingConfig=validated?copyDraft(config):normalizeLiveConfig(config);requestFlush();return {messages:states.size};
+  }
+  return {start,update,stop,reconcile,fontStatus:key=>fontSession?.status(key)||'idle',retryFonts:()=>fontSession?.retry(),get active(){return !!snapshot;},get messageCount(){return states.size;}};
 }
 

@@ -1,4 +1,4 @@
-// Draft-only color editing. The caller owns configuration and commits once.
+// Draft color editing with optional transient previews. The caller owns rollback and commits once.
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
 export const validHex=value=>typeof value==='string'&&/^#[\da-f]{6}$/i.test(value);
 export function hexToHsv(hex){
@@ -25,9 +25,9 @@ export function createColorPicker({document,root}){
  @media(max-width:700px){.otl-color-dialog{max-height:calc(var(--picker-height,100dvh) - 24px);padding:16px}.otl-color-sv{aspect-ratio:1.7}}
  `;root.append(style);
  function cancel(){current?.finish(false);}
- function open({value,label='颜色',trigger,onCommit,isValid=()=>true}){
+ function open({value,label='颜色',trigger,onCommit,onPreview,onCancel,isValid=()=>true}){
   cancel();if(!validHex(value)||!isValid())return;
-  let hsv=hexToHsv(value),draft=value.toLowerCase(),done=false,pointer=null;const dialog=make('dialog','otl-color-dialog');dialog.setAttribute('aria-label',label+'调色盘');
+  let hsv=hexToHsv(value),draft=value.toLowerCase(),lastPreview=value.toLowerCase(),done=false,pointer=null;const dialog=make('dialog','otl-color-dialog');dialog.setAttribute('aria-label',label+'调色盘');
   const title=make('h3','',label),sv=make('div','otl-color-sv'),dot=make('span','otl-color-dot');sv.tabIndex=0;sv.setAttribute('role','group');sv.setAttribute('aria-label','明暗与饱和度，左右调整饱和度，上下调整亮度');sv.append(dot);
   const hue=make('input','otl-color-hue');hue.type='range';hue.min='0';hue.max='360';hue.step='1';hue.setAttribute('aria-label','色相');
   const fine=make('div','otl-color-fine');
@@ -35,12 +35,12 @@ export function createColorPicker({document,root}){
   const saturation=fineControl('饱和度'),brightness=fineControl('明度');
   const values=make('div','otl-color-values'),original=make('div','otl-color-compare','原色'),oldChip=make('span','otl-color-chip'),next=make('div','otl-color-compare','新色'),newChip=make('span','otl-color-chip'),hexLabel=make('label','','HEX'),hex=make('input');hex.type='text';hex.maxLength=7;hex.spellcheck=false;hex.setAttribute('aria-label','调色盘 HEX');hexLabel.append(hex);oldChip.style.background=value;original.append(oldChip);next.append(newChip);values.append(original,next,hexLabel);
   const error=make('div','otl-color-error');error.setAttribute('role','status');const actions=make('div','otl-color-actions'),no=make('button','','取消'),yes=make('button','confirm','确认');no.type=yes.type='button';actions.append(no,yes);
-  const help=make('p','otl-color-help','点色块选色，用饱和度和明度滑条精细调整；确认后应用。');dialog.append(title,sv,hue,fine,values,error,help,actions);
+  const help=make('p','otl-color-help',onPreview?'调整颜色会实时预览；确认后保留，取消恢复原色。':'点色块选色，用饱和度和明度滑条精细调整；确认后应用。');dialog.append(title,sv,hue,fine,values,error,help,actions);
   const viewport=document.defaultView?.visualViewport;
   const resize=()=>{dialog.style.setProperty('--picker-height',(viewport?.height||document.defaultView?.innerHeight||800)+'px');};
-  function finish(commit){if(done)return;done=true;const accepted=commit&&isValid()&&validHex(hex.value);const result=draft;pointer=null;viewport?.removeEventListener('resize',resize);try{dialog.close?.();}catch{}dialog.remove();current=null;if(trigger?.isConnected)trigger.focus?.();if(accepted&&result.toLowerCase()!==value.toLowerCase())onCommit(result);}
+  function finish(commit){if(done)return;done=true;const accepted=commit&&isValid()&&validHex(hex.value);const result=draft;pointer=null;viewport?.removeEventListener('resize',resize);try{dialog.close?.();}catch{}dialog.remove();current=null;if(trigger?.isConnected)trigger.focus?.();if(accepted){if(result.toLowerCase()!==value.toLowerCase())onCommit(result);}else onCancel?.(value);}
   current={finish};
-  function render(){draft=hsvToHex(hsv);hex.value=draft;hue.value=String(hsv.h);for(const [control,value]of [[saturation,hsv.s],[brightness,hsv.v]]){control.input.value=String(Math.round(value*100));control.output.textContent=Math.round(value*100)+'%';control.input.setAttribute('aria-valuetext',Math.round(value*100)+'%');}sv.style.setProperty('--picker-hue',hsvToHex({h:hsv.h,s:1,v:1}));dot.style.left=hsv.s*100+'%';dot.style.top=(1-hsv.v)*100+'%';newChip.style.background=draft;sv.setAttribute('aria-description',`饱和度 ${Math.round(hsv.s*100)}%，亮度 ${Math.round(hsv.v*100)}%`);hex.setAttribute('aria-invalid','false');error.textContent='';yes.disabled=false;}
+  function render(preview=true){if(done)return;if(preview&&!isValid()){finish(false);return;}draft=hsvToHex(hsv);hex.value=draft;hue.value=String(hsv.h);for(const [control,value]of [[saturation,hsv.s],[brightness,hsv.v]]){control.input.value=String(Math.round(value*100));control.output.textContent=Math.round(value*100)+'%';control.input.setAttribute('aria-valuetext',Math.round(value*100)+'%');}sv.style.setProperty('--picker-hue',hsvToHex({h:hsv.h,s:1,v:1}));dot.style.left=hsv.s*100+'%';dot.style.top=(1-hsv.v)*100+'%';newChip.style.background=draft;sv.setAttribute('aria-description',`饱和度 ${Math.round(hsv.s*100)}%，亮度 ${Math.round(hsv.v*100)}%`);hex.setAttribute('aria-invalid','false');error.textContent='';yes.disabled=false;if(preview&&draft!==lastPreview){lastPreview=draft;onPreview?.(draft);}}
   function point(event){const box=sv.getBoundingClientRect();if(!box.width||!box.height)return;hsv.s=clamp((event.clientX-box.left)/box.width);hsv.v=1-clamp((event.clientY-box.top)/box.height);render();}
   sv.addEventListener('pointerdown',event=>{if(event.button!==undefined&&event.button!==0||event.isPrimary===false||pointer!==null)return;event.preventDefault();pointer=event.pointerId;sv.focus?.();try{sv.setPointerCapture?.(pointer);}catch{}point(event);});
   sv.addEventListener('pointermove',event=>{if(pointer!==null&&event.pointerId===pointer){event.preventDefault();point(event);}});
@@ -52,7 +52,7 @@ export function createColorPicker({document,root}){
   no.addEventListener('click',()=>finish(false));yes.addEventListener('click',()=>finish(true));dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});dialog.addEventListener('close',()=>finish(false));
   dialog.addEventListener('keyup',event=>event.stopPropagation());
   dialog.addEventListener('keydown',event=>{event.stopPropagation();if(event.key==='Escape'){event.preventDefault();finish(false);}else if(event.key==='Tab'){const nodes=[sv,hue,saturation.input,brightness.input,hex,no,...(yes.disabled?[]:[yes])],at=nodes.indexOf(root.activeElement||document.activeElement);if(event.shiftKey&&(at<=0)){event.preventDefault();nodes.at(-1).focus();}else if(!event.shiftKey&&(at===nodes.length-1)){event.preventDefault();sv.focus();}}});
-  root.append(dialog);render();resize();viewport?.addEventListener('resize',resize);try{if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');}catch{finish(false);return null;}sv.focus?.();return {cancel:()=>finish(false)};
+  root.append(dialog);render(false);resize();viewport?.addEventListener('resize',resize);try{if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');}catch{finish(false);return null;}sv.focus?.();return {cancel:()=>finish(false)};
  }
  return {open,cancel};
 }

@@ -1,3 +1,4 @@
+import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
@@ -8,8 +9,8 @@ import {ICONS} from './icon-catalog.mjs';
 test('material categories, icon targets, tint/gradient/size, undo and scheme round trips are independent of the icon library',async()=>{
  const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
  const descriptor=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:descriptor.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
- const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
- const store=await editorStorage();await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
+ const store=await editorStorage();seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const tick=()=>new Promise(r=>setImmediate(r)),save=()=>saveEditorScheme(sh,store),go=r=>sh.querySelector(`[data-region="${r}"]`).click(),set=(label,value)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(value);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));},button=text=>{const n=[...sh.querySelectorAll('button')].find(b=>b.textContent===text);assert.ok(n,text);n.click();};
  sh.querySelector('.launcher').click();const initial=await save();sh.querySelector('#mode-library').click();assert.deepEqual([...sh.querySelectorAll('[data-material-category]')].map(n=>n.textContent),['图片','图形','图标','字体']);
  for(const kind of ['shapes','fonts','icons','images'])sh.querySelector(`[data-material-category=${kind}]`).click();assert.deepEqual(await save(),initial,'browsing never changes the scheme');
@@ -17,7 +18,7 @@ test('material categories, icon targets, tint/gradient/size, undo and scheme rou
  go('topbar');set('启用顶栏美化','true');sh.querySelector('[data-kind=icons]').click();set('按钮图形','icon');const targetId=sh.querySelector('.object-list [aria-pressed=true]').dataset.object;sh.querySelector('#chrome-icon-pick').click();assert.equal(sh.querySelectorAll('.icon-library-use').length,31);button('取消选图');assert.equal((await save()).chromeStyle.topbar.icons[targetId].icon,'');
  sh.querySelector('#chrome-icon-pick').click();sh.querySelector(`[aria-label="使用图标：${ICONS['kitty-top-presets'].name}"]`).click();let c=await save();assert.equal(c.layers.length,initial.layers.length);assert.equal(c.chromeStyle.topbar.icons[targetId].icon,'kitty-top-presets');assert.equal(c.chromeStyle.topbar.icons[targetId].tint,true);
  set('图标颜色 HEX','#ab1234');set('图标填色方式','gradient');set('图标第二颜色 HEX','#1234ab');set('图标渐变方向 数值',45);set('图标大小来源','custom');set('图标单独大小 数值',32);
- const preview=document.querySelector(`.otl-page-topbar [data-chrome-pick="${targetId}"] .otl-chrome-icon`);assert.match(preview.style.background,/linear-gradient\(45deg/);assert.equal(preview.style.width,'32px');
+ await settleNativeCanvas();const preview=document.querySelector(`#${targetId} .otl-chrome-icon`);assert.match(preview.style.background,/linear-gradient\(45deg/);assert.equal(preview.style.width,'32px');
  set('图标整体染色','false');assert.equal((await save()).chromeStyle.topbar.icons[targetId].tint,false);sh.querySelector('#undo').click();assert.equal((await save()).chromeStyle.topbar.icons[targetId].tint,true);
  go('native');set('更多显示方式','icon');sh.querySelector('#native-more-pick').click();sh.querySelector(`[aria-label="使用图标：${ICONS['kitty-more'].name}"]`).click();set('更多图标颜色 HEX','#224466');set('更多图标大小 数值',38);c=await save();assert.equal(c.nativeStyle.actions.more.mode,'icon');assert.equal(c.nativeStyle.actions.more.icon,'kitty-more');assert.equal(c.nativeStyle.actions.more.color,'#224466');assert.equal(c.nativeStyle.actions.more.imageSize,38);
  const library=createIconLibrary();const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9/8AAAAASUVORK5CYII=';const record=await library.add({name:'透明图标',image});await library.add({name:'未使用图标',image:'data:image/png;base64,UNUSED'});
