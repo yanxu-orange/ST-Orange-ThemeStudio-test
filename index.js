@@ -247,7 +247,7 @@ await (async () => {
 
     propertyHeading(container,'显示方式');editorControl(container,field('铺满卡片顶部','enabled','select',{options:[['false','普通显示'],['true','铺满卡片顶部']]}),fill,()=>renderFields());
     if(fill.enabled){
-      editorControl(container,field('渐变遮罩','gradient','select',{options:[['false','关闭'],['true','开启']]}),fill,()=>renderFields());if(fill.gradient)for(const f of [field('渐变颜色','color','color'),field('渐变强度','opacity','range',{min:0,max:1,step:.05}),field('渐变开始位置','start','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
+      editorControl(container,field('下缘渐隐','gradient','select',{options:[['false','关闭'],['true','开启']]}),fill,()=>renderFields());if(fill.gradient)for(const f of [field('过渡颜色','color','color'),field('渐隐强度','opacity','range',{min:0,max:1,step:.05}),field('渐隐开始位置','start','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
     }else{
       propertyHeading(container,'形状与尺寸');
       for(const f of [field('头像比例','ratio','select',{options:[['1','方形 1:1'],['0.8','竖幅 4:5'],['0.75','竖幅 3:4'],['1.3333333333333333','横幅 4:3']]}),field('头像大小','size','range',{min:40,max:300,unit:'px'}),field('头像圆角','radius','range',{min:0,max:150,unit:'px'})])editorControl(container,f,p);
@@ -836,4 +836,3 @@ await (async () => {
   shadow.querySelector('#import').addEventListener('click',()=>shadow.querySelector('#import-file').click());
   shadow.querySelector('#import-file').addEventListener('change',async event=>{const input=event.target,file=input.files[0];if(!file)return;invalidateEditing();const epoch=editEpoch,originalConfig=config;try{const contents=await file.text();if(!active||epoch!==editEpoch||config!==originalConfig)return;const next=validate(JSON.parse(contents));invalidateEditing();remember();config=next;selectedLayerId=config.layers[0]?.id;apply();renderFields();notify('已导入预览，点击保存后记住。');}catch(error){notify('未导入：'+error.message);}finally{input.value='';}});
 })();
-

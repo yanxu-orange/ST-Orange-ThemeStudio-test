@@ -20,7 +20,9 @@ export function fillSettings(c,user=false){return c.avatarFill?.[user?'user':'ai
 // The exact same crop and overlay declarations are used in preview and live.
 export function fillImageRules(image,overlay,v,radius){
   const color=v.color+Math.round(v.opacity*255).toString(16).padStart(2,'0');
-  return `${image}{object-fit:cover!important;object-position:${v.x}% ${v.y}%!important;border:0!important;outline:0!important;box-shadow:none!important;transform:none!important;border-radius:${radius}px ${radius}px 0 0!important;}
+  const fade=v.gradient?`linear-gradient(to bottom,#000 ${v.start}%,rgb(0 0 0 / ${1-v.opacity}) 100%)`:'none';
+  return `${overlay}{mask-image:${fade}!important;}
+${image}{object-fit:cover!important;object-position:${v.x}% ${v.y}%!important;border:0!important;outline:0!important;box-shadow:none!important;transform:none!important;border-radius:${radius}px ${radius}px 0 0!important;}
 ${overlay}::after{content:${v.gradient?'""':'none'}!important;position:absolute!important;inset:0!important;pointer-events:none!important;z-index:3!important;border-radius:${radius}px ${radius}px 0 0!important;background:linear-gradient(to bottom,transparent ${v.start}%,${color} 100%)!important;}`;
 }
 export function avatarFillRules(q,c,preview=false){

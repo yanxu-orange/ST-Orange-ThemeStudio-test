@@ -43,6 +43,8 @@ export function reasoningLabel(content,duration){return content+(duration&&durat
 // Both surfaces use a block containing frame: auto width means fill the available
 // header block, not intrinsic flex-item width inherited from native ST classes.
 export function reasoningShellRules(root){return `${root} .mes_reasoning_summary{display:flex!important;cursor:pointer;box-sizing:border-box!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;gap:8px;flex-wrap:nowrap!important}
+${root} .mes_reasoning_actions .mes_button{color:inherit!important;filter:none!important;text-shadow:none!important;}
+${root} .mes_reasoning_actions .mes_button:not(:disabled):not([aria-disabled=true]):not(.disabled){opacity:1!important;}
 ${root} .mes_reasoning_header_block{display:block!important;flex:1;min-width:0}
 ${root} .mes_reasoning_header_title[data-otl-live-reasoning]{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important}`;}
 export function reasoningRules(entry,body,bg,c,families={},interfaceFamily='sans-serif'){
@@ -57,6 +59,8 @@ ${entry} .mes_reasoning_arrow:is(.mes_reasoning_details:not([open]) *){transform
 ${entry} :is(.otl-live-reasoning,.otl-reasoning-title){transform:translate(${e.labelPosition.x}px,${e.labelPosition.y}px)!important;min-width:0;${typography(e,'entry')}white-space:pre-wrap;overflow-wrap:anywhere}
 ${bg}{display:block!important;position:absolute!important;inset:0!important;z-index:0!important;pointer-events:none!important;border-radius:inherit!important;background-color:${a.mode==='color'?a.color:'transparent'}!important;background-image:${image}!important;background-size:${a.fit}!important;background-position:${a.x}% ${a.y}%!important;background-repeat:no-repeat!important;opacity:${a.opacity}!important;}
 ${body}{position:relative!important;box-sizing:border-box!important;min-width:0!important;margin:8px 0!important;padding:${t.paddingY}px ${t.paddingX}px!important;border:${t.borderWidth}px ${t.borderStyle} ${t.borderColor}!important;border-radius:${t.radius}px!important;background:${t.background==='color'?t.color:'transparent'}!important;${typography(b,'body')}overflow-wrap:anywhere;overflow:visible!important;}
+${body} blockquote{border-color:${c.accent}!important;background:color-mix(in srgb,${c.accent} 8%,transparent)!important;}
+${body} :is(em,i,q,u,strong,b,blockquote){color:inherit!important;}
 ${body} > p{font-family:inherit!important;font-size:inherit!important;line-height:inherit!important;color:inherit!important;}`;
 }
 export function watchInterfaceFont(document,onChange,{fontEvents=true}={}){
@@ -67,4 +71,3 @@ export function watchInterfaceFont(document,onChange,{fontEvents=true}={}){
  win?.addEventListener?.('resize',check);if(fontEvents){document.fonts?.addEventListener?.('loadingdone',check);document.fonts?.ready?.then?.(check,()=>{});}
  return ()=>{active=false;observer?.disconnect();win?.removeEventListener?.('resize',check);document.fonts?.removeEventListener?.('loadingdone',check);};
 }
-

@@ -1,3 +1,4 @@
+import {updateAvatarSource,releaseAvatarSource} from './avatar-source.mjs';
 import {normalizePageHeaders,createPageHeaderAdapter} from './page-headers.mjs';
 import {snapshotDraft} from './draft-snapshot.mjs';
 import {normalizeCommonConfig,commonStyleRules,commonFontEntries} from './common-style.mjs';
@@ -45,7 +46,7 @@ function styleText(config,families={},interfaceFamily='sans-serif') {
 html[data-orange-live] #chat{${Object.entries(vars).map(([k,v])=>`--ol-${k}:${v}`).join(';')};background:var(--ol-background)!important;padding:20px 12px 90px!important;gap:18px!important}
 ${q}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;max-width:var(--ol-cardWidth)!important;min-width:0!important;height:auto!important;max-height:none!important;margin:0 auto 18px!important;padding:24px!important;background:var(--ol-surface)!important;color:var(--ol-text)!important;border:1px solid #ffffff88!important;border-radius:var(--ol-radius)!important;box-shadow:0 5px 25px #344b4210!important;backdrop-filter:blur(var(--ol-glass))!important;text-shadow:none!important;overflow:visible!important;container-type:inline-size}
 ${q} > .mes_block{position:static!important;display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;min-width:0!important;overflow:visible!important}
-${head}{position:relative!important;display:block!important;box-sizing:border-box!important;min-height:var(--ol-header-height)!important;width:100%!important;margin:0 0 14px!important;padding:0!important;border-bottom:1px solid color-mix(in srgb,var(--ol-accent) 22%,transparent)}
+${head}{position:relative!important;display:block!important;box-sizing:border-box!important;min-height:var(--ol-header-height)!important;width:100%!important;margin:0 0 14px!important;padding:0!important}
 ${meta}{position:static!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;width:auto!important;min-width:0!important;padding:0!important;z-index:auto!important;transform:none!important}
 ${settings.timeFont==='auto'?'':`${meta} > .timestamp{font-family:${settings.timeFont}!important}`}
 ${custom?`${meta}{box-sizing:border-box!important;align-items:${alignment}!important;text-align:${settings.textAlign}!important}`:''}
@@ -73,7 +74,7 @@ ${q} > :is(.swipe_left,.swipeRightBlock){z-index:5}
 ${q}[data-otl-live-avatar-hidden=true] > .mesAvatarWrapper > .avatar{display:none!important}
 ${q}[data-otl-live-avatar-hidden=true] > .mesAvatarWrapper{position:relative!important;left:auto!important;top:auto!important;width:100%!important;justify-content:flex-start!important}
 body.documentstyle ${q} > .mesAvatarWrapper,body.documentstyle ${captionHost}{display:none!important}
-body.no-blur ${q}{backdrop-filter:none!important}
+
 ${footerRules(q,config,families)}
 ${nativeRules(q,config)}
 ${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config,'live',families.body)}
@@ -176,6 +177,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function owned(state,tag,cls,parent){const node=document.createElement(tag);node.className=cls;node.setAttribute(OWN,'');state.nodes.add(node);parent.append(node);return node;}
   function clearState(state){
+    releaseAvatarSource(state.avatarSource);state.avatarSource=null;
     clearNativeIconFailures(state.attributes.filter(r=>r.key==='data-otl-native-mode').map(r=>r.node));
     for(const node of state.nodes)node.remove();
     for(const r of state.attributes)if(r.node.getAttribute(r.key)===r.last){if(r.old===null)r.node.removeAttribute(r.key);else r.node.setAttribute(r.key,r.old);}
@@ -183,6 +185,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     for(const [node,existed]of state.styleOrigins)if(!existed&&!node.getAttribute('style'))node.removeAttribute('style');
   }
   function releaseDetached(state,msg){
+    if(state.avatarSource&&!msg.contains(state.avatarSource.node)){releaseAvatarSource(state.avatarSource);state.avatarSource=null;}
     const attached=r=>r.node===msg||msg.contains(r.node);
     for(const r of state.attributes)if(!attached(r)&&r.node.getAttribute(r.key)===r.last){if(r.old===null)r.node.removeAttribute(r.key);else r.node.setAttribute(r.key,r.old);}
     state.attributes=state.attributes.filter(attached);
@@ -200,7 +203,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function* prepareMessage(msg){
     const block=msg.querySelector(':scope > .mes_block'),header=block?.querySelector(':scope > .ch_name'),photo=msg.querySelector(':scope > .mesAvatarWrapper > .avatar'),nativeImage=photo?.querySelector(':scope > img:not([data-otl-live-owned])'),name=header?.querySelector('.name_text');
-    if(!header||!photo||!nativeImage||!name)return false;
+    if(!header||!photo||!nativeImage||!name){const old=states.get(msg);if(old){releaseAvatarSource(old.avatarSource);old.avatarSource=null;}return false;}
     let state=states.get(msg);const nativeHidden=yield()=>{if(state)return state.nativeHidden;const knownHidden=document.body.classList.contains('hideChatAvatars')||document.body.classList.contains('documentstyle'),getStyle=win?.getComputedStyle;return !knownHidden&&typeof getStyle==='function'&&(getStyle.call(win,photo).display==='none'||getStyle.call(win,photo.parentElement).display==='none');};if(!state){state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden};states.set(msg,state);}
     releaseDetached(state,msg);
     const c=snapshot,user=msg.getAttribute('is_user')==='true',p=c.photos[user?'user':'ai'],names=name.parentElement;
@@ -233,6 +236,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const documentMode=document.body.classList.contains('documentstyle');
     const photoHidden=state.nativeHidden||photo.hidden||photo.parentElement.hidden||photo.style.display==='none'||photo.parentElement.style.display==='none'||documentMode||document.body.classList.contains('hideChatAvatars');
     attribute(state,msg,'data-otl-live-avatar-hidden',photoHidden?'true':'false');
+    state.avatarSource=updateAvatarSource(state.avatarSource,nativeImage,c.avatarFill[user?'user':'ai'].enabled&&!photoHidden,document.baseURI||win?.location?.href);
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
     const width=yield()=>sceneWidth(msg,c);
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden,width);
@@ -372,4 +376,3 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   return {start,update,stop,reconcile,fontStatus:key=>fontSession?.status(key)||'idle',retryFonts:()=>fontSession?.retry(),get active(){return !!snapshot;},get messageCount(){return states.size;}};
 }
-

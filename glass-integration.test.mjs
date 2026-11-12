@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fillImageRules,avatarFillRules,FILL_DEFAULT} from './avatar-fill.mjs';
+import {bodyCardRules} from './body-card.mjs';
+import {sceneFrameRules} from './text-scene.mjs';
+test('gradient fades the entire avatar including tint to its existing card surface',()=>{const css=fillImageRules('.image','.photo',{...FILL_DEFAULT,gradient:true,start:32,opacity:1},12);assert.match(css,/\.photo\{mask-image:linear-gradient\(to bottom,#000 32%,rgb\(0 0 0 \/ 0\) 100%\)/);assert.match(css,/\.photo::after/);});
+test('zero gradient strength and disabled gradient leave avatar opaque',()=>{assert.match(fillImageRules('.i','.p',{...FILL_DEFAULT,gradient:true,opacity:0},12),/rgb\(0 0 0 \/ 1\) 100%/);assert.match(fillImageRules('.i','.p',FILL_DEFAULT,12),/mask-image:none/);});
+test('ordinary avatar has no fill or mask rules',()=>assert.equal(avatarFillRules('.m',{avatarFill:{ai:FILL_DEFAULT,user:FILL_DEFAULT}}), '\n'));
+test('body semantic markup follows body color while quote boundary uses theme accent',()=>{const css=bodyCardRules('.body','.card',{accent:'#617cad'});assert.match(css,/:is\(em,i,q,u,strong,b,blockquote\)\{color:inherit/);assert.match(css,/blockquote\{border-color:#617cad/);});
+test('header geometry explicitly releases native max width',()=>assert.match(sceneFrameRules('.m','.h'),/max-width:none!important/));
+import {chromeRules,CHROME_DEFAULTS} from './chrome.mjs';
+test('custom topbar icons remove native closed-icon attenuation without altering ordinary icons',()=>{const c={chromeStyle:structuredClone(CHROME_DEFAULTS)};c.chromeStyle.topbar.enabled=true;const css=chromeRules(c);assert.match(css,/\.drawer-icon\[data-oc-image\]\{opacity:1!important;filter:none!important;text-shadow:none!important/);});
+test('fade boundary accepts full top and bottom positions',()=>{for(const start of [0,100])assert.ok(fillImageRules('.i','.p',{...FILL_DEFAULT,gradient:true,start,opacity:1},12).includes(`#000 ${start}%`));});

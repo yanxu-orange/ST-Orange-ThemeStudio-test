@@ -20,6 +20,8 @@ export function bodyCardRules(body,card,raw,surface='live',bodyFamily){
  const c=bodyCardSettings(raw),paragraphs=ordinaryParagraphSelector(body);
  return `${card}{border-color:${borderColor(c,surface)}!important;border-style:${c.cardBorderStyle}!important;border-width:${borderWidths(c).map(n=>n+'px').join(' ')}!important}
 ${body}{${bodyFamily?`font-family:${JSON.stringify(bodyFamily)}!important;`:""}box-sizing:border-box!important;width:calc(100% + 48px)!important;max-width:none!important;margin-left:-24px!important;margin-right:-24px!important;padding-left:${c.bodyPaddingLeft}px!important;padding-right:${c.bodyPaddingRight}px!important;${c.bodyWeight==='auto'?'':`font-weight:${c.bodyWeight}!important;`}}
+${body} blockquote{border-color:${raw.accent||'currentColor'}!important;background:color-mix(in srgb,${raw.accent||'currentColor'} 8%,transparent)!important;}
+${body} :is(em,i,q,u,strong,b,blockquote){color:inherit!important;}
 ${paragraphs}{margin-top:0!important;margin-bottom:${c.bodyParagraphGap}px!important;text-indent:${c.bodyIndent?'2em':'0'}!important}`;
 }
 
