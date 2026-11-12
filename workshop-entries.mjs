@@ -111,8 +111,16 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
  sync();
  // Native wand HTML is loaded asynchronously; also restore our entries after host rerenders.
  const Observer=document.defaultView?.MutationObserver;
+ const entryTargets=Object.values(targets).concat('#extensionsMenuButton').join(',');
+ const containsTarget=node=>node.nodeType===1&&(node.matches(entryTargets)||!!node.querySelector(entryTargets));
  const observer=Observer?new Observer(records=>{
-  if(records.some(record=>record.type==='childList'&&[...record.addedNodes,...record.removedNodes].some(node=>node.nodeType===1&&!node.closest?.('[data-workshop-entry-settings]')&&!node.closest?.('[data-workshop-entry]'))))sync();
+  // Only native target replacement/arrival and removal of our mounted rows need
+  // reconciliation. Chat rendering and ordinary native children do not change entries.
+  const changed=records.some(record=>record.type==='childList'&&(
+   [...record.addedNodes,...record.removedNodes].some(containsTarget)||
+   [...record.removedNodes].some(node=>node.nodeType===1&&[...entries.values()].some(({root})=>node===root||node.contains(root)))
+  ));
+  if(changed)sync();
  }):null;
  observer?.observe(document.body,{childList:true,subtree:true});
  return {

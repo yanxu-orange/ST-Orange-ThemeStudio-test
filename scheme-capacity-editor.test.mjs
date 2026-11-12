@@ -87,3 +87,33 @@ test('starting a new file import takes priority over an earlier restore retry be
   controls.holdCommit=false;finish();await tick();assert.match(shadow.querySelector('#notice').textContent,/重新读取保存方案/);
   finishFile(JSON.stringify({version:1,headerHeight:344}));await tick();assert.match(shadow.querySelector('#notice').textContent,/已导入/);assert.equal((await saveEditorScheme(shadow,storage)).headerHeight,344);shadow.querySelector('#close').click();
 });
+
+test('image-bearing undo isolates edits, replacement, deletion, branch edits and the 40-step limit',async()=>{
+ const {factory}=indexedDatabase(),storage=createSchemeStorage({indexedDB:factory}),{document,window}=mount(factory);
+ await import('./index.js?undo-snapshot-isolation');const sh=document.querySelector('#orange-theme-lab').shadowRoot;sh.querySelector('.launcher').click();await settleNativeCanvas();
+ const save=()=>saveEditorScheme(sh,storage),undo=()=>sh.querySelector('#undo').click();
+ const imageA='data:image/png;base64,'+'A'.repeat(200000),imageB='data:image/png;base64,'+'B'.repeat(200000);
+ const initial=await save();initial.layers=[newLayer('custom',{id:'undo-image',image:imageA,x:8})];delete initial.regionOrder;
+ await importFile(sh,window,new Blob([JSON.stringify(initial)]));const baseline=await save();
+ function layerFields(){navigateRegion(sh,'header');sh.querySelector('[data-kind="image"]').click();}
+ function input(label,value,finish=true){const node=sh.querySelector(`[aria-label="${label}"]`);assert.ok(node,label);node.value=String(value);node.dispatchEvent(new window.Event('input'));if(finish)node.dispatchEvent(new window.Event('change'));return node;}
+ layerFields();
+ const originalClone=globalThis.structuredClone,originalStringify=JSON.stringify;
+ try{
+  globalThis.structuredClone=(value,...args)=>{assert.ok(!value?.layers?.some(l=>l.image===imageA),'history must not structured-clone images');return originalClone(value,...args);};
+  JSON.stringify=(value,...args)=>{assert.ok(!value?.layers?.some(l=>l.image===imageA),'history must not serialize images');return originalStringify(value,...args);};
+  input('距右边距离 数值',20,false);input('距右边距离 数值',30,false);input('距右边距离 数值',40);
+ }finally{globalThis.structuredClone=originalClone;JSON.stringify=originalStringify;}
+ assert.equal((await save()).layers[0].x,40);undo();assert.deepEqual(await save(),baseline,'continuous slider edits are one history item');
+ layerFields();input('距右边距离 数值',45);const moved=await save();
+ const replaced=structuredClone(moved);replaced.layers[0].image=imageB;await importFile(sh,window,new Blob([JSON.stringify(replaced)]));layerFields();
+ [...sh.querySelectorAll('button')].find(b=>b.textContent==='移除素材').click();assert.equal((await save()).layers.length,0);
+ undo();assert.equal((await save()).layers[0].image,imageB);undo();assert.deepEqual(await save(),moved);
+ layerFields();input('距右边距离 数值',70);assert.equal((await save()).layers[0].x,70);undo();assert.deepEqual(await save(),moved);undo();assert.deepEqual(await save(),baseline,'editing after undo preserves earlier history');
+ // Import mutates nested persisted branches; each undo must restore the complete prior snapshot.
+ const nested=structuredClone(baseline);nested.photos.ai.image=imageB;nested.pageHeaders.settings.image=imageB;nested.pageHeaders.settings.enabled=true;nested.captions[0].content='new caption';nested.nativeStyle.actions.edit.source={kind:'custom',asset:'',image:imageB};
+ await importFile(sh,window,new Blob([JSON.stringify(nested)]));assert.equal((await save()).pageHeaders.settings.image,imageB);undo();assert.deepEqual(await save(),baseline);
+ navigateRegion(sh,'header');sh.querySelector('[data-kind="region"]').click();
+ for(let i=0;i<41;i++)input('头像区总高度 数值',300+i);
+ assert.equal((await save()).headerHeight,340);for(let i=0;i<40;i++)undo();assert.equal((await save()).headerHeight,300);assert.equal(sh.querySelector('#undo').disabled,true);sh.querySelector('#close').click();
+});

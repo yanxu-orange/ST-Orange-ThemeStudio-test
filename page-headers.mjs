@@ -34,21 +34,35 @@ export function createPageHeaderAdapter({document,MutationObserver:Observe,reque
  const win=document.defaultView,Observer=Observe||win?.MutationObserver;
  const raf=requestFrame||win?.requestAnimationFrame?.bind(win)||(fn=>setTimeout(fn,0)),caf=cancelFrame||win?.cancelAnimationFrame?.bind(win)||clearTimeout;
  const scroll=createPageHeaderScrollAdapter({document});
- const mounted=new Map();let config=null,observer=null,frame=null,candidates='',resize=null,scrollStyle=null;
+ const mounted=new Map(),appliedLayouts=new WeakMap();let config=null,observer=null,frame=null,candidates='',resize=null,scrollStyle=null;
+ // Read every host before writing headers: padding may change without a resize
+ // (for example, left/right padding can trade space at the same total width).
  function layout(host,node,v){
   const style=win?.getComputedStyle?.(host);
   const left=parseFloat(style?.paddingLeft)||0,right=parseFloat(style?.paddingRight)||0,top=parseFloat(style?.paddingTop)||0;
-  const width=`max(0px, calc(100% + ${left+right-v.sideGap*2}px))`;
-  node.style.width=width;node.style.maxWidth='none';node.style.marginLeft=(v.sideGap-left)+'px';node.style.marginRight=(v.sideGap-right)+'px';
-  node.style.marginTop=-top+'px';node.style.paddingTop=v.topGap+'px';
-  node.style.height=v.sizing==='fixed'?(v.height+v.topGap)+'px':'auto';
+  return [node,{width:`max(0px, calc(100% + ${left+right-v.sideGap*2}px))`,maxWidth:'none',
+   marginLeft:(v.sideGap-left)+'px',marginRight:(v.sideGap-right)+'px',marginTop:-top+'px',
+   paddingTop:v.topGap+'px',height:v.sizing==='fixed'?(v.height+v.topGap)+'px':'auto'}];
  }
- function refreshLayout(){for(const [host,node]of mounted){const v=config?.[node.getAttribute(OWN)];if(v)layout(host,node,v);}}
+ function applyLayouts(entries){
+  const measured=entries.map(([host,node,v])=>layout(host,node,v));
+  for(const [node,values]of measured){
+   // CSSOM may serialize calc()/max() differently. Compare our last requested
+   // values, not the browser's normalized spelling of these owned styles.
+   const previous=appliedLayouts.get(node);
+   for(const [key,value]of Object.entries(values))if(previous?.[key]!==value)node.style[key]=value;
+   appliedLayouts.set(node,values);
+  }
+ }
+ function refreshLayout(){
+  const entries=[];for(const [host,node]of mounted){const v=config?.[node.getAttribute(OWN)];if(v)entries.push([host,node,v]);}
+  applyLayouts(entries);
+ }
  function watchLayout(){if(resize)return;const Resize=win?.ResizeObserver;if(Resize){resize=new Resize(refreshLayout);for(const host of mounted.keys())resize.observe(host);}win?.addEventListener?.('resize',refreshLayout);}
  function remove(host){const node=mounted.get(host);if(node){resize?.unobserve(host);node.remove();mounted.delete(host);}}
  function reconcile(){
   if(!config)return;
-  const wanted=new Set();
+  const wanted=new Set(),layouts=[];
   for(const [page,v]of Object.entries(config)){
    if(!v.enabled||!v.asset&&!v.image)continue;
    const src=v.image||(resolveArtwork?.({kind:'asset',asset:v.asset,image:''})||assetUrl(v.asset));
@@ -63,13 +77,14 @@ export function createPageHeaderAdapter({document,MutationObserver:Observe,reque
     const img=node.firstElementChild;
     if(img.getAttribute('src')!==src)img.setAttribute('src',src);
     const height=v.sizing==='fixed'?v.height+'px':'auto';
-    layout(host,node,v);
+    layouts.push([host,node,v]);
     if(img.style.height!==height)img.style.height=height;
     if(img.style.objectFit!==v.fit)img.style.objectFit=v.fit;
     const position=`${v.x}% ${v.y}%`;if(img.style.objectPosition!==position)img.style.objectPosition=position;
    }
   }
   for(const host of mounted.keys())if(!wanted.has(host))remove(host);
+  applyLayouts(layouts);
   scroll.sync([...mounted.keys()]);
  }
  function relevant(node){return !!candidates&&node?.nodeType===1&&!node.hasAttribute(OWN)&&!node.closest?.(`[${OWN}]`)&&(node.matches(candidates)||!!node.querySelector(candidates));}

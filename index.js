@@ -36,6 +36,7 @@ import {BODY_CARD_DEFAULTS,bodyCardSettings} from './body-card.mjs';
 import {CAPTION_LIMIT,captionKey,normalizeCaptionConfig,stripLegacyCaptions,validateCaptionStyle} from './captions.mjs';
 import {PAGE_NAMES,supportsLayers,COMMON_PARTS,workbenchMarkup,createWorkbench,matchingLayers,normalizeSelection,layerRegion,layoutWidths,mobileGeometry} from './workbench-ui.mjs';
 import {newLayer,migrateLayers,clone,cropRect,LAYER_LIMIT} from './layers.mjs';
+import {snapshotDraft} from './draft-snapshot.mjs';
 import {ASSETS,SHARED_ASSETS,assetUrl,builtinAssetGroups} from './catalog.mjs';
 import {defaultPhoto,validatePhotos,kittyLayers} from './photos.mjs';
 import {createLiveAdapter} from './live-adapter.mjs';
@@ -120,7 +121,7 @@ await (async () => {
   let saveState='draft';
   function syncSaveState(){shadow.querySelector('#save').disabled=saveState==='saving';shadow.querySelector('#save-state').textContent={draft:'未保存的草稿',saving:'正在保存…',saved:'已保存方案',failed:'未保存'}[saveState];}
   function setSaveState(state){saveState=state;syncSaveState();}
-  function remember(){if(saveState!=='saving')setSaveState('draft');history.push(clone(config));if(history.length>40)history.shift();}
+  function remember(){if(saveState!=='saving')setSaveState('draft');history.push(snapshotDraft(config));if(history.length>40)history.shift();}
   shadow.innerHTML=workbenchMarkup();shadow.append(make('style','',ICON_LIBRARY_CSS+'.material-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}.material-card{display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;padding:8px;min-width:0;font-size:12px}.material-card img{width:100%;height:84px;object-fit:contain}.material-grid[hidden]{display:none}.font-library-card{padding:12px 0;border-bottom:1px solid #d5ded7}.font-library-preview{font-size:22px;margin:10px 0}.font-library-form{padding:12px 0}.font-library-form[hidden]{display:none}'+'[data-material-category][aria-pressed=true]{font-weight:700;background:#e7eee9;color:#31493e;border-color:#6f8973}'));
   installLauncherDrag({launcher:shadow.querySelector('.launcher')});
   const colorPicker=createColorPicker({document,root:shadow});

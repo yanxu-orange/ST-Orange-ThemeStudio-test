@@ -88,3 +88,41 @@ test('native rows support Enter and Space once, and hidden applied actions stay 
  f.entries.setPreference('wand',true);assert.equal(root.style.display,'');assert.equal(root.lastElementChild.style.display,'none');
  assert.equal(f.document.querySelectorAll('[data-workshop-entry="wand"]').length,1);f.entries.destroy();
 });
+
+test('unrelated chat and native child batches do not reconcile entry targets',async()=>{
+ const f=setup();await tick();
+ const chat=f.document.createElement('div');chat.id='chat';f.document.body.append(chat);await tick();
+ const query=f.document.querySelector.bind(f.document);let targetQueries=0;
+ f.document.querySelector=selector=>{if(['#extensionsMenu','#extensions_settings'].includes(selector))targetQueries++;return query(selector);};
+ for(let i=0;i<20;i++){
+  const message=f.document.createElement('div');message.className='mes';message.innerHTML='<div class="mes_text"><p>Streaming text</p></div>';chat.replaceChildren(message);
+  const unrelated=f.document.createElement('span');query('#extensionsMenu').append(unrelated);await tick();unrelated.remove();await tick();
+ }
+ assert.equal(targetQueries,0);
+ f.entries.destroy();
+});
+
+test('native ancestor replacement and removed owned rows recover automatically once',async()=>{
+ const f=setup();f.entries.setApplied(true);f.entries.setPreference('wand',false);await tick();
+ const wrapper=f.document.createElement('section');wrapper.innerHTML='<div id="extensionsMenu"></div><div id="extensions_settings"></div>';
+ f.document.querySelector('#extensionsMenu').remove();f.document.querySelector('#extensions_settings').remove();f.document.body.append(wrapper);await tick();await tick();
+ for(const name of ['wand','extensions']){
+  const root=f.document.querySelector(`[data-workshop-entry="${name}"]`);assert.ok(root);assert.equal(root.lastElementChild.hidden,false);
+  root.remove();await tick();await tick();assert.equal(f.document.querySelectorAll(`[data-workshop-entry="${name}"]`).length,1);
+ }
+ assert.equal(f.document.querySelector('[data-workshop-entry="wand"]').style.display,'none');
+ wrapper.querySelector('#extensionsMenu').replaceChildren();await tick();await tick();
+ assert.equal(wrapper.querySelectorAll('[data-workshop-entry="wand"]').length,1);
+ f.entries.destroy();
+});
+
+test('late native target ancestors and wand button availability update settings',async()=>{
+ const f=setup({native:false}),settings=f.entries.renderSettings();f.shadow.append(settings);
+ const wrapper=f.document.createElement('section');wrapper.innerHTML='<div id="extensionsMenu"></div><div id="extensions_settings"></div>';f.document.body.append(wrapper);await tick();
+ assert.equal(f.document.querySelectorAll('[data-workshop-entry]').length,2);
+ assert.match(settings.querySelector('[data-workshop-entry-hint="wand"]').textContent,/等待/);
+ const button=f.document.createElement('button');button.id='extensionsMenuButton';wrapper.append(button);await tick();
+ assert.equal(settings.querySelector('[data-workshop-entry-hint="wand"]').textContent,'');
+ button.remove();await tick();assert.match(settings.querySelector('[data-workshop-entry-hint="wand"]').textContent,/等待/);
+ f.entries.destroy();
+});

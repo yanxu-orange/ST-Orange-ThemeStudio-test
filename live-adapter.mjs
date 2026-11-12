@@ -1,4 +1,5 @@
 import {normalizePageHeaders,createPageHeaderAdapter} from './page-headers.mjs';
+import {snapshotDraft} from './draft-snapshot.mjs';
 import {normalizeCommonConfig,commonStyleRules,commonFontEntries} from './common-style.mjs';
 import {normalizePageConfig,pageStyleRules,pageFontEntries,createPageDropdownBridge} from './page-style.mjs';
 import {createImageDisplay} from './image-display.mjs';
@@ -97,13 +98,6 @@ function normalizeLiveConfig(config){
   const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
   Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
   next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
-}
-// Drafts already normalized by the editor need object isolation, not another
-// structuredClone of every embedded image string. Strings are immutable/shared.
-function copyDraft(value){
-  if(!value||typeof value!=='object')return value;
-  if(Array.isArray(value))return value.map(copyDraft);
-  return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,copyDraft(item)]));
 }
 const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground']);
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
@@ -374,7 +368,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   // schemes use the default validation path; an inactive adapter always validates.
   function update(config,{validated=false}={}){
     if(!snapshot)return start(config);
-    pendingConfig=validated?copyDraft(config):normalizeLiveConfig(config);requestFlush();return {messages:states.size};
+    pendingConfig=validated?snapshotDraft(config):normalizeLiveConfig(config);requestFlush();return {messages:states.size};
   }
   return {start,update,stop,reconcile,fontStatus:key=>fontSession?.status(key)||'idle',retryFonts:()=>fontSession?.retry(),get active(){return !!snapshot;},get messageCount(){return states.size;}};
 }

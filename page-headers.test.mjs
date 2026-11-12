@@ -97,3 +97,26 @@ test('native content prepended later stays below the header without an observer 
  const host=document.querySelector('#user-settings-block'),banner=host.firstElementChild,heading=document.createElement('h4');heading.textContent='native heading';host.prepend(heading);
  await settle();assert.equal(host.firstElementChild,banner);assert.equal(banner.nextElementSibling,heading);await settle();assert.equal(queue.size,0);adapter.stop();
 });
+
+test('unchanged header layout avoids writes, reads all hosts first, and detects padding changes without a resize',()=>{
+ const {document,adapter}=env('<div id="user-settings-block"></div><div id="WorldInfo"></div>');
+ let padding={paddingLeft:'5px',paddingRight:'7px',paddingTop:'9px'};const calls=[];
+ document.defaultView.getComputedStyle=host=>{calls.push('read:'+host.id);return padding;};
+ const c=normalizePageHeaders({pageHeaders:{settings:art,worldbook:art}});adapter.update(c,{validated:true});
+ for(const node of document.querySelectorAll(field)){
+  const style=node.style;Object.defineProperty(node,'style',{value:new Proxy(style,{get(target,key){return key==='width'?'browser-normalized-width':target[key];},set(target,key,value){calls.push('write:'+key);target[key]=value;return true;}})});
+ }
+ calls.length=0;
+ for(let i=0;i<100;i++)adapter.update({...c,text:i%2?'#fff':'#000'},{validated:true});
+ assert.equal(calls.filter(call=>call.startsWith('read:')).length,200);
+ assert.equal(calls.filter(call=>call.startsWith('write:')).length,0);
+ // Same total horizontal padding: a size-only invalidation would miss this.
+ padding={paddingLeft:'8px',paddingRight:'4px',paddingTop:'9px'};calls.length=0;
+ adapter.update(c,{validated:true});
+ assert.deepEqual(calls.slice(0,2),['read:WorldInfo','read:user-settings-block']);
+ assert.deepEqual(calls.slice(2),['write:marginLeft','write:marginRight','write:marginLeft','write:marginRight']);
+ for(const node of document.querySelectorAll(field)){assert.equal(node.style.marginLeft,'-8px');assert.equal(node.style.marginRight,'-4px');}
+ calls.length=0;document.defaultView.dispatchEvent(new document.defaultView.Event('resize'));
+ assert.equal(calls.length,2);assert.ok(calls.every(call=>call.startsWith('read:')));
+ adapter.stop();
+});
