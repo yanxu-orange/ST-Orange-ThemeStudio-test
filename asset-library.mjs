@@ -15,7 +15,7 @@ export class AssetLibraryError extends Error {
 function storageError(error) {
   if (error instanceof AssetLibraryError) return error;
   if (error?.name === 'QuotaExceededError') return new AssetLibraryError('QUOTA', '素材库空间不足，图片尚未保存。请清理不需要的素材后重试。', error);
-  return new AssetLibraryError('STORAGE', '素材库读写失败，请重试。图片不会自动放入当前方案。', error);
+  return new AssetLibraryError('STORAGE', '素材库读写失败，请重试。', error);
 }
 
 export function createAssetRecord({name = '我的图片', image} = {}, {id = uniqueId(), createdAt = Date.now()} = {}) {

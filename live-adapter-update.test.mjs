@@ -105,3 +105,22 @@ test('detached native cleanup removes newly added empty style but preserves conc
   assert.equal(name.hasAttribute('style'),false);assert.equal(time.style.getPropertyValue('--sc-width-time'),'333px');
   assert.equal(time.style.getPropertyValue('--sc-left-time'),'');adapter.stop();assert.equal(time.style.getPropertyValue('--sc-width-time'),'333px');
 });
+
+test('page header updates do not scan or lay out formal messages and stop restores native pages',async()=>{
+ let visits=0;const rendered=[];const {document,adapter,settle}=environment({resolveArtwork:()=>{visits++;return '/art.webp';},onRender:r=>rendered.push(r)});
+ const host=document.createElement('div');host.id='user-settings-block';host.innerHTML='<button>native</button>';document.body.append(host);
+ const c=config();adapter.start(c);await settle();visits=0;rendered.length=0;
+ adapter.update({...c,pageHeaders:{settings:{enabled:true,image:'https://example.com/header.png'}}});await settle();
+ assert.equal(visits,0);assert.equal(rendered.at(-1).updated,0);assert.equal(host.querySelectorAll('[data-otl-page-header]').length,1);
+ assert.equal(document.querySelector('#chat [data-otl-page-header]'),null);
+ adapter.update({...c,pageHeaders:{settings:{enabled:true,image:'https://example.com/header.png',height:300}}});await settle();assert.equal(visits,0);assert.equal(rendered.at(-1).updated,0);
+ adapter.stop();assert.equal(host.innerHTML,'<button>native</button>');
+});
+
+test('ordinary theme color and text changes perform zero page-header mount scans',async()=>{
+ const {document,adapter,settle}=environment();const host=document.createElement('div');host.id='WorldInfo';document.body.append(host);
+ const c={...config(),pageHeaders:{worldbook:{enabled:true,image:'https://example.com/header.png'}}};adapter.start(c);await settle();
+ const query=document.querySelectorAll.bind(document);let scans=0;document.querySelectorAll=selector=>{if(selector==='#WorldInfo')scans++;return query(selector);};
+ adapter.update({...c,text:'#abcdef'});await settle();adapter.update({...c,caption:'Changed text'});await settle();assert.equal(scans,0);
+ adapter.update({...c,pageHeaders:{worldbook:{...c.pageHeaders.worldbook,height:250}}});await settle();assert.equal(scans,1);assert.equal(host.querySelector('[data-otl-page-header]').style.height,'250px');adapter.stop();
+});

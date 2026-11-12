@@ -1,3 +1,4 @@
+import {normalizePageHeaders,createPageHeaderAdapter} from './page-headers.mjs';
 import {normalizeCommonConfig,commonStyleRules,commonFontEntries} from './common-style.mjs';
 import {normalizePageConfig,pageStyleRules,pageFontEntries,createPageDropdownBridge} from './page-style.mjs';
 import {createImageDisplay} from './image-display.mjs';
@@ -94,7 +95,7 @@ ${pageStyleRules(config,{families})}
 
 function normalizeLiveConfig(config){
   const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
-  Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle});
+  Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
   next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
 }
 // Drafts already normalized by the editor need object isolation, not another
@@ -108,7 +109,7 @@ const cssRootFields=new Set(['background','surface','surfaceOpacity','text','acc
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
 const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
 function cssOnlyField(path,key){
-  if(!path.length&&key==='pageStyle')return true;
+  if(!path.length&&['pageStyle','pageHeaders'].includes(key))return true;
   if(!path.length)return cssRootFields.has(key);
   const [root,group,part]=path;
   if(path.length===2){
@@ -137,6 +138,7 @@ function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...text
 
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
 export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {
+  const pageHeaders=createPageHeaderAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe});
   const pageDropdowns=createPageDropdownBridge({document,MutationObserver:Observe});
   const imageDisplay=createImageDisplay({document,selector:'img[data-layer-id][data-otl-live-owned]'});
   const chrome=createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize});
@@ -282,7 +284,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(pendingConfig){
       const next=pendingConfig;pendingConfig=null;
       const needsLayout=!sameLayout(snapshot,next);
-      snapshot=next;scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
+      snapshot=next;pageHeaders.update(snapshot,{validated:true});scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
       const css=styleText(snapshot,fontSession?.families()||{},currentInterface);if(style.textContent!==css)style.textContent=css;
       chrome.update(snapshot,fontSession?.families()||{});chromeChanged=true;
       if(needsLayout)for(const msg of messages)dirtyMessages.add(msg);
@@ -343,7 +345,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function stop(){
     if(!snapshot)return;
-    pageDropdowns.stop();
+    pageHeaders.stop();pageDropdowns.stop();
     imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
@@ -355,7 +357,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const next=normalizeLiveConfig(config);stop();snapshot=next;hostModes=readHostModes();
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
-      pageDropdowns.start();
+      pageHeaders.update(snapshot,{validated:true});pageDropdowns.start();
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
