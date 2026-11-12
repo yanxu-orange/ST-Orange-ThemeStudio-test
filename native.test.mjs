@@ -24,7 +24,8 @@ function fixture(){
  header.getBoundingClientRect=()=>rect(24,50,400,100);wrapper.getBoundingClientRect=()=>rect(24,50,60,60);msg.getBoundingClientRect=()=>rect(0,0,448,500);
  const dims={mes_buttons:[30,25],mes_edit:[25,25],mes_edit_buttons:[80,30],mesIDDisplay:[40,15],mes_timer:[20,15],tokenCounterDisplay:[30,15],swipe_left:[25,25],swipeRightBlock:[40,45],swipe_right:[25,25],'swipes-counter':[40,18]};
  for(const n of msg.querySelectorAll(Object.keys(dims).map(k=>'.'+k).join(',')))n.getBoundingClientRect=()=>rect(0,0,...dims[n.className]);
- window.getComputedStyle=n=>({display:n.style.display||'flex',visibility:'visible'});
+ msg.querySelector('.swipes-counter').getBoundingClientRect=()=>rect(0,27,40,18);
+ window.getComputedStyle=n=>({display:n.style.display||'flex',visibility:n.style.visibility||'visible'});
  const createNode=(tag,cls,parent)=>{const n=document.createElement(tag);n.className=cls;parent.append(n);n.getBoundingClientRect=()=>rect(24,400,400,parseFloat(msg.style.getPropertyValue('--on-footer-height'))||0);return n;};
  const render=()=>renderNative(msg,c,{createNode,latest:true}),value=k=>parseFloat(msg.style.getPropertyValue('--on-'+k));return {document,msg,c,header,wrapper,rect,render,value};
 }
@@ -49,7 +50,7 @@ test('negative footer positions do not rebound or inflate reserved tail and capt
 });
 test('compact and ends arrows retain native counter block and react to counter text changes',()=>{
  const {msg,c,render,value}=fixture(),counter=msg.querySelector('.swipes-counter'),right=msg.querySelector('.swipeRightBlock');render();assert.equal(value('swipe-right-x')-value('swipe-left-x'),31);
- c.nativeStyle.swipe.layout='ends';render();assert.equal(value('swipe-right-x'),384);assert.equal(counter.parentNode,right);counter.textContent='100/100';counter.getBoundingClientRect=()=>({width:70,height:18});right.getBoundingClientRect=()=>({width:70,height:45});render();assert.equal(value('swipe-right-x'),354);assert.equal(counter.textContent,'100/100');assert.equal(counter.nextElementSibling,null);
+ c.nativeStyle.swipe.layout='ends';render();assert.equal(value('swipe-right-x'),384);assert.equal(counter.parentNode,right);counter.textContent='100/100';counter.getBoundingClientRect=()=>({left:0,top:27,width:70,height:18});right.getBoundingClientRect=()=>({left:0,top:0,width:70,height:45});render();assert.equal(value('swipe-right-x'),354);assert.equal(counter.textContent,'100/100');assert.equal(counter.nextElementSibling,null);
 });
 test('header anchors, offset parent borders and image size remain independent of other settings',()=>{
  const {document,msg,c,rect,render,value}=fixture(),edit=msg.querySelector('.mes_edit'),offset=document.createElement('div');offset.getBoundingClientRect=()=>rect(10,20,1,1);Object.defineProperties(offset,{clientLeft:{value:5},clientTop:{value:6},scrollLeft:{value:2},scrollTop:{value:3}});Object.defineProperty(edit,'offsetParent',{value:offset});
@@ -129,4 +130,17 @@ test('native icons keep action placement, use shared tint, recover safely from e
  action.tint=false;render();assert.equal(edit.querySelector('img'),picture);assert.equal(span.style.maskImage,'');assert.equal(picture.style.opacity,'1');const stale=picture.onerror;
  action.source.image='data:image/png;base64,BBBB';render();const replacement=edit.querySelector('img');stale();assert.equal(edit.querySelector('img'),replacement);replacement.onerror();render();assert.equal(edit.querySelector('.otl-native-icon'),null);assert.equal(edit.dataset.otlNativeMode,'default');
  action.mode='default';render();action.mode='icon';render();assert.ok(edit.querySelector('.otl-native-icon'),'returning from native explicitly retries a failed source');const late=edit.querySelector('img').onerror;action.mode='text';action.text='修改';render();late();assert.equal(edit.dataset.otlNativeMode,'text');assert.equal(edit.querySelector('.otl-native-icon'),null);assert.equal(edit.querySelector('.otl-native-label').textContent,'修改');
+});
+
+
+test('hidden native swipe children reserve no phantom footer despite a nonzero container',()=>{
+ const {msg,c,render,value}=fixture(),left=msg.querySelector('.swipe_left'),arrow=msg.querySelector('.swipe_right'),counter=msg.querySelector('.swipes-counter');
+ c.nativeStyle.swipe.y=34;
+ left.style.visibility='hidden';arrow.style.visibility='hidden';counter.style.visibility='hidden';
+ render();assert.equal(value('footer-height'),0);assert.equal(msg.querySelector('.otl-native-footer'),null);
+ arrow.style.visibility='visible';render();assert.equal(value('footer-height'),67,'visible arrow reserves only y + arrow height + padding');
+ counter.style.visibility='visible';render();assert.equal(value('footer-height'),87,'visible latest counter retains its native offset and full extent');
+ counter.style.display='none';render();assert.equal(value('footer-height'),67,'hidden history counter adds no trailing blank');
+ arrow.hidden=true;render();assert.equal(value('footer-height'),0);
+ left.style.visibility='visible';render();assert.equal(value('footer-height'),67,'left arrow can remain independently visible');
 });

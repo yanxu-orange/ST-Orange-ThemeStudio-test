@@ -69,6 +69,13 @@ ${q} .mesIDDisplay[data-otl-native-floor-custom=true]::after{content:attr(data-o
 }
 function box(node){if(!node||node.hidden)return {width:0,height:0};const css=node.ownerDocument.defaultView?.getComputedStyle?.(node);if(css?.display==='none'||css?.visibility==='hidden')return {width:0,height:0};const r=node.getBoundingClientRect();return {width:r.width||0,height:r.height||0};}
 const exists=d=>d.width>0&&d.height>0;
+function swipeContentBox(node){
+ const outer=box(node);if(!exists(outer))return outer;
+ const visible=[...node.querySelectorAll('.swipe_right,.swipes-counter')].filter(n=>exists(box(n)));
+ if(!visible.length)return {width:0,height:0};
+ const top=node.getBoundingClientRect().top;
+ return {width:outer.width,height:Math.max(0,...visible.map(n=>{const r=n.getBoundingClientRect();return r.top+r.height-top;}))};
+}
 export function nativeControlNodes(msg){return [...msg.querySelectorAll('.mes_buttons,.mes_edit,.mes_edit_buttons,.mesIDDisplay,.mes_timer,.tokenCounterDisplay,.swipe_left,.swipeRightBlock,.swipe_right,.swipes-counter,.extraMesButtonsHint,.extraMesButtons')];}
 export function renderNative(...args){return runLayoutPass([nativeLayout(...args)])[0];}
 const failedIcons=new WeakMap();
@@ -93,7 +100,7 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  set('--on-head-height','0px');
  const widths=yield()=>({header:header.getBoundingClientRect().width,tools:s.actions.more.position==='footer'?block.getBoundingClientRect().width:null});
  const regionWidth=widths.header||Math.max(1,c.cardWidth-48);set('--on-region-width',regionWidth+'px');set('--on-tools-max-width',((widths.tools??widths.header)||regionWidth)+'px');
- const {moreD,moreHintD,editD,editingD,sd,ld,rightD}=yield()=>({moreD:box(normal),moreHintD:box(normal?.querySelector('.extraMesButtonsHint')),editD:box(edit),editingD:box(editing),sd:stats.map(n=>n?.textContent.trim()?box(n):{width:0,height:0}),ld:box(left),rightD:box(right)});
+ const {moreD,moreHintD,editD,editingD,sd,ld,rightD}=yield()=>({moreD:box(normal),moreHintD:box(normal?.querySelector('.extraMesButtonsHint')),editD:box(edit),editingD:box(editing),sd:stats.map(n=>n?.textContent.trim()?box(n):{width:0,height:0}),ld:box(left),rightD:swipeContentBox(right)});
  const ed=exists(editingD)?editingD:editD;
  const controls=[{key:'more',style:s.actions.more,d:moreD},{key:'edit',style:s.actions.edit,d:ed},...statKeys.map((key,i)=>({key,style:s.stats[key],d:sd[i]})),{key:'swipe',style:s.swipe,d:{width:ld.width+rightD.width+(exists(ld)&&exists(rightD)?s.swipe.gap:0),height:Math.max(ld.height,rightD.height)}}];
  // All controls share a stable area origin, never stacked group cursors. Negative
@@ -133,3 +140,4 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  };
  write(nested);
 }
+

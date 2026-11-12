@@ -42,7 +42,8 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  const {text:t,panel:p,heading:h,button:b,field:f}=normalizeCommonConfig(config).commonStyle;
  const guard=':not(:where(#chat *,#send_form *,#form_sheld *,#orange-theme-lab,#orange-theme-lab *))';
  const page=rootScope||(preview?'html[data-orange-lab] #chat>.otl-native-page':`html[data-orange-live] :is(.drawer-content,dialog.popup:not(.transparent_dialogue_popup):not(:has(.img_enlarged_container)),#options,.options-content,.list-group)${guard}`);
- const scope=selector=>{const [element,pseudo]=selector.split('::');return `${page} ${element}${preview?'':guard}${pseudo?'::'+pseudo:''}`;};
+ const home=!preview&&!rootScope?'html[data-orange-live] #chat > .welcomePanel':'';
+ const scope=selector=>{const [element,pseudo]=selector.split('::'),suffix=pseudo?'::'+pseudo:'';return [`${page} ${element}${preview?'':guard}${suffix}`,home?`${home} ${element}${suffix}`:''].filter(Boolean).join(',');};
  // Select2 appends its dropdown to body rather than to the source drawer.
  const dropdown=dropdownScope||(preview?scope('.select2-dropdown'):'html[data-orange-live] body>.select2-container--open .select2-dropdown');
  const select2=selector=>`${scope(selector)},${dropdown} ${selector}`;
@@ -53,12 +54,22 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  const button=':is(button,.menu_button,input[type=button],input[type=submit]):not(.red_button):not(.redWarningBG):not(.delete_entry_button):not(.select2-results__option)';
  const disabled=':is(:disabled,[disabled],.disabled,[aria-disabled=true])';
  const headings=preview?':is(h3,.standoutHeader,.inline-drawer-header,.title_restorable)':':is(h3,:where(#user-settings-block) h4,:where(#rm_button_selected_ch) h2,.standoutHeader,.inline-drawer-header,.title_restorable)';
+ const roots=[page,home].filter(Boolean).join(',');
  const rules=[];const add=(selector,css)=>rules.push(`${selector}{${css}}`);
- add(`${page},${dropdown}`,`${fontVariables}--SmartThemeBodyColor:${t.color};--SmartThemeEmColor:${t.muted};--SmartThemeQuoteColor:${t.accent};--SmartThemeBorderColor:${p.border};--SmartThemeBlurTintColor:${bg};--SmartThemeCheckboxTickColor:#fff;color:${t.color}!important;font-family:${font}!important;font-size:${t.size}px!important;text-shadow:none!important`);
+ add(`${roots},${dropdown}`,`${fontVariables}--SmartThemeBodyColor:${t.color};--SmartThemeEmColor:${t.muted};--SmartThemeQuoteColor:${t.accent};--SmartThemeBorderColor:${p.border};--SmartThemeBlurTintColor:${bg};--SmartThemeCheckboxTickColor:#fff;color:${t.color}!important;font-family:${font}!important;font-size:${t.size}px!important;text-shadow:none!important`);
  add(page,`background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important;box-shadow:none!important`);
  add(scope(':is(.wi-card-entry,.standoutHeader~.inline-drawer-content)'),`background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important`);
+ if(home){
+  add(`${home} .recentChatList > .recentChat`,`color:${t.color}!important;background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important;text-shadow:none!important`);
+  add(`${home} .recentChatList > .recentChat:hover`,`background:${b.hover}!important`);
+  add(`${home} :is(.chatMessage,.chatStats,.chatDate)`,`color:${t.muted}!important`);
+  add(`${home} :is(.recentChatsTitle,.welcomeHeaderVersionDisplay)`,`color:${h.color}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important;text-shadow:none!important`);
+  add(`${home} .mes_button`,`color:${b.color}!important;opacity:1!important;filter:none!important;text-shadow:none!important`);
+ }
  add(scope(':is(small,.notes,.toggle-description,.otl-sample-note,.otl-sample-version)'),`color:${t.muted}!important`);
  add(scope(headings),`color:${h.color}!important;background:${h.background}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important;border-color:${p.border}!important;border-radius:${h.radius}px!important;text-shadow:none!important;filter:none!important`);
+ add(scope(`${headings} :is(b,strong)`),'font-weight:inherit!important;font-size:inherit!important;color:inherit!important');
+ add(scope(`${headings} .inline-drawer-icon`),'font-size:1em!important;filter:none!important;color:inherit!important');
  add(scope(':is(.inline-drawer-header:hover,.inline-drawer-header:has(.inline-drawer-icon.up),.inline-drawer-header[aria-expanded=true],details[open]>.inline-drawer-header)'),`background:${b.hover}!important`);
  add(scope(input),`color:${f.color}!important;background:${f.background}!important;border:1px solid ${f.border}!important;border-radius:${f.radius}px!important;font-family:${font}!important;font-size:${t.size}px!important;text-shadow:none!important;box-shadow:none!important`);
  add(scope(':is(input,textarea)::placeholder'),`color:${t.muted}!important;opacity:1!important`);
@@ -93,3 +104,4 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  if(preview)rules.push(`@container(max-width:700px){${mobileFields}}`);
  return rules.join('\n');
 }
+
