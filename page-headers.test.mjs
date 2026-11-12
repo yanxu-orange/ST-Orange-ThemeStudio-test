@@ -19,7 +19,7 @@ test('page header defaults complete old schemes and independently clone every pa
 });
 test('page header validation rejects malformed shape, keys, image sources and numbers',()=>{
  for(const raw of [null,[],1,{pageHeaders:null},{pageHeaders:[]},{pageHeaders:{chat:{}}},{pageHeaders:{settings:null}},{pageHeaders:{settings:[]}}])assert.throws(()=>normalizePageHeaders(raw));
- for(const bad of [{enabled:'true'},{extra:1},{asset:'missing'},{asset:'kitty-header-cat',image:art.image},{image:'javascript:alert(1)'},{image:'data:image/svg+xml,test'},{image:1},{sizing:'stretch'},{fit:'fill'},{height:39},{height:601},{height:'160'},{height:NaN},{x:-1},{y:101},{x:Infinity}])assert.throws(()=>normalizePageHeaders({pageHeaders:{home:bad}}));
+ for(const bad of [{enabled:'true'},{extra:1},{asset:'missing'},{asset:'kitty-header-cat',image:art.image},{image:'javascript:alert(1)'},{image:'data:image/svg+xml,test'},{image:1},{sizing:'stretch'},{fit:'fill'},{height:39},{height:601},{height:'160'},{height:NaN},{x:-1},{y:101},{x:Infinity},{topGap:-1},{sideGap:161},{topGap:NaN},{sideGap:'10'}])assert.throws(()=>normalizePageHeaders({pageHeaders:{home:bad}}));
  for(const good of [{height:40,x:0,y:100},{height:600,sizing:'ratio',fit:'contain'},{asset:'kitty-header-cat'}])assert.doesNotThrow(()=>normalizePageHeaders({pageHeaders:{home:good}}));
 });
 test('disabled or empty art adds no nodes and no observer; active pages are independent',()=>{
@@ -30,16 +30,16 @@ test('disabled or empty art adds no nodes and no observer; active pages are inde
  adapter.update({pageHeaders:{settings:art}});assert.equal(observes,1);assert.equal(document.querySelector('#WorldInfo '+field),null);assert.equal(document.querySelector('#user-settings-block').firstElementChild.dataset.otlPageHeader,'settings');
  adapter.update({});assert.equal(document.querySelector(field),null);assert.equal(disconnects,1);adapter.stop();
 });
-test('all native mounts preserve content, background tabs share config, sizing preserves natural ratio',()=>{
- const markup='<div id="left-nav-panel"><div class="scrollableInner"><button>A</button></div></div><div id="right-nav-panel"><div class="scrollableInner"><button>B</button></div></div>'+['rm_api_block','WorldInfo','user-settings-block','bg_global_tab','bg_chat_tab','rm_extensions_block','PersonaManagement','AdvancedFormatting'].map(id=>`<div id="${id}"><button>${id}</button></div>`).join('');
+test('all native mounts preserve content, background tabs share one header, sizing preserves natural ratio',()=>{
+ const markup='<div id="left-nav-panel"><div class="scrollableInner"><button>A</button></div></div><div id="right-nav-panel"><div class="scrollableInner"><button>B</button></div></div>'+['rm_api_block','WorldInfo','user-settings-block','Backgrounds','rm_extensions_block','PersonaManagement','AdvancedFormatting'].map(id=>`<div id="${id}"><button>${id}</button></div>`).join('');
  const {document,adapter}=env(markup),before=document.body.innerHTML;
  document.querySelector('#chat').innerHTML='<div class="welcomePanel"><h1>Recent</h1></div>';
  const native=[...document.querySelectorAll('button')];const c={pageHeaders:Object.fromEntries(Object.keys(PAGE_HEADER_PAGES).map(key=>[key,{...art}]))};adapter.update(c);
- assert.equal(document.querySelectorAll(field).length,11);assert.deepEqual([...document.querySelectorAll('button')],native);
+ assert.equal(document.querySelectorAll(field).length,10);assert.deepEqual([...document.querySelectorAll('button')],native);
  const settings=document.querySelector('#user-settings-block '+field),img=settings.firstElementChild;
  assert.equal(settings.style.height,'160px');assert.equal(img.style.objectFit,'cover');assert.equal(settings.style.flex,'0 0 auto');assert.equal(img.getAttribute('aria-hidden'),'true');
  c.pageHeaders.settings={...art,sizing:'ratio',fit:'contain',x:20,y:80};adapter.update(c);assert.equal(settings.firstElementChild,img);assert.equal(img.style.height,'auto');assert.equal(img.style.width,'100%');assert.equal(img.style.objectPosition,'20% 80%');assert.equal(settings.style.height,'auto');
- adapter.update(c);assert.equal(document.querySelectorAll(field).length,11);adapter.stop();document.querySelector('#chat').innerHTML='';assert.equal(document.body.innerHTML,before);
+ adapter.update(c);assert.equal(document.querySelectorAll(field).length,10);adapter.stop();document.querySelector('#chat').innerHTML='';assert.equal(document.body.innerHTML,before);
 });
 test('home only decorates the direct native welcome panel, never real chats or system messages',async()=>{
  const {document,adapter,settle}=env(),chat=document.querySelector('#chat');
@@ -67,4 +67,33 @@ test('unchanged headers skip all mount scans while observer rebuilds and actual 
  c.pageHeaders.worldbook.height=300;adapter.update(c,{validated:true});assert.equal(scans,1);assert.equal(document.querySelector('[data-otl-page-header] img').style.height,'300px');
  c.pageHeaders.worldbook.image='https://example.com/changed.png';adapter.update(c,{validated:true});assert.equal(scans,2);assert.equal(document.querySelector('[data-otl-page-header] img').getAttribute('src'),c.pageHeaders.worldbook.image);
  document.querySelector('#WorldInfo').innerHTML='<input>';adapter.update(c,{validated:true});assert.equal(scans,2);await settle();assert.equal(scans,3);assert.equal(query('[data-otl-page-header]').length,1);adapter.stop();
+});
+
+test('page header gaps compensate native padding without changing content or other pages',()=>{
+ const {document,adapter}=env('<div id="user-settings-block"><p>native hint</p><button>native</button></div><div id="WorldInfo"><input value="keep"></div>');
+ document.defaultView.getComputedStyle=()=>({paddingLeft:'5px',paddingRight:'7px',paddingTop:'9px'});
+ const host=document.querySelector('#user-settings-block'),before=host.innerHTML;
+ adapter.update({pageHeaders:{settings:art}});
+ const node=host.firstElementChild;assert.equal(node.getAttribute('data-otl-page-header'),'settings');assert.equal(node.nextElementSibling.textContent,'native hint');
+ assert.equal(node.style.width,'max(0px, calc(100% + 12px))');assert.equal(node.style.marginLeft,'-5px');assert.equal(node.style.marginTop,'-9px');assert.equal(node.style.paddingTop,'0px');
+ assert.equal(document.querySelector('#WorldInfo '+field),null);
+ adapter.update({pageHeaders:{settings:{...art,topGap:23,sideGap:17}}});
+ assert.equal(host.firstElementChild,node);assert.equal(node.style.width,'max(0px, calc(100% + -22px))');assert.equal(node.style.marginLeft,'12px');assert.equal(node.style.marginRight,'10px');assert.equal(node.style.paddingTop,'23px');assert.equal(node.style.height,'183px');assert.equal(node.firstElementChild.style.height,'160px');
+ document.defaultView.getComputedStyle=()=>({paddingLeft:'12px',paddingRight:'12px',paddingTop:'8px'});document.defaultView.dispatchEvent(new document.defaultView.Event('resize'));assert.equal(node.style.marginLeft,'5px');assert.equal(node.style.marginTop,'-8px');
+ adapter.stop();assert.equal(host.innerHTML,before);assert.equal(document.querySelector('#WorldInfo input').value,'keep');
+});
+
+test('presets, characters and backgrounds place one header before original controls without moving native nodes',()=>{
+ const {document,adapter}=env('<div id="left-nav-panel"><p>native hint</p><div class="scrollableInner">presets</div></div><div id="right-nav-panel"><div id="rm_PinAndTabs">tabs</div><div class="scrollableInner">characters</div></div><div id="Backgrounds"><div id="bg-header-fixed">controls</div><div id="bg_tabs"><div id="bg_global_tab">global</div><div id="bg_chat_tab">chat</div></div></div>');
+ const before=document.body.innerHTML,native=[...document.querySelectorAll('#left-nav-panel > *,#right-nav-panel > *,#Backgrounds > *')],parents=native.map(n=>n.parentNode);
+ adapter.update({pageHeaders:{presets:art,characters:art,backgrounds:art}});
+ for(const [id,page]of [['left-nav-panel','presets'],['right-nav-panel','characters'],['Backgrounds','backgrounds']])assert.equal(document.getElementById(id).firstElementChild.getAttribute('data-otl-page-header'),page);
+ assert.equal(document.querySelectorAll('#Backgrounds '+field).length,1);for(const [i,n]of native.entries())assert.equal(n.parentNode,parents[i]);
+ adapter.stop();assert.equal(document.body.innerHTML,before);
+});
+
+test('native content prepended later stays below the header without an observer loop',async()=>{
+ const {document,adapter,settle,queue}=env('<div id="user-settings-block"><input></div>');adapter.update({pageHeaders:{settings:art}});await settle();
+ const host=document.querySelector('#user-settings-block'),banner=host.firstElementChild,heading=document.createElement('h4');heading.textContent='native heading';host.prepend(heading);
+ await settle();assert.equal(host.firstElementChild,banner);assert.equal(banner.nextElementSibling,heading);await settle();assert.equal(queue.size,0);adapter.stop();
 });

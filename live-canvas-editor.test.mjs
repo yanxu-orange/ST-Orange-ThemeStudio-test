@@ -22,5 +22,5 @@ test('real canvas editor preserves host nodes across drag, pending apply, return
  pointer('pointerdown',0,0);pointer('pointermove',10,20);pointer('pointerup',10,20);const moved=await save();assert.equal(moved.textItems.name.y,original.textItems.name.y+20);
  // Apply before the queued adapter update runs: latest model must survive close.
  click('#apply-live');await settle();assert.equal(document.documentElement.hasAttribute('data-orange-editor'),false);assert.equal(document.documentElement.hasAttribute('data-orange-live'),true);assert.equal(name.hasAttribute('data-preview-draggable'),false);assert.equal(msg.querySelector('.name_text'),name);
- button('返回编辑');await settle();assert.equal(msg.querySelector('.name_text'),name);click('#close');await settle();assert.equal(msg.outerHTML,before);assert.equal(draft.value,'Native draft');edit.click();assert.equal(edits,2);assert.equal(document.querySelectorAll('[data-otl-live-owned]').length,0);
+ click('.launcher');await settle();assert.equal(msg.querySelector('.name_text'),name);click('#close');await settle();assert.equal(msg.outerHTML,before);assert.equal(draft.value,'Native draft');edit.click();assert.equal(edits,2);assert.equal(document.querySelectorAll('[data-otl-live-owned]').length,0);
 });

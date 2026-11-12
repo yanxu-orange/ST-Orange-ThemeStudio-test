@@ -171,13 +171,9 @@ await (async () => {
   }
   const layerDrag=createLayerDrag({document,scopeSelector:'.mes[data-otl-live],#send_form',selector:'.mes[data-otl-live] :is([data-layer-id],.name_text,.timestamp,.otl-live-caption[data-caption-id],[data-footer-caption-id],.otl-live-reasoning),#send_form [data-layer-id]',getState:()=>({active,...ui,page:ui.page==='home'&&ui.region==='input'?'chat':ui.page,layers:config.layers,regionFor:layerRegion}),getTextTarget:previewTextTarget,getLayerTarget:previewLayerTarget,onCommit:(item,next)=>{remember();Object.assign(item,next);apply();renderFields();notify('位置或大小已更新，尚未保存');}});
   const applyButton=make('button','primary','应用到酒馆');applyButton.type='button';applyButton.id='apply-live';shadow.querySelector('#save').after(applyButton);
-  const liveBar=make('section','live-bar hidden');const liveStatus=make('span','','当前方案已应用到酒馆');liveStatus.setAttribute('role','status');
-  const editLive=make('button','','返回编辑');editLive.type='button';const stopLive=make('button','','退出应用');stopLive.type='button';liveBar.append(liveStatus,editLive,stopLive);shadow.append(liveBar);
-  const liveBarStyle=make('style');liveBarStyle.textContent='.live-bar{position:fixed;right:24px;top:66px;z-index:20020;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);padding:9px 12px;border:1px solid #dce5dc;border-radius:12px;background:#fffdf8;box-shadow:0 5px 20px #0002}.live-bar span{font-size:12px;color:#63765e}.live-bar button{white-space:nowrap}.bar #apply-live{white-space:nowrap}@media(max-width:900px){.bar small{display:none}.bar select{max-width:180px}.live-bar{right:12px}}';shadow.append(liveBarStyle);
-  applyButton.addEventListener('click',()=>{try{const snapshot=validate(config);liveAdapter.update(snapshot);close({keepApplied:true});entries.setApplied(true);entries.sync();liveBar.classList.toggle('hidden',!entries.preferences.floating);liveStatus.textContent='当前方案已应用到酒馆';}catch(error){liveAdapter.stop();liveBar.classList.add('hidden');open();notify('应用失败：'+error.message);}});
-  editLive.addEventListener('click',()=>{liveBar.classList.add('hidden');open();});
-  function stopApplied(){liveAdapter.stop();liveBar.classList.add('hidden');entries.setApplied(false);}
-  stopLive.addEventListener('click',stopApplied);
+  applyButton.addEventListener('click',()=>{try{const snapshot=validate(config);liveAdapter.update(snapshot);close({keepApplied:true});entries.setApplied(true);entries.sync();}catch(error){liveAdapter.stop();open();notify('应用失败：'+error.message);}});
+  function stopApplied(){liveAdapter.stop();entries.setApplied(false);}
+
   window.addEventListener('pagehide',()=>{close();invalidateEditing();scrollbarVisibility.stop();liveAdapter.stop();});
   const kittyOption=make('option','','小猫咪 · 照片与窗景');kittyOption.value='kitty';shadow.querySelector('[aria-label="基础模板"]').append(kittyOption);const blankOption=make('option','','无装饰起稿 · 工具基础布局');blankOption.value='blank';shadow.querySelector('[aria-label="基础模板"]').append(blankOption);
   function updateWorkbenchLayout(){
@@ -521,6 +517,8 @@ await (async () => {
     container.append(row);
     if(!hasImage)return;
     const preview=make('img','page-art-preview');preview.alt=PAGE_HEADER_PAGES[page]+'页面头部';preview.src=item.asset?assetUrl(item.asset):item.image;preview.loading='lazy';container.append(preview);
+    const spacing=pairedFields(container);
+    for(const [key,label]of [['topGap','顶部留白'],['sideGap','左右留白']])editorControl(spacing,field(label,key,'range',{min:0,max:160,unit:'px'}),item);
     propertyHeading(container,'图片尺寸');
     editorControl(container,field('高度方式','sizing','select',{options:[['fixed','指定高度'],['ratio','按图片比例']]}),item,()=>renderFields());
     if(item.sizing==='fixed'){
@@ -775,7 +773,7 @@ await (async () => {
     if(active)return;const chat=document.querySelector('#chat');if(!chat){notify('请先打开酒馆聊天界面');return;}
     previewChatWidth=chat.getBoundingClientRect().width;workbench.syncSizing();active=true;invalidateEditing();mobileFlow.setEditorOpen(true);canvas.start();
     try{if(liveAdapter.active)liveAdapter.update(config,{validated:true});else liveAdapter.start(config);}catch(error){active=false;canvas.stop();mobileFlow.setEditorOpen(false);notify('进入编辑失败：'+error.message);return;}
-    liveBar.classList.add('hidden');imageDisplay.watch(shadow);scrollbarVisibility.set(normalizeScrollbars(config.hideScrollbars));
+    imageDisplay.watch(shadow);scrollbarVisibility.set(normalizeScrollbars(config.hideScrollbars));
     entries.setEditing(true);entries.setApplied(false);shadow.querySelector('.bar').classList.remove('hidden');panel.classList.remove('hidden');shadow.querySelector('.splitter').classList.remove('hidden');shadow.querySelector('#narrow').setAttribute('aria-pressed',String(ui.narrow));renderFields();
     if(loadError)notify('保存的方案未载入：'+loadError.message+' 点击“恢复已保存”重试。',0);
   }
