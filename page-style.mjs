@@ -4,8 +4,9 @@ import {validImage} from './image-sources.mjs';
 
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const common=Object.keys(COMMON_STYLE_DEFAULTS);
-export const PAGE_ROOTS={settings:'#user-settings-block',worldbook:'#WorldInfo'};
-export const PAGE_GROUPS={settings:[...common,'section'],worldbook:[...common,'entry','entryHeading']};
+// Native SillyTavern 1.18 page roots; no copied pages or business controls.
+export const PAGE_ROOTS={settings:'#user-settings-block',worldbook:'#WorldInfo',presets:'#left-nav-panel',connection:'#rm_api_block',backgrounds:'#Backgrounds',extensions:'#rm_extensions_block',personas:'#PersonaManagement',characters:'#right-nav-panel',formatting:'#AdvancedFormatting'};
+export const PAGE_GROUPS=Object.fromEntries(Object.keys(PAGE_ROOTS).map(page=>[page,[...common,...({settings:['section'],worldbook:['entry','entryHeading']}[page]||[])]]));
 const baseGroup=group=>({section:'panel',entry:'panel',entryHeading:'heading'}[group]||group);
 export const PAGE_ART_DEFAULTS={asset:'',image:'',fit:'cover',x:50,y:50};
 function normalizeArt(raw){
@@ -26,7 +27,7 @@ export function normalizePageConfig(raw={}){
   if(!object(source)||Object.keys(source).some(k=>!groups.includes(k)&&k!=='art'))throw Error('页面外观分组无效');
   const result={};
   for(const group of groups){const v=source[group];result[group]=v===null||v===undefined?null:normalizeCommonConfig({commonStyle:{[baseGroup(group)]:v}}).commonStyle[baseGroup(group)];}
-  const surfaces=page==='settings'?['page','section']:['page','entry'],art=source.art===undefined?{}:source.art;
+  const surfaces=['page',...({settings:['section'],worldbook:['entry']}[page]||[])],art=source.art===undefined?{}:source.art;
   if(!object(art)||Object.keys(art).some(k=>!surfaces.includes(k)))throw Error('页面素材区域无效');
   result.art=Object.fromEntries(surfaces.map(k=>[k,normalizeArt(art[k]===undefined?null:art[k])]));pageStyle[page]=result;
  }
@@ -47,13 +48,13 @@ export function pageStyleRules(config,{preview=false,page=null,families={},resol
  for(const key of Object.keys(PAGE_ROOTS)){
   if(page&&key!==page)continue;
   const v=c.pageStyle[key],root=preview?`html[data-orange-lab] #chat>.otl-native-page[data-otl-page="${key}"]`:`html[data-orange-live] ${PAGE_ROOTS[key]}`;
-  const section=key==='settings'?`${root} :is(#UI-Theme-Block,#UI-Customization,#power-user-options-block)`:`${root} #world_popup_entries_list .wi-card-entry`;
+  const section=key==='settings'?`${root} :is(#UI-Theme-Block,#UI-Customization,#power-user-options-block)`:key==='worldbook'?`${root} #world_popup_entries_list .wi-card-entry`:null;
   if(common.some(group=>v[group])){
    const resolved=Object.fromEntries(common.map(group=>[group,v[group]||global[group]]));
    rules.push(commonStyleRules({...c,commonStyle:resolved},{preview,rootScope:root,dropdownScope:preview?`${root} .select2-dropdown`:`html[data-orange-live] body>.select2-container--open[data-otl-page-owner="${key}"] .select2-dropdown`,family:v.text?families['page-'+key]||'':families.common||''}));
   }
   const surface=key==='settings'?'section':'entry';
-  if(v[surface]||v.panel)rules.push(`${section}{${panelCSS(v[surface]||v.panel)}}`);
+  if(section&&(v[surface]||v.panel))rules.push(`${section}{${panelCSS(v[surface]||v.panel)}}`);
   if(key==='worldbook'&&(v.entryHeading||v.heading)){
    const h=v.entryHeading||v.heading,header=`${root} #world_popup_entries_list .world_entry_form > .inline-drawer > .inline-drawer-header`,title=`${header} textarea[name=comment]`;
    if(v.entryHeading)rules.push(`${header}{color:${h.color}!important;background:${h.background}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important;border-radius:${h.radius}px!important;text-shadow:none!important}`);

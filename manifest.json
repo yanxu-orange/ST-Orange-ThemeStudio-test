@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.23.1-page-header-spacing",
+  "version": "0.24.0-page-basics",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }

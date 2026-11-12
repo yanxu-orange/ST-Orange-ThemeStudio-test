@@ -1,3 +1,4 @@
+import {PAGE_ROOTS} from './page-style.mjs';
 import {footerKey} from './footer.mjs';
 import {captionKey} from './captions.mjs';
 export const COMMON_PARTS=[['text','界面文字'],['panel','面板'],['heading','分区标题'],['button','按钮'],['field','输入与选择']];
@@ -50,7 +51,7 @@ export function createWorkbench(shadow,{onNavigate,onLayout}={}){
  function syncPage(){find('#workspace-page').value=ui.page;}
  function choosePage(page){
   if(!Object.hasOwn(PAGE_NAMES,page))return false;
-  if(page!==ui.page){finishLayout();ui.libraryExpanded=false;pageViews.set(ui.page,{region:ui.region,kind:ui.kind,object:ui.object,commonPart:ui.commonPart});ui.page=page;Object.assign(ui,pageViews.get(page)||{region:page==='home'?'common':['settings','worldbook'].includes(page)?'page-common':page==='chat'?'header':'page-header',kind:page==='home'?'text':['settings','worldbook'].includes(page)?'surface':'region',object:page==='home'?'common':'region',commonPart:'text'});}
+  if(page!==ui.page){finishLayout();ui.libraryExpanded=false;pageViews.set(ui.page,{region:ui.region,kind:ui.kind,object:ui.object,commonPart:ui.commonPart});ui.page=page;Object.assign(ui,pageViews.get(page)||{region:page==='home'?'common':Object.hasOwn(PAGE_ROOTS,page)?'page-common':page==='chat'?'header':'page-header',kind:page==='home'?'text':Object.hasOwn(PAGE_ROOTS,page)?'surface':'region',object:page==='home'?'common':'region',commonPart:'text'});}
   ui.mode='edit';ui.mobileView='adjust';syncPage();onNavigate?.({pageChanged:true});onLayout?.();return true;
  }
  // Native Tavern navigation is observed only, never used to select an editing scope.
@@ -92,7 +93,7 @@ export function createWorkbench(shadow,{onNavigate,onLayout}={}){
  shadow.addEventListener('keydown',event=>{if(event.key==='Escape'&&ui.layoutEditing){event.preventDefault();event.stopPropagation();finishLayout({focus:true});onLayout?.();}else if(event.key==='Escape'&&ui.libraryExpanded){event.preventDefault();event.stopPropagation();ui.libraryExpanded=false;syncMobile();onLayout?.();find('#library-expand').focus?.();}});
  function render({kinds=[],objects=[],title='',extra,actions,activeKind=ui.kind}={}){
   syncPage();const layers=supportsLayers(ui)&&ui.mode==='edit'&&ui.mobileView==='layers';
-  const regionSelect=find('#region-select'),regions=ui.page==='home'?GLOBAL_REGIONS:ui.page==='chat'?['overall','header','body','reasoning','footer','native']:['settings','worldbook'].includes(ui.page)?PAGE_STYLE_REGIONS:['page-header'];
+  const regionSelect=find('#region-select'),regions=ui.page==='home'?GLOBAL_REGIONS:ui.page==='chat'?['overall','header','body','reasoning','footer','native']:['settings','worldbook'].includes(ui.page)?PAGE_STYLE_REGIONS:['page-common','page-header'];
   regionSelect.replaceChildren();for(const id of regions){const option=shadow.ownerDocument.createElement('option');option.value=id;option.textContent=id==='page-content'?(ui.page==='worldbook'?'条目卡片':'设置分组'):REGION_NAMES[id].split(' / ').at(-1);option.selected=id===ui.region;regionSelect.append(option);}regionSelect.parentElement.hidden=!regions.length;find('.panel-head').hidden=ui.mode==='library';find('.scope-controls').dataset.single=String(!regions.length);find('.scope-controls').dataset.layers=String(supportsLayers(ui));find('.inspector-head').hidden=ui.mode!=='library';
   find('.inspector').setAttribute('aria-label',ui.mode==='library'?'素材库':layers?'图层':'属性');
   const captionSelector=ui.page==='chat'&&ui.mode==='edit'&&ui.kind==='text'&&['header','footer'].includes(ui.region)&&!['name','time'].includes(ui.object);

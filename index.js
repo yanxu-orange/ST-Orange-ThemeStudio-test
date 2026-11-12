@@ -3,7 +3,7 @@ import {createWorkshopEntries} from './workshop-entries.mjs';
 import {installWorkshopEventBoundary} from './workshop-events.mjs';
 import {createLiveCanvas} from './live-canvas.mjs';
 import {normalizeCommonConfig} from './common-style.mjs';
-import {normalizePageConfig} from './page-style.mjs';
+import {normalizePageConfig,PAGE_ROOTS} from './page-style.mjs';
 import {normalizePageHeaders,PAGE_HEADER_PAGES} from './page-headers.mjs';
 import {createImageDisplay} from './image-display.mjs';
 import {createSchemeStorage} from './scheme-storage.mjs';
@@ -705,7 +705,7 @@ await (async () => {
     if(fromPreview&&(document.defaultView?.innerWidth||1200)<=700)ui.mobileView='preview';
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
     shadow.querySelector('.inspector-head .material-categories')?.remove();const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;disposeFontLibrary?.();disposeFontLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
-    const headerEditing=Object.hasOwn(PAGE_HEADER_PAGES,ui.page)&&ui.region==='page-header'&&ui.mode!=='library',pageEditing=['settings','worldbook'].includes(ui.page)&&!headerEditing&&ui.mode!=='library',commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&!headerEditing&&(!['home','chat','settings','worldbook'].includes(ui.page)||ui.region==='home-design');
+    const headerEditing=Object.hasOwn(PAGE_HEADER_PAGES,ui.page)&&ui.region==='page-header'&&ui.mode!=='library',pageEditing=Object.hasOwn(PAGE_ROOTS,ui.page)&&!headerEditing&&ui.mode!=='library',commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&!headerEditing&&(!['home','chat'].includes(ui.page)&&!Object.hasOwn(PAGE_ROOTS,ui.page)||ui.region==='home-design');
     if(headerEditing){title=PAGE_HEADER_PAGES[ui.page]+' / 页面头部';}
     else if(pageEditing){if(!['page-common','page-content'].includes(ui.region))ui.region='page-common';if(ui.region==='page-common'){kinds=COMMON_PARTS;title=PAGE_NAMES[ui.page]+' / 页面基础';}else{kinds=ui.page==='worldbook'?[['surface','条目卡片'],['heading','条目标题']]:[];if(!['surface','heading'].includes(ui.kind))ui.kind='surface';title=ui.page==='worldbook'?'世界书 / 条目':'设置分组';}}
     else if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}

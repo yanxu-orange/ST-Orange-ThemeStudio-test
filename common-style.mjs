@@ -52,7 +52,7 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  const input=':is(input:not([type]),input[type=text],input[type=number],input[type=password],input[type=search],input[type=url],input[type=email],select,textarea,.text_pole):not([type=checkbox]):not([type=range]):not([type=color]):not([type=button]):not([type=submit]):not([type=hidden])';
  const button=':is(button,.menu_button,input[type=button],input[type=submit]):not(.red_button):not(.redWarningBG):not(.delete_entry_button):not(.select2-results__option)';
  const disabled=':is(:disabled,[disabled],.disabled,[aria-disabled=true])';
- const headings=preview?':is(h3,.standoutHeader,.inline-drawer-header,.title_restorable)':':is(h3,:where(#user-settings-block) h4,.standoutHeader,.inline-drawer-header,.title_restorable)';
+ const headings=preview?':is(h3,.standoutHeader,.inline-drawer-header,.title_restorable)':':is(h3,:where(#user-settings-block) h4,:where(#rm_button_selected_ch) h2,.standoutHeader,.inline-drawer-header,.title_restorable)';
  const rules=[];const add=(selector,css)=>rules.push(`${selector}{${css}}`);
  add(`${page},${dropdown}`,`${fontVariables}--SmartThemeBodyColor:${t.color};--SmartThemeEmColor:${t.muted};--SmartThemeQuoteColor:${t.accent};--SmartThemeBorderColor:${p.border};--SmartThemeBlurTintColor:${bg};--SmartThemeCheckboxTickColor:#fff;color:${t.color}!important;font-family:${font}!important;font-size:${t.size}px!important;text-shadow:none!important`);
  add(page,`background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important;box-shadow:none!important`);

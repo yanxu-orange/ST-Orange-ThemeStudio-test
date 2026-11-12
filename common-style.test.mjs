@@ -79,3 +79,10 @@ test('settings h4 scope adds no ID specificity to other heading hover and expand
 test('Select2 option buttons in isolated preview do not acquire generic button backgrounds',()=>{
  const css=commonStyleRules({},{preview:true});assert.ok(css.includes(':not(.delete_entry_button):not(.select2-results__option)'));
 });
+
+
+test('selected character heading is covered without promoting native field labels or persona names',()=>{
+ const css=commonStyleRules({});
+ assert.ok(css.includes(':where(#rm_button_selected_ch) h2'));
+ assert.ok(!css.includes(':is(h2,h3,h4'));assert.ok(!css.includes('h5'));
+});

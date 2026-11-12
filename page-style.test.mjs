@@ -69,3 +69,37 @@ test('Select2 ownership follows exact results IDs, handles reuse and restores or
  bridge.stop();assert.equal(get('settings-dropdown').getAttribute('data-otl-page-owner'),null);assert.equal(get('world-dropdown').getAttribute('data-otl-page-owner'),'original');
  document.querySelector('#user-settings-block [aria-controls]').setAttribute('aria-controls','unrelated-results');await settle();assert.equal(get('settings-dropdown').getAttribute('data-otl-page-owner'),null);
 });
+
+test('all nine page roots inherit by default and independent base styles never emit another page scope',async()=>{
+ const {PAGE_ROOTS,PAGE_GROUPS}=await import('./page-style.mjs');
+ const roots={settings:'#user-settings-block',worldbook:'#WorldInfo',presets:'#left-nav-panel',connection:'#rm_api_block',backgrounds:'#Backgrounds',extensions:'#rm_extensions_block',personas:'#PersonaManagement',characters:'#right-nav-panel',formatting:'#AdvancedFormatting'};
+ assert.deepEqual(PAGE_ROOTS,roots);
+ const initial=normalizePageConfig({}).pageStyle;
+ for(const [page,root]of Object.entries(roots)){
+  for(const group of PAGE_GROUPS[page])assert.equal(initial[page][group],null);
+  const config={pageStyle:{[page]:{text:{color:'#123456',fontLink:{url:`https://example.com/${page}.woff2`,faceWeight:'400'}},panel:{radius:23},art:{page:{image:'https://example.com/page.png'}}}}};
+  const normalized=normalizePageConfig(config),css=pageStyleRules(config,{families:{['page-'+page]:'LocalFont'}});
+  assert.ok(css.includes(`html[data-orange-live] ${root}{`));
+  assert.ok(css.includes(`data-otl-page-owner="${page}"`));
+  assert.ok(css.includes('font-family:"LocalFont"!important'));assert.ok(css.includes('background-image:url("https://example.com/page.png")'));
+  assert.deepEqual(Object.keys(pageFontEntries(config)),['page-'+page]);
+  for(const [other,selector]of Object.entries(roots))if(other!==page){assert.deepEqual(normalized.pageStyle[other],initial[other]);assert.ok(!css.includes(`html[data-orange-live] ${selector}`),other);}
+  assert.doesNotMatch(css,/null\{|undefined|[;{](?:display|position|pointer-events|overflow|z-index):/);
+  if(!['settings','worldbook'].includes(page)){
+   assert.deepEqual(Object.keys(initial[page].art),['page']);
+   for(const invalid of [{entry:{}},{section:{}},{art:{entry:{}}},{art:{section:{}}},{panel:{radius:999}},{art:{page:{image:'javascript:alert(1)'}}}])assert.throws(()=>normalizePageConfig({pageStyle:{[page]:invalid}}));
+  }
+ }
+});
+
+test('Select2 ownership covers every native page, concurrent dropdowns, dynamic controls and reuse',async()=>{
+ const {PAGE_ROOTS}=await import('./page-style.mjs');
+ const pages=Object.entries(PAGE_ROOTS),{document}=parseHTML('<html><body>'+pages.map(([page,root])=>`<div id="${root.slice(1)}"><span class="select2-container--open"><span aria-controls="${page}-results"></span></span></div><span id="${page}-dropdown" class="select2-container--open"><ul id="${page}-results"></ul></span>`).join('')+'</body></html>');
+ const bridge=createPageDropdownBridge({document,MutationObserver:mutationObserverFor(document)}),settle=()=>new Promise(r=>setImmediate(r));bridge.start();
+ for(const [page]of pages)assert.equal(document.getElementById(page+'-dropdown').getAttribute('data-otl-page-owner'),page);
+ const result=document.getElementById('presets-results'),control=document.querySelector('#left-nav-panel [aria-controls]');
+ control.setAttribute('aria-controls','closed');await settle();assert.equal(result.parentElement.getAttribute('data-otl-page-owner'),null);
+ document.querySelector('#PersonaManagement').insertAdjacentHTML('beforeend','<span class="select2-container--open"><span aria-owns="presets-results"></span></span>');await settle();assert.equal(result.parentElement.getAttribute('data-otl-page-owner'),'personas');
+ document.querySelector('#PersonaManagement').innerHTML='<input>';await settle();assert.equal(result.parentElement.getAttribute('data-otl-page-owner'),null);
+ bridge.stop();for(const [page]of pages)assert.equal(document.getElementById(page+'-dropdown').getAttribute('data-otl-page-owner'),null);
+});
