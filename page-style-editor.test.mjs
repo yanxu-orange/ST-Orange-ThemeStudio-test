@@ -31,7 +31,7 @@ test('independent page editors preserve native controls, inheritance, all fields
  field:[['控件文字颜色 HEX','#cdef01','color'],['控件底色 HEX','#def012','background'],['控件边框颜色 HEX','#ef0123','border'],['控件焦点颜色 HEX','#f01234','focus'],['控件圆角 数值',15,'radius']]
  };
  for(const target of Object.keys(PAGE_ROOTS)){
-  page(target);region('page-common');assert.deepEqual([...sh.querySelector('#region-select').options].map(o=>o.value),['page-common','page-header',...(['settings','worldbook','presets'].includes(target)?['page-content']:[])]);assert.equal(sh.querySelectorAll('.kind-tabs [data-kind]').length,5);
+  page(target);region('page-common');assert.deepEqual([...sh.querySelector('#region-select').options].map(o=>o.value),['page-common','page-header',...(['settings','worldbook','presets'].includes(target)?['page-content']:[]),...(target==='presets'?['page-bai']:[])]);assert.equal(sh.querySelectorAll('.kind-tabs [data-kind]').length,5);
   const otherPages=structuredClone((await save()).pageStyle);delete otherPages[target];
   for(const [group,rows]of Object.entries(edits)){part(group);if(sh.querySelector('[aria-label="样式来源"]').value==='inherit')custom();for(const [label,value]of rows)field(label,value);const saved=await save();for(const [,value,key]of rows)assert.equal(saved.pageStyle[target][group][key],value,`${target}.${group}.${key}`);}
   part('text');field('界面 字体直链',`https://example.com/${target}.woff2`);field('界面 链接文件类型','700');assert.equal(pageFontEntries(await save())['page-'+target].fontLink.faceWeight,'700');

@@ -13,14 +13,15 @@ export function newCaption(overrides={}){return {id:uniqueId(),name:'文案',con
 export function validateCaptions(raw,{large=false,header=false}={}){
  if(!Array.isArray(raw)||raw.length>CAPTION_LIMIT)throw Error('文案列表无效或超过20条');const ids=new Set();
  return raw.map(c=>{
-  if(!c||typeof c!=='object'||Array.isArray(c)||Object.keys(c).some(k=>!['id','name','content','font','size','color','visible','scope',...(!header?['position']:[]),'width','x','y','weight','z','fontLink'].includes(k)))throw Error('文案字段无效');
+  if(!c||typeof c!=='object'||Array.isArray(c)||Object.keys(c).some(k=>!['id','name','content','font','size','color','visible','scope',...(!header?['position']:[]),'width','x','y','weight','z','fontLink','lineHeight'].includes(k)))throw Error('文案字段无效');
   if(typeof c.id!=='string'||!/^[\w-]{1,80}$/.test(c.id)||ids.has(c.id))throw Error('文案标识无效或重复');ids.add(c.id);
   if(typeof c.name!=='string'||c.name.length>80||typeof c.content!=='string'||c.content.length>300)throw Error('文案名称或内容过长');
   if(!TIME_FONTS.includes(c.font)||!Number.isFinite(c.size)||c.size<(large?8:10)||c.size>(large?200:26)||typeof c.color!=='string'||!/^#[0-9a-f]{6}$/i.test(c.color))throw Error('文案样式无效');
   if(!CAPTION_SCOPES.includes(c.scope))throw Error('文案显示对象无效');
   if(typeof c.visible!=='boolean'||(!header&&!['above','below'].includes(c.position)))throw Error('文案显示或位置无效');
   if(c.width!=='auto'&&(!Number.isFinite(c.width)||c.width<10||c.width>100))throw Error('文案宽度无效');
-  return {id:c.id,name:c.name,content:c.content,font:c.font,size:c.size,color:c.color,visible:c.visible,scope:c.scope,...(!header?{position:c.position}:{}),width:c.width,...validateCaptionStyle(c,{stable:header})};
+  if(Object.hasOwn(c,'lineHeight')&&(!Number.isFinite(c.lineHeight)||c.lineHeight<1||c.lineHeight>3))throw Error('文案行高无效');
+  return {id:c.id,name:c.name,content:c.content,font:c.font,size:c.size,color:c.color,visible:c.visible,scope:c.scope,...(!header?{position:c.position}:{}),width:c.width,...(Object.hasOwn(c,'lineHeight')?{lineHeight:c.lineHeight}:{}),...validateCaptionStyle(c,{stable:header})};
  });
 }
 export function stripLegacyCaptions(config){for(const key of LEGACY_CAPTION_FIELDS)delete config[key];if(config.textItems)delete config.textItems.caption;return config;}

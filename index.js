@@ -477,6 +477,10 @@ await (async () => {
     propertyHeading(container,'字体设计');const style=item.style;control(field(key==='name'?'名字字体':'时间字体','font','select',{options:fonts}),style);control(field(labelName+'字号','size','range',{min:8,max:200,unit:'px'}),style);control(field(labelName+'颜色','color','color'),style);
     const weightLabel=make('label','field','字重'),weight=make('select');weight.setAttribute('aria-label',labelName+' 字重');for(const [v,t]of [['auto','沿用'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]){const o=make('option','',t);o.value=v;weight.append(o);}weight.value=String(style.weight);weightLabel.append(weight);container.append(weightLabel);weight.addEventListener('change',()=>{remember();style.weight=weight.value==='auto'?'auto':Number(weight.value);commit();apply();});propertyHeading(container,'外链字体');renderFontLinkFields(container,metadataFontKey(scope,key),style,labelName,commit);
   }
+  function renderCaptionLineHeight(container,item,fallback){
+    const target=new Proxy(item,{get(value,key){return key==='lineHeight'?value.lineHeight??fallback:value[key];}});
+    editorControl(container,field('文案行高','lineHeight','range',{min:1,max:3,step:.05,unit:'倍'}),target);
+  }
   function renderTextFields(container){
     if(ui.region==='header'&&['name','time'].includes(textItemKey)){renderMetadataFields(container,textItemKey);return;}
     const key=textItemKey,cap=selectedCaption(),item=cap||config.textItems[key],labelName=cap?'文案':({name:'名字',time:'时间'})[key];
@@ -493,7 +497,7 @@ await (async () => {
     for(const [value,title]of [['auto','沿用'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]){const option=make('option','',title);option.value=value;weight.append(option);}weight.value=String(item.weight);
     weight.addEventListener('change',()=>{remember();item.weight=weight.value==='auto'?'auto':Number(weight.value);apply();});weightLabel.append(weight);fontRow.append(weightLabel);
 
-    if(cap){editorControl(container,field('文案字号','size','range',{min:8,max:200,unit:'px',notice:'字号已更新，尚未保存'}),cap);editorControl(container,field('文案颜色','color','color',{notice:'颜色已更新，尚未保存'}),cap);}else renderConfigFields(container,key==='name'?['nameSize','nameColor']:['timeSize','timeColor']);
+    if(cap){editorControl(container,field('文案字号','size','range',{min:8,max:200,unit:'px',notice:'字号已更新，尚未保存'}),cap);renderCaptionLineHeight(container,cap,1.6);editorControl(container,field('文案颜色','color','color',{notice:'颜色已更新，尚未保存'}),cap);}else renderConfigFields(container,key==='name'?['nameSize','nameColor']:['timeSize','timeColor']);
     propertyHeading(container,'外链字体');renderFontLinkFields(container,key,item,labelName);
     if(cap){
     const actions=make('div','actions'),copy=make('button','','复制文案'),remove=make('button','','删除文案');copy.disabled=currentCaptions().length>=CAPTION_LIMIT;
@@ -519,13 +523,13 @@ await (async () => {
     container.append(make('p','hint','用于各页面共用界面；聊天正文、顶栏和输入区单独设置。'));
     renderSharedStyleFields(container,ui.commonPart,config.commonStyle[ui.commonPart]);
   }
-  function renderSharedStyleFields(container,part,item,{fontKey='common',notice='界面共用外观已更新，尚未保存'}={}){
-    const control=f=>editorControl(container,{...f,notice},item);
+  function renderSharedStyleFields(container,part,item,{fontKey='common',notice='界面共用外观已更新，尚未保存',keys=null}={}){
+    const control=f=>{if(!keys||keys.includes(f.key))editorControl(container,{...f,notice},item);};
     if(part==='text'){
       control(field('界面字体','font','select',{options:[['auto','沿用酒馆界面字体'],...fonts]}));
       control(field('界面字号','size','range',{min:12,max:24,unit:'px'}));
       for(const [key,label]of [['color','界面文字颜色'],['muted','辅助文字颜色'],['accent','界面强调颜色']])control(field(label,key,'color'));
-      propertyHeading(container,'外链字体');renderFontLinkFields(container,fontKey,item,'界面');
+      if(!keys||keys.includes('fontLink')){propertyHeading(container,'外链字体');renderFontLinkFields(container,fontKey,item,'界面');}
     }else if(part==='panel'){
       control(field('面板底色','background','color'));control(field('面板不透明度','opacity','range',{min:0,max:1,step:.05}));
       control(field('面板边框颜色','border','color'));control(field('面板边框粗细','width','range',{min:0,max:4,unit:'px'}));control(field('面板圆角','radius','range',{min:0,max:32,unit:'px'}));
@@ -563,7 +567,7 @@ await (async () => {
       else editorControl(container,field('素材区域高度','heightPercent','range',{min:0,max:100}),item);
     }else{
       const row=make('label','field','文字内容'),text=make('textarea');text.rows=2;text.maxLength=300;text.value=item.content;text.setAttribute('aria-label','文字内容');let tracking=false;text.addEventListener('input',()=>{if(!tracking){remember();tracking=true;}item.content=text.value;apply();});text.addEventListener('change',()=>{tracking=false;});row.append(text);container.append(row);
-      for(const f of [field('文字字号','size','range',{min:8,max:200}),field('文字颜色','color','color'),field('文字对齐','align','select',{options:[['left','左对齐'],['center','居中'],['right','右对齐']]}),field('文字字体','font','select',{options:TIME_FONTS.map(font=>[font,font])}),field('文字字重','weight','select',{options:[['auto','沿用字体'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}),field('横向位置','x','range',{min:-100,max:200,unit:'%'}),field('纵向位置','y','range',{min:-400,max:1600,unit:'px'})]){if(f.key==='weight'){const proxy=new Proxy(item,{set(target,key,value){target[key]=value==='auto'?value:Number(value);return true;}});editorControl(container,f,proxy);}else editorControl(container,f,item);}
+      for(const f of [field('文字字号','size','range',{min:8,max:200}),field('文字颜色','color','color'),field('文字对齐','align','select',{options:[['left','左对齐'],['center','居中'],['right','右对齐']]}),field('文字字体','font','select',{options:TIME_FONTS.map(font=>[font,font])}),field('文字字重','weight','select',{options:[['auto','沿用字体'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}),field('横向位置','x','range',{min:-100,max:200,unit:'%'}),field('纵向位置','y','range',{min:-400,max:1600,unit:'px'})]){if(f.key==='weight'){const proxy=new Proxy(item,{set(target,key,value){target[key]=value==='auto'?value:Number(value);return true;}});editorControl(container,f,proxy);}else editorControl(container,f,item);if(f.key==='size')renderCaptionLineHeight(container,item,1.35);}
       renderFontLinkFields(container,pageHeaderSceneFontKey(ui.page,item.id),item,'头部文字');
       const width=make('label','field','文字宽度'),select=make('select');select.setAttribute('aria-label','文字宽度模式');for(const [v,t]of [['auto','自动'],['custom','指定宽度']]){const o=make('option','',t);o.value=v;select.append(o);}select.value=item.width==='auto'?'auto':'custom';select.addEventListener('change',()=>{remember();item.width=select.value==='auto'?'auto':50;apply();renderFields();});width.append(select);container.append(width);if(item.width!=='auto')editorControl(container,field('文字宽度','width','range',{min:10,max:100,unit:'%'}),item);
     }
@@ -611,18 +615,34 @@ await (async () => {
       const position=pairedFields(container);for(const [key,name]of [['x','水平取景'],['y','垂直取景']])editorControl(position,field(name,key,'range',{min:0,max:100,unit:'%'}),art);
     }
   }
+  function renderPageStyleSource(container,pageConfig,part,inherited,label,follow,aria='样式来源'){
+    const item=pageConfig[part];
+    const sourceLabel=make('label','field',label+'样式来源'),source=make('select');source.setAttribute('aria-label',aria);source.dataset.pageStyleSource=part;
+    for(const [value,text]of [['inherit',follow],['custom','单独设置']]){const option=make('option','',text);option.value=value;source.append(option);}source.value=item?'custom':'inherit';
+    source.addEventListener('change',()=>{remember();pageConfig[part]=source.value==='custom'?clone(inherited):null;apply();renderFields();notify(source.value==='custom'?'已从当前外观开始单独设置，尚未保存':'已恢复跟随，尚未保存');});sourceLabel.append(source);container.append(sourceLabel);
+  }
+  function renderBaiGroups(container){
+    const page=config.pageStyle.presets;
+    for(const [part,label,keys]of [['panel','分组边线',['border']],['heading','分组标题',['background','color','size','weight']],['field','分组内部底色',['background']],['text','分组状态',['muted','accent']]]){
+      propertyHeading(container,label);renderPageStyleSource(container,page,part,config.commonStyle[part],label,'跟随全局',label+'样式来源');
+      container.append(make('p','hint',`样式来源与预设页「${COMMON_PARTS.find(([id])=>id===part)[1]}」整组共用，切换也会改变该组其他属性。`));
+      if(page[part])renderSharedStyleFields(container,part,page[part],{fontKey:'page-presets',notice:'预设外观已更新，尚未保存',keys});
+    }
+  }
   function renderPageFields(container){
+    const bai=ui.page==='presets'&&ui.region==='page-bai';
+    if(bai)container.append(make('p','hint','与预设页面共用样式；修改会同时影响预设页面对应外观。启用提示词条目外观时，也会启用柏宝箱分组与条目外观。'));
     if(ui.page==='presets'&&ui.region==='page-content'&&ui.kind==='tip'){
       editorControl(container,field('提示位置','sliderTip','select',{options:[['native','原生位置'],['flow','随页面内容排列']]}),config.pageStyle.presets);
       container.append(make('p','hint','只调整提示的位置，是否显示仍由酒馆的滑块设置决定。'));
       return;
     }
-    if(ui.page==='presets'&&ui.region==='page-content')editorControl(container,field('启用提示词条目外观','promptList','select',{options:[['false','关闭'],['true','开启']]}),config.pageStyle.presets);
-    const page=ui.page,specific=ui.region==='page-content',part=specific?(page==='settings'?'section':ui.kind==='heading'?'entryHeading':'entry'):ui.commonPart,basePart=['section','entry'].includes(part)?'panel':part==='entryHeading'?'heading':part;
+    if(ui.page==='presets'&&(ui.region==='page-content'||bai))editorControl(container,field('启用提示词条目外观','promptList','select',{options:[['false','关闭'],['true','开启']]}),config.pageStyle.presets);
+    if(bai&&ui.kind==='group'){renderBaiGroups(container);return;}
+    const page=ui.page,specific=ui.region==='page-content'||bai,part=specific?(page==='settings'?'section':ui.kind==='heading'?'entryHeading':'entry'):ui.commonPart,basePart=['section','entry'].includes(part)?'panel':part==='entryHeading'?'heading':part;
     const pageConfig=config.pageStyle[page],inherited=pageConfig[basePart]||config.commonStyle[basePart],item=pageConfig[part],label=specific?(part==='entryHeading'?'条目标题':page==='settings'?'设置分组':page==='presets'?'提示词条目':'条目卡片'):COMMON_PARTS.find(([id])=>id===part)?.[1];
-    const sourceLabel=make('label','field',label+'样式来源'),source=make('select');source.setAttribute('aria-label','样式来源');source.dataset.pageStyleSource=part;
-    const follow=specific?(part==='section'?(pageConfig.panel?'跟随本页面板':'沿用原生分组'):basePart==='panel'?'跟随本页面板':pageConfig.heading?'跟随本页标题':'沿用页面标题区'):'跟随全局';for(const [value,text]of [['inherit',follow],['custom','单独设置']]){const option=make('option','',text);option.value=value;source.append(option);}source.value=item?'custom':'inherit';
-    source.addEventListener('change',()=>{remember();pageConfig[part]=source.value==='custom'?clone(inherited):null;apply();renderFields();notify(source.value==='custom'?'已从当前外观开始单独设置，尚未保存':'已恢复跟随，尚未保存');});sourceLabel.append(source);container.append(sourceLabel);
+    const follow=specific?(part==='section'?(pageConfig.panel?'跟随本页面板':'沿用原生分组'):basePart==='panel'?'跟随本页面板':pageConfig.heading?'跟随本页标题':'沿用页面标题区'):'跟随全局';
+    renderPageStyleSource(container,pageConfig,part,inherited,label,follow);
     if(item)renderSharedStyleFields(container,basePart,item,{fontKey:'page-'+page,notice:PAGE_NAMES[page]+'外观已更新，尚未保存'});
     else if(part==='entryHeading'&&!pageConfig.heading)container.append(make('p','hint','选择“单独设置”可一起调整标题区和标题文字。'));
     else if(part==='section'&&!pageConfig.panel)container.append(make('p','hint','单独设置会从当前面板外观开始调整。'));
@@ -822,7 +842,7 @@ await (async () => {
     shadow.querySelector('.inspector-head .material-categories')?.remove();const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;disposeFontLibrary?.();disposeFontLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
     const headerEditing=Object.hasOwn(PAGE_HEADER_PAGES,ui.page)&&ui.region==='page-header'&&ui.mode!=='library',pageEditing=Object.hasOwn(PAGE_ROOTS,ui.page)&&!headerEditing&&ui.mode!=='library',commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&!headerEditing&&(!['home','chat'].includes(ui.page)&&!Object.hasOwn(PAGE_ROOTS,ui.page)||ui.region==='home-design');
     if(headerEditing){kinds=[['base','基础'],['scene-images','图片与形状'],['scene-texts','文字'],...(ui.page==='home'?[['native-home','原生对象']]:[])];if(!kinds.some(([key])=>key===ui.kind))ui.kind='base';objects=ui.kind==='base'?[['image','头图'],['title','标题'],['layout','排版']]:ui.kind==='native-home'?[['version','版本文字'],['settings','设置按钮'],['show','展开按钮'],['hide','收起按钮']]:(ui.kind==='scene-images'?config.pageHeaders[ui.page].scene.images:config.pageHeaders[ui.page].scene.texts).map(item=>[item.id,item.name+(item.visible?'':' · 已隐藏')]);if(!objects.some(([key])=>key===ui.object))ui.object=objects[0]?.[0]||'';title=PAGE_HEADER_PAGES[ui.page]+' / 页面头部';}
-    else if(pageEditing){if(!['page-common','page-content'].includes(ui.region))ui.region='page-common';if(ui.region==='page-common'){kinds=COMMON_PARTS;title=PAGE_NAMES[ui.page]+' / 页面基础';}else{kinds=ui.page==='worldbook'?[['surface','条目卡片'],['heading','条目标题']]:ui.page==='presets'?[['surface','提示词条目'],['tip','滑块提示']]:[];if(!(ui.page==='presets'?['surface','tip']:['surface','heading']).includes(ui.kind))ui.kind='surface';title=ui.page==='worldbook'?'世界书 / 条目':ui.page==='presets'?'预设 / 内容分组':'设置分组';}}
+    else if(pageEditing){if(!['page-common','page-content',...(ui.page==='presets'?['page-bai']:[])].includes(ui.region))ui.region='page-common';if(ui.region==='page-common'){kinds=COMMON_PARTS;title=PAGE_NAMES[ui.page]+' / 页面基础';}else if(ui.region==='page-bai'){kinds=[['group','分组'],['entry','条目']];if(!['group','entry'].includes(ui.kind))ui.kind='group';title='预设 / 柏宝箱';}else{kinds=ui.page==='worldbook'?[['surface','条目卡片'],['heading','条目标题']]:ui.page==='presets'?[['surface','提示词条目'],['tip','滑块提示']]:[];if(!(ui.page==='presets'?['surface','tip']:['surface','heading']).includes(ui.kind))ui.kind='surface';title=ui.page==='worldbook'?'世界书 / 条目':ui.page==='presets'?'预设 / 内容分组':'设置分组';}}
     else if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}
     else if(unavailable)title=ui.region==='home-design'?'首页独立设计尚未接入':PAGE_NAMES[ui.page]+'独立设计尚未接入';
     else if(ui.mode==='library')title=libraryPurpose.startsWith('chrome:')?'选择按钮素材':libraryPurpose==='native-more-icon'?'设置更多图标':libraryPurpose==='native-edit-icon'?'设置编辑图标':libraryPurpose==='reasoning-background'?'设置思维入口背景':materialSession?'选择素材':'素材库';
