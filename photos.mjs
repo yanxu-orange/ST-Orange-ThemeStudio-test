@@ -2,7 +2,7 @@ import {validImage, newLayer} from './layers.mjs';
 import {ASSETS} from './catalog.mjs';
 
 export function defaultPhoto(overrides={}) {
-  return {enabled:false,size:88,radius:16,ratio:'1',frameWidth:3,frameColor:'#fffdf4',shadow:true,x:0,y:0,rotation:0,image:'',asset:'',...overrides};
+  return {enabled:false,size:88,widthUnit:'px',height:'auto',radius:16,ratio:'1',frameWidth:3,frameColor:'#fffdf4',shadow:true,x:0,y:0,rotation:0,image:'',asset:'',...overrides};
 }
 export function validatePhotos(raw) {
   if(raw===undefined)return {ai:defaultPhoto(),user:defaultPhoto()};
@@ -12,7 +12,11 @@ export function validatePhotos(raw) {
     const p=raw[scope];if(!p||typeof p!=='object'||Array.isArray(p))throw Error('头像设置无效：'+scope);
     const out=defaultPhoto();
     if(Object.keys(p).some(key=>!Object.hasOwn(out,key)))throw Error('头像设置包含未知参数');
-    for(const [key,min,max] of [['size',40,300],['radius',0,150],['frameWidth',0,15],['x',-80,80],['y',-80,80],['rotation',-20,20]]) {
+    const unit=p.widthUnit??'px',height=p.height??'auto';
+    if(!['px','percent'].includes(unit))throw Error('头像宽度单位无效');
+    if(height!=='auto'&&(!Number.isFinite(height)||height<1||height>600))throw Error('头像高度超出范围');
+    out.widthUnit=unit;out.height=height;
+    for(const [key,min,max] of [['size',unit==='percent'?1:40,unit==='percent'?100:600],['radius',0,150],['frameWidth',0,15],['x',-80,80],['y',-80,80],['rotation',-20,20]]) {
       if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw Error('头像参数超出范围：'+key);out[key]=p[key];
     }
     for(const key of ['frameColor']) {if(typeof p[key]!=='string'||!/^#[a-f0-9]{6}$/i.test(p[key]))throw Error('头像颜色无效');out[key]=p[key];}
@@ -38,4 +42,10 @@ export function kittyLayers() {
     asset('kitty-user-sprig','user',{anchor:'avatar',side:'right',width:33,widthUnit:'percent',x:-32,y:0,vertical:'bottom',offsetUnit:'percent',z:3}),
     asset('kitty-user-cream','user',{anchor:'avatar',side:'right',width:10,widthUnit:'percent',x:-50,y:-3,vertical:'bottom',offsetUnit:'percent',z:1,opacity:.5}),
   ];
+}
+
+
+export function photoDimensions(photo,innerWidth){
+ const width=photo.widthUnit==='percent'?innerWidth*photo.size/100:photo.size;
+ return {width,height:photo.height===undefined||photo.height==='auto'?width/Number(photo.ratio):photo.height};
 }

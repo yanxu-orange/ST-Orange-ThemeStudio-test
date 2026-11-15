@@ -1,3 +1,4 @@
+import {cardPadding} from './body-card.mjs';
 import {validateSwipeExtras,swipeExtraRules,parseSwipeCounter} from './native-swipe-style.mjs';
 import {validateStatStyle,validateStatLabel,nativeStatRules,resolveNativeStats} from './native-stat-style.mjs';
 import {ICON_STYLE_FIELDS,validateIconStyle,builtinIconUrl,styleIconElement} from './icon-style.mjs';
@@ -106,7 +107,7 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  // Docks never change the fixed header height. Only the footer reserves flow space.
  set('--on-head-height','0px');
  const widths=yield()=>({header:header.getBoundingClientRect().width,tools:s.actions.more.position==='footer'?block.getBoundingClientRect().width:null});
- const regionWidth=widths.header||Math.max(1,c.cardWidth-48);set('--on-region-width',regionWidth+'px');set('--on-tools-max-width',((widths.tools??widths.header)||regionWidth)+'px');
+ const regionWidth=widths.header||Math.max(1,c.cardWidth-cardPadding(c)*2);set('--on-region-width',regionWidth+'px');set('--on-tools-max-width',((widths.tools??widths.header)||regionWidth)+'px');
  const {moreD,moreHintD,editD,editingD,sd,ld,rightD,counterD}=yield()=>({moreD:box(normal),moreHintD:box(normal?.querySelector('.extraMesButtonsHint')),editD:box(edit),editingD:box(editing),sd:stats.map(n=>n?.textContent.trim()?box(n):{width:0,height:0}),ld:box(left),rightD:splitCounter?box(rightArrow):swipeContentBox(right),counterD:splitCounter?box(counter):{width:0,height:0}});
  const ed=exists(editingD)?editingD:editD;
  const controls=[{key:'more',style:s.actions.more,d:moreD},{key:'edit',style:s.actions.edit,d:ed},...statKeys.map((key,i)=>({key,style:s.stats[key],d:sd[i]})),{key:'swipe',style:s.swipe,d:{width:ld.width+rightD.width+(exists(ld)&&exists(rightD)?s.swipe.gap:0),height:Math.max(ld.height,rightD.height)}}];

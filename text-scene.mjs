@@ -1,3 +1,5 @@
+import {cardPadding} from './body-card.mjs';
+import {photoDimensions} from './photos.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {regionZ} from './region-layers.mjs';
 import {fillSettings} from './avatar-fill.mjs';
@@ -19,11 +21,11 @@ export function normalizeTextScene(c){
 }
 export function newSceneCaption(c,overrides={}){const v=newCaption({font:c.font,color:c.accent,...overrides});delete v.position;const last=Math.max(0,c.textItems.name.y,c.textItems.time.y,...c.captions.map(v=>v.y));return {...v,x:c.layout==='collage'?49:c.layout==='left'?25:0,y:Math.min(HEAD_Y_MAX,last+32),...overrides};}
 export function resetSceneLayout(c,layout){return seedTextPositions({...clone(c),layout,timePosition:'below'},{offsets:false});}
-export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-CARD_PADDING*2);}
+export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-cardPadding(c)*2);}
 export function sceneGeometry(c,width,p,hidden=false,user=false){
- const fill=fillSettings(c,user),areaWidth=width+CARD_PADDING*2;
- if(fill.enabled&&!hidden)return {width,baseHeight:c.headerHeight,photoWidth:areaWidth,photoHeight:c.headerHeight,photoTop:-CARD_PADDING};
- const photoWidth=hidden?0:p.size,photoHeight=photoWidth/Number(p.ratio);
+ const fill=fillSettings(c,user),areaWidth=width+cardPadding(c)*2;
+ if(fill.enabled&&!hidden)return {width,baseHeight:c.headerHeight,photoWidth:areaWidth,photoHeight:c.headerHeight,photoTop:-cardPadding(c)};
+ const dimensions=photoDimensions(p,width),photoWidth=hidden?0:dimensions.width,photoHeight=hidden?0:dimensions.height;
  return {width,baseHeight:c.headerHeight,photoWidth,photoHeight,photoTop:0};
 }
 export function itemPoint(c,item,width){return {x:width*(item.x+(c.textInset??0))/100,y:item.y+(c.textTop??0)};}
@@ -33,22 +35,22 @@ export function sceneBounds(c,g){return {reserveTop:0,height:c.headerHeight};}
 /** Clip a transformed avatar to the fixed header without moving native DOM nodes. */
 export function avatarClipPolygon(c,g,p,user=false){
  const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
- const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:CARD_PADDING+p.x,y=fill?0:CARD_PADDING-p.y;
- return [[0,0],[g.width+CARD_PADDING*2,0],[g.width+CARD_PADDING*2,c.headerHeight],[0,c.headerHeight]].map(([px,py])=>{
+ const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:cardPadding(c)+p.x,y=fill?0:cardPadding(c)-p.y;
+ return [[0,0],[g.width+cardPadding(c)*2,0],[g.width+cardPadding(c)*2,c.headerHeight],[0,c.headerHeight]].map(([px,py])=>{
   const dx=px-x-ox,dy=py-y-oy;
   return `${Number((ox+(cos*dx+sin*dy)).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)).toFixed(4))}px`;
  }).join(',');
 }
 
 export function sceneTextRules(c,selectors){const items=textEntries(c),tokens=textTokens(c);return Object.entries(selectors).map(([key,selector])=>{const item=items[key],token=tokens[key];return `${selector}{font-weight:${item.weight==='auto'?400:item.weight}!important;letter-spacing:normal!important;position:absolute!important;left:var(--sc-left-${token},0px)!important;top:var(--sc-top-${token},0px)!important;box-sizing:border-box!important;width:${item.width==='auto'?'max-content':`var(--sc-width-${token})`}!important;min-width:0!important;max-width:var(--sc-width-${token})!important;flex:none!important;margin:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere;text-align:${c.textAlign}!important;z-index:${regionZ(c,'header',key)}!important;clip-path:inset(calc(var(--sc-clip-top-${token}) - var(--sc-drag-y,0px)) calc(100% - var(--sc-clip-right-${token}) + var(--sc-drag-x,0px)) calc(100% - var(--sc-clip-bottom-${token}) + var(--sc-drag-y,0px)) calc(var(--sc-clip-left-${token}) - var(--sc-drag-x,0px)))!important;}`;}).join('\n');}
-export function sceneFrameRules(q,header){return `${header}{position:relative!important;display:block!important;box-sizing:border-box!important;width:calc(100% + 48px)!important;max-width:none!important;padding:0!important;height:var(--sc-total-height)!important;min-height:var(--sc-total-height)!important;max-height:var(--sc-total-height)!important;margin-top:-24px!important;margin-bottom:14px!important;margin-left:-24px!important;margin-right:-24px!important;overflow:visible!important;}
-${q} .otl-scene-art{position:absolute!important;left:24px!important;top:24px!important;width:calc(100% - 48px)!important;height:var(--sc-inner-height)!important;pointer-events:none;}
+export function sceneFrameRules(q,header,c={}){return `${header}{position:relative!important;display:block!important;box-sizing:border-box!important;width:calc(100% + ${cardPadding(c)*2}px)!important;max-width:none!important;padding:0!important;height:var(--sc-total-height)!important;min-height:var(--sc-total-height)!important;max-height:var(--sc-total-height)!important;margin-top:${-cardPadding(c)}px!important;margin-bottom:14px!important;margin-left:${-cardPadding(c)}px!important;margin-right:${-cardPadding(c)}px!important;overflow:visible!important;}
+${q} .otl-scene-art{position:absolute!important;left:${cardPadding(c)}px!important;top:${cardPadding(c)}px!important;width:calc(100% - ${cardPadding(c)*2}px)!important;height:var(--sc-inner-height)!important;pointer-events:none;}
 `;}
 /** Assign shared geometry without measuring content or changing the saved positions. */
 export function prepareScene(msg,header,c,nodes,set,hidden=false,width=sceneWidth(msg,c)){
  const g=sceneGeometry(c,width,c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],hidden,msg.getAttribute('is_user')==='true'),items=textEntries(c),tokens=textTokens(c);
  for(const [key,item]of Object.entries(items))set(msg,'--sc-width-'+tokens[key],itemWidth(item,g.width)+'px');
- const bounds=sceneBounds(c,g);set(msg,'--sc-avatar-clip',avatarClipPolygon(c,g,c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],msg.getAttribute('is_user')==='true'));for(const [key,value]of Object.entries({'fill-height':g.photoHeight,'base-height':g.baseHeight,'inner-height':Math.max(0,g.baseHeight-CARD_PADDING),'reserve-top':bounds.reserveTop,'total-height':bounds.height}))set(msg,'--sc-'+key,value+'px');return {...g,...bounds};
+ const bounds=sceneBounds(c,g);set(msg,'--sc-avatar-clip',avatarClipPolygon(c,g,c.photos[msg.getAttribute('is_user')==='true'?'user':'ai'],msg.getAttribute('is_user')==='true'));for(const [key,value]of Object.entries({'photo-width':g.photoWidth,'photo-height':g.photoHeight,'fill-height':g.photoHeight,'base-height':g.baseHeight,'inner-height':Math.max(0,g.baseHeight-cardPadding(c)),'reserve-top':bounds.reserveTop,'total-height':bounds.height}))set(msg,'--sc-'+key,value+'px');return {...g,...bounds};
 }
 export function placeScene(...args){return runLayoutPass([placeSceneLayout(...args)])[0];}
 export function* placeSceneLayout(msg,header,c,nodes,g,set){
@@ -57,7 +59,7 @@ export function* placeSceneLayout(msg,header,c,nodes,g,set){
  // Read each shared origin once before writing any text positions.
  for(const [key,node]of Object.entries(nodes)){
   if(!node)continue;
-  const point=itemPoint(c,items[key],g.width),p={x:point.x+CARD_PADDING,y:point.y+CARD_PADDING},parent=node.offsetParent||node.parentElement;
+  const point=itemPoint(c,items[key],g.width),p={x:point.x+cardPadding(c),y:point.y+cardPadding(c)},parent=node.offsetParent||node.parentElement;
   let rect=rects.get(parent);if(!rect){rect=parent.getBoundingClientRect();rects.set(parent,rect);}
   placements.push({key,p,ox:rect.left+(parent.clientLeft||0)-(parent.scrollLeft||0),oy:rect.top+(parent.clientTop||0)-(parent.scrollTop||0)});
  }
@@ -65,7 +67,7 @@ export function* placeSceneLayout(msg,header,c,nodes,g,set){
  };
  const tokens=textTokens(c);
  for(const {key,p,ox,oy}of placements){
-  for(const [edge,value]of Object.entries({left:-p.x,top:-p.y,right:g.width+CARD_PADDING*2-p.x,bottom:g.height-p.y}))set(msg,'--sc-clip-'+edge+'-'+tokens[key],value+'px');
+  for(const [edge,value]of Object.entries({left:-p.x,top:-p.y,right:g.width+cardPadding(c)*2-p.x,bottom:g.height-p.y}))set(msg,'--sc-clip-'+edge+'-'+tokens[key],value+'px');
   set(msg,'--sc-left-'+tokens[key],(r.left+headerLeft+p.x-ox)+'px');
   set(msg,'--sc-top-'+tokens[key],(r.top+headerTop+g.reserveTop+p.y-oy)+'px');
  }

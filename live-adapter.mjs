@@ -23,7 +23,7 @@ import {normalizeTextScene,prepareScene,placeSceneLayout,sceneWidth,sceneTextRul
 import {normalizeNativeConfig,nativeRules,nativeLayout,latestAI,nativeControlNodes,clearNativeIconFailures} from './native.mjs';
 import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,footerLayout} from './footer.mjs';
 import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
-import {bodyCardSettings,bodyCardRules,chatFrameRules} from './body-card.mjs';
+import {bodyCardSettings,bodyCardRules,chatFrameRules,cardPadding} from './body-card.mjs';
 import {normalizeCaptionConfig,captionKey,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
 import {createFontSession} from './font-sources.mjs';
@@ -47,7 +47,7 @@ function styleText(config,families={},interfaceFamily='sans-serif') {
   const font=new URL('./materials/字体/SourceHanSerifCN-VF.ttf.woff2',import.meta.url).href;
   return `@font-face{font-family:LabSongti;src:url("${font}") format("woff2");font-style:normal;font-weight:250 900;font-display:swap}
 html[data-orange-live] #chat{${Object.entries(vars).map(([k,v])=>`--ol-${k}:${v}`).join(';')};background:var(--ol-background)!important;padding:20px 12px 90px!important;gap:18px!important}
-${q}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;max-width:var(--ol-cardWidth)!important;min-width:0!important;height:auto!important;max-height:none!important;margin:0 auto 18px!important;padding:24px!important;background:var(--ol-surface)!important;color:var(--ol-text)!important;border:1px solid #ffffff88!important;border-radius:var(--ol-radius)!important;box-shadow:0 5px 25px #344b4210!important;backdrop-filter:blur(var(--ol-glass))!important;text-shadow:none!important;overflow:visible!important;container-type:inline-size}
+${q}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;max-width:var(--ol-cardWidth)!important;min-width:0!important;height:auto!important;max-height:none!important;margin:0 auto 18px!important;padding:${cardPadding(config)}px!important;background:var(--ol-surface)!important;color:var(--ol-text)!important;border:1px solid #ffffff88!important;border-radius:var(--ol-radius)!important;box-shadow:${config.cardShadow===false?'none':'0 5px 25px #344b4210'}!important;backdrop-filter:blur(var(--ol-glass))!important;text-shadow:none!important;overflow:visible!important;container-type:inline-size}
 ${q} > .mes_block{position:static!important;display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;min-width:0!important;overflow:visible!important}
 ${head}{position:relative!important;display:block!important;box-sizing:border-box!important;min-height:var(--ol-header-height)!important;width:100%!important;margin:0 0 14px!important;padding:0!important}
 ${meta}{position:static!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;width:auto!important;min-width:0!important;padding:0!important;z-index:auto!important;transform:none!important}
@@ -56,7 +56,7 @@ ${custom?`${meta}{box-sizing:border-box!important;align-items:${alignment}!impor
 ${meta} > .name_text{font-family:var(--ol-nameFont)!important;font-size:var(--ol-nameSize)!important;font-weight:400!important;line-height:1.4!important;color:var(--ol-nameColor)!important;overflow-wrap:anywhere;order:1}
 ${meta} > .timestamp{font-size:var(--ol-timeSize)!important;line-height:1.5!important;color:var(--ol-timeColor)!important;white-space:normal!important;order:2}
 ${meta} .otl-live-caption{line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;order:0}
-${q} > .mesAvatarWrapper{position:absolute!important;left:24px!important;top:calc(24px + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:${regionZ(config,'header','avatar')}!important}
+${q} > .mesAvatarWrapper{position:absolute!important;left:${cardPadding(config)}px!important;top:calc(${cardPadding(config)}px + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important;width:var(--ol-photo-width)!important;height:auto!important;min-height:0!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-content:flex-start!important;gap:3px 6px!important;margin:0!important;padding:0!important;z-index:${regionZ(config,'header','avatar')}!important}
 ${avatar}{position:relative!important;display:block!important;box-sizing:border-box!important;width:var(--ol-photo-width)!important;height:var(--ol-photo-height)!important;max-width:none!important;min-width:0!important;flex:0 0 100%!important;margin:0!important;padding:0!important;border:0!important;outline:0!important;box-shadow:none!important;overflow:visible!important;transform:translate(var(--ol-photo-x),var(--ol-photo-y)) rotate(var(--ol-photo-rotation))!important;transform-origin:50% 100%;isolation:isolate;clip-path:polygon(var(--sc-avatar-clip))!important;}
 ${avatar} > img:not([${OWN}]){position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;z-index:2}
 ${q} > .mesAvatarWrapper > :is(.mesIDDisplay,.mes_timer,.tokenCounterDisplay){max-width:100%;font:11px/1.5 sans-serif;color:var(--ol-timeColor)}
@@ -86,7 +86,7 @@ ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-i
 ${meta} .otl-live-caption[hidden]{display:none!important}
 ${textItemRules(items,selectors,families,tokens,fallbacks,{position:false})}
 ${sceneTextRules(config,selectors)}
-${sceneFrameRules(q,head)}
+${sceneFrameRules(q,head,config)}
 ${meta} > .otl-live-caption-slot{position:static!important;display:contents!important}
 ${q} .otl-live-art.otl-scene-art{display:block!important}
 ${avatarDesignRules(q,config)}
@@ -300,7 +300,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     }
     const pending=[...dirtyMessages].filter(isMessage);dirtyMessages.clear();
     const prepared=runLayoutPass(pending.map(prepareMessage)).filter(Boolean);
-    runLayoutPass(prepared.flatMap(({headerArtwork,scene})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-24)))));
+    runLayoutPass(prepared.flatMap(({headerArtwork,scene})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-cardPadding(snapshot)),cardPadding(snapshot)))));
     runLayoutPass(prepared.map(({msg})=>footerLayout(msg,snapshot)));
     runLayoutPass(prepared.map(({msg,state})=>nativeLayout(msg,snapshot,nativeOptions(msg,state,msg===latest))));
     runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
