@@ -7,7 +7,7 @@ export const REGION_NAMES={'page-common':'页面基础','page-header':'页面头
 export const PAGE_NAMES={home:'首页和全局',chat:'聊天',presets:'预设',connection:'API',worldbook:'世界书',settings:'设置',backgrounds:'背景',extensions:'扩展',personas:'人设',characters:'角色',formatting:'回复格式'};
 export const LAYER_REGIONS=['overall','header','reasoning','footer','input'];
 const GLOBAL_REGIONS=['common','topbar','input','page-header','home-design'];
-export const supportsLayers=ui=>(ui.page==='chat'||ui.page==='home')&&LAYER_REGIONS.includes(ui.region);
+export const supportsLayers=ui=>ui.region==='page-header'||(ui.page==='chat'||ui.page==='home')&&LAYER_REGIONS.includes(ui.region);
 export function createWorkbenchState(){return {page:'chat',viewPage:'chat',commonPart:'text',region:'header',kind:'region',object:'region',mode:'edit',split:55,narrow:false,mobileView:'adjust',mobileSplit:54,layoutEditing:false,libraryExpanded:false,toolbarCollapsed:false};}
 export function layerRegion(layer){return layer?.anchor==='input'?'input':layer?.anchor==='footer'?'footer':layer?.anchor?.startsWith('reasoning-')?'reasoning':layer?.anchor==='message'?'overall':'header';}
 export function matchingLayers(layers,region){return layers.filter(l=>layerRegion(l)===region);}

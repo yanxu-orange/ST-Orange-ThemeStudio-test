@@ -1,3 +1,4 @@
+import {pageHeaderSceneFontEntries} from './page-header-scene.mjs';
 import {swipeFontEntries} from './native-swipe-style.mjs';
 import {nativeStatFontEntries} from './native-stat-style.mjs';
 import {updateAvatarSource,releaseAvatarSource} from './avatar-source.mjs';
@@ -131,11 +132,11 @@ function sameLayout(a,b,path=[]){
   if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
   return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
 }
-function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config),...swipeFontEntries(config)};}
+function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config),...swipeFontEntries(config),...pageHeaderSceneFontEntries(config)};}
 
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
 export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {
-  const pageHeaders=createPageHeaderAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe});
+  const pageHeaders=createPageHeaderAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,onRender:({nodes})=>{if(nodes.length)onRender?.({messages:0,updated:0,nodes:[],pageHeaderNodes:nodes,chromeChanged:false});}});
   const pageDropdowns=createPageDropdownBridge({document,MutationObserver:Observe});
   const imageDisplay=createImageDisplay({document,selector:'img[data-layer-id][data-otl-live-owned]'});
   const chrome=createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize});
@@ -284,7 +285,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(pendingConfig){
       const next=pendingConfig;pendingConfig=null;
       const needsLayout=!sameLayout(snapshot,next);
-      snapshot=next;pageHeaders.update(snapshot,{validated:true});scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
+      snapshot=next;pageHeaders.update(snapshot,{validated:true});scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));pageHeaders.updateFonts(fontSession?.families()||{});
       const css=styleText(snapshot,fontSession?.families()||{},currentInterface);if(style.textContent!==css)style.textContent=css;
       chrome.update(snapshot,fontSession?.families()||{});chromeChanged=true;
       if(needsLayout)for(const msg of messages)dirtyMessages.add(msg);
@@ -362,7 +363,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
       let layoutFamilies='{}';
-      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;const families=fontSession.families();style.textContent=styleText(snapshot,families,currentInterface);const next=JSON.stringify(Object.fromEntries(Object.entries(families).filter(([key])=>!key.startsWith('page-'))));if(next!==layoutFamilies){layoutFamilies=next;schedule();}}});fontSession.update(fontEntries(snapshot));stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
+      fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;const families=fontSession.families();pageHeaders.updateFonts(families);style.textContent=styleText(snapshot,families,currentInterface);const next=JSON.stringify(Object.fromEntries(Object.entries(families).filter(([key])=>!key.startsWith('page-'))));if(next!==layoutFamilies){layoutFamilies=next;schedule();}}});fontSession.update(fontEntries(snapshot));pageHeaders.updateFonts(fontSession.families());stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
       if(ResizeObs)resizer=new ResizeObs(resized);
       const token=++session;const count=reconcile();imageDisplay.watch(document.querySelector('#chat'));
       if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['mesid','is_user','is_system','data-orange-lab-fixture','class','src','data-duration','data-state','open','style','hidden']});}

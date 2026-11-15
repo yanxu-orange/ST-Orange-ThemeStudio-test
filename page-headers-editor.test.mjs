@@ -21,7 +21,7 @@ test('page header editors use independent library targets, preserve navigation, 
   page('chat');assert.ok(![...sh.querySelector('#region-select').options].some(option=>option.value==='page-header'));
   for(const [i,target]of Object.keys(PAGE_HEADER_PAGES).entries()){
    page(target);region('page-header');click('[data-object=image]');const caller=path();
-   assert.equal(sh.querySelector('[aria-label="显示页面头部"]').value,'false');assert.equal(sh.querySelector('[aria-label="头部高度 数值"]'),null);assert.equal(sh.querySelector('#mode-layers').disabled,true);
+   assert.equal(sh.querySelector('[aria-label="显示页面头部"]').value,'false');assert.equal(sh.querySelector('[aria-label="头部高度 数值"]'),null);assert.equal(sh.querySelector('#mode-layers').disabled,false);
    const before=await save();click(`[data-page-header-artwork=${target}]`);assert.deepEqual([...sh.querySelectorAll('[data-material-category]')].map(node=>node.dataset.materialCategory),['images']);
    const stale=sh.querySelector('button[data-builtin-asset]');click('#material-back');stale.click();assert.deepEqual(await save(),before);assert.deepEqual(path(),caller);
    click(`[data-page-header-artwork=${target}]`);const escape=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(escape,'key',{value:'Escape'});sh.querySelector('.fields').dispatchEvent(escape);assert.deepEqual(await save(),before);

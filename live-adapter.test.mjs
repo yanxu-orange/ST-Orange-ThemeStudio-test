@@ -332,3 +332,19 @@ test('without geometry observers global mutations keep conservative refresh fall
  document.body.classList.add('unrelated-fallback');await settle();assert.deepEqual(renders,[2]);renders.length=0;
  document.querySelector('#chat').classList.add('unrelated-fallback');await settle();assert.deepEqual(renders,[2]);adapter.stop();
 });
+
+
+test('page scene fonts share the live session and page render notifications stay separate from chat',async()=>{
+ const {newPageHeaderText,pageHeaderSceneFontKey}=await import('./page-header-scene.mjs');
+ const renders=[],{document,window,adapter,settle}=environment({onRender:r=>renders.push(r)}),faces=[],added=new Set();
+ class Face{constructor(family){this.family=family;faces.push(this);}load(){return new Promise(resolve=>this.resolve=()=>resolve(this));}}
+ window.FontFace=Face;Object.defineProperty(document,'fonts',{value:{add:f=>added.add(f),delete:f=>added.delete(f)}});
+ document.body.insertAdjacentHTML('beforeend','<div id="WorldInfo"><h3><span data-i18n="Worlds/Lorebooks">Worlds</span></h3></div><div id="PersonaManagement"></div>');
+ const link={url:'https://example.com/page-font.woff2',faceWeight:'400'},a=newPageHeaderText({id:'a',content:'One',fontLink:link}),b=newPageHeaderText({id:'b',content:'Two',fontLink:link});
+ const c={...config(),pageHeaders:{worldbook:{enabled:true,scene:{images:[],texts:[a],order:['text:a']}},personas:{enabled:true,scene:{images:[],texts:[b],order:['text:b']}}}};
+ adapter.start(c);await settle();assert.equal(faces.length,1);assert.equal(adapter.fontStatus(pageHeaderSceneFontKey('worldbook','a')),'loading');
+ faces[0].resolve();await settle();assert.equal(added.size,1);assert.equal(adapter.fontStatus(pageHeaderSceneFontKey('personas','b')),'loaded');
+ const first=document.querySelector('[data-otl-header-layer="text:a"]');assert.ok(first.style.fontFamily.includes(faces[0].family));assert.ok(renders.some(r=>r.pageHeaderNodes?.length));
+ c.pageHeaders.worldbook.enabled=false;adapter.update(c);await settle();assert.equal(added.size,1);assert.equal(adapter.fontStatus(pageHeaderSceneFontKey('worldbook','a')),'idle');
+ c.pageHeaders.personas.enabled=false;adapter.update(c);await settle();assert.equal(added.size,0);adapter.stop();assert.equal(document.querySelector('[data-otl-header-scene]'),null);
+});

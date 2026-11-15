@@ -28,3 +28,10 @@ test('removed native message subtrees release editor markers before host reuse',
  name.style.touchAction='pan-x';drag.reset();assert.equal(name.style.touchAction,'pan-x','released nodes are no longer restored by closing the editor');
  document.querySelector('#chat').append(msg);drag.refresh();assert.equal(name.style.touchAction,'none');drag.reset();assert.equal(name.style.touchAction,'pan-x');
 });
+
+test('page scene target resolver commits only the active page and cancels when it changes',()=>{
+ const {document,window}=parseHTML('<html><body><div data-scene><img data-header-image></div></body></html>');window.getComputedStyle=()=>({transform:'none',zoom:'1'});const node=document.querySelector('img'),item={...layer},state={active:true,page:'settings',mode:'edit'},commits=[];
+ const drag=createLayerDrag({document,selector:'[data-header-image]',scopeSelector:'[data-scene]',getState:()=>state,resolveTarget:()=>state.page==='settings'?{item,image:true,selected:true,width:200,height:200}:null,onCommit:(_,next)=>commits.push(next)});drag.refresh();
+ const event=(type,x,y)=>{const e=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:1,clientX:x,clientY:y,button:0,isPrimary:true});node.dispatchEvent(e);};
+ event('pointerdown',0,0);event('pointermove',20,30);event('pointerup',20,30);assert.deepEqual(commits,[{x:30,y:50}]);event('pointerdown',0,0);event('pointermove',20,30);state.page='worldbook';drag.refresh();assert.equal(drag.dragging,false);event('pointerup',20,30);assert.equal(commits.length,1);drag.reset();assert.equal(node.hasAttribute('data-preview-draggable'),false);
+});

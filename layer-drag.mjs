@@ -49,7 +49,7 @@ export function pinchLayer(layer,ratio,dx,dy,width,height,renderedWidth,rendered
 function matrixFor(node,win){
  let m=[1,0,0,1];for(let p=node;p&&p.nodeType===1;p=p.parentElement){const s=win.getComputedStyle(p),t=s.transform;let n=[1,0,0,1];if(t&&t!=='none'){const C=win.DOMMatrixReadOnly||win.DOMMatrix;if(!C)return null;const v=new C(t);if(!v.is2D)return null;n=[v.a,v.b,v.c,v.d];}const zoom=parseFloat(s.zoom)||1;n=n.map(v=>v*zoom);const [a,b,c,d]=n,[e,f,g,h]=m;m=[a*e+c*f,b*e+d*f,a*g+c*h,b*g+d*h];}return m;
 }
-export function createLayerDrag({document,getState,getTextTarget=()=>null,getLayerTarget=()=>({}),onCommit,selector='[data-orange-lab-fixture] :is([data-layer-id],[data-text-item],[data-caption-id],[data-footer-caption-id],.otl-reasoning-title)',scopeSelector='[data-orange-lab-fixture]'}){
+export function createLayerDrag({document,getState,getTextTarget=()=>null,getLayerTarget=()=>({}),resolveTarget=null,onCommit,selector='[data-orange-lab-fixture] :is([data-layer-id],[data-text-item],[data-caption-id],[data-footer-caption-id],.otl-reasoning-title)',scopeSelector='[data-orange-lab-fixture]'}){
  let session=null,suppressUntil=0,watching=false;
  const origins=new Map();
  function original(node){if(origins.has(node))return;const properties=['touch-action','pointer-events','user-select','outline'],attrs=['data-preview-draggable','data-layer-draggable','draggable'];if(!watching&&removalObserver){removalObserver.observe(document,{childList:true,subtree:true});watching=true;}origins.set(node,{hadStyle:node.hasAttribute('style'),styles:properties.map(k=>[k,node.style.getPropertyValue(k),typeof node.style.getPropertyPriority==='function'?node.style.getPropertyPriority(k):'']),attrs:attrs.map(k=>[k,node.getAttribute(k)])});}
@@ -58,7 +58,7 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
  // Release only removed subtrees. A long session must not retain previous chats.
  const Observer=document.defaultView?.MutationObserver;
  const removalObserver=Observer?new Observer(records=>{for(const record of records)for(const root of record.removedNodes||[]){if(root.isConnected)continue;if(session&&(session.node===root||root.contains?.(session.node)))cancel();restore(root);for(const node of root.querySelectorAll?.('[data-preview-draggable]')||[])restore(node);}if(!origins.size){removalObserver.disconnect();watching=false;}}):null;
- const resolve=node=>{const state=getState();if(!state.active||state.page!=='chat'||state.mode!=='edit'||node.hidden)return null;
+ const resolve=node=>{const state=getState();if(!state.active||state.mode!=='edit'||node.hidden)return null;if(resolveTarget)return resolveTarget(node,state);if(state.page!=='chat')return null;
   if(node.dataset.layerId){const item=state.layers.find(l=>l.id===node.dataset.layerId&&l.visible);return item?{item,image:true,selected:state.kind==='image'&&state.object===item.id&&state.regionFor(item)===state.region}:null;}
   return getTextTarget(node);
  };
@@ -98,3 +98,4 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
  document.defaultView?.addEventListener?.('blur',cancel);document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel();});
  return {refresh,cancel,reset,get dragging(){return !!session;}};
 }
+
