@@ -470,7 +470,21 @@ await (async () => {
     if(m.design==='separate'){const l=make('label','field','正在设计'),sel=make('select');sel.setAttribute('aria-label','姓名时间对象');for(const [v,t]of [['ai','AI'],['user','用户']]){const o=make('option','',t);o.value=v;sel.append(o);}sel.value=metadataScope;l.append(sel);container.append(l);sel.addEventListener('change',()=>{metadataScope=sel.value;renderFields();});}
     const scope=m.design==='separate'?metadataScope:'unified',group=scope==='unified'?m.unified:m.roles[scope],item=group[key]||metadataItem(config,key),commit=()=>{config.metadata=m;group[key]=item;};
     const control=(f,target=item,after)=>editorControl(container,{...f,beforeApply:commit,beforePreview:()=>{const previous=group[key];commit();return()=>{group[key]=previous;};}},target,after);
-    if(key==='name')control(field('姓名前缀','prefix','text',{maxLength:40}),new Proxy(item,{get:(value,name)=>name==='prefix'?value.prefix??'':value[name]}));
+    if(key==='name'){
+      const redrawPrefix=()=>{if(scope!=='unified')metadataScope=scope;renderFields();};
+      control(field('姓名前缀','prefix','text',{maxLength:40}),new Proxy(item,{get:(value,name)=>name==='prefix'?value.prefix??'':value[name]}));
+      const prefixInput=container.querySelector('[aria-label="姓名前缀"]');
+      const finishPrefix=()=>{if(prefixInput.isConnected)redrawPrefix();};
+      prefixInput.addEventListener('change',finishPrefix);prefixInput.addEventListener('blur',finishPrefix);
+      if(item.prefix){
+        const prefixStyle=item.prefixStyle||{size:null,color:null};
+        const prefixCommit=()=>{item.prefixStyle=prefixStyle;commit();};
+        const prefixSource=(label,key,fallback)=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [value,title]of [['inherit','跟随姓名'],['custom','单独设置']]){const option=make('option','',title);option.value=value;select.append(option);}select.value=prefixStyle[key]==null?'inherit':'custom';row.append(select);container.append(row);select.addEventListener('change',()=>{remember();prefixStyle[key]=select.value==='custom'?fallback:null;prefixCommit();apply();redrawPrefix();});};
+        const prefixControl=f=>editorControl(container,{...f,beforeApply:prefixCommit},prefixStyle);
+        prefixSource('前缀字号来源','size',item.style.size);if(prefixStyle.size!=null)prefixControl(field('前缀字号','size','range',{min:8,max:200,unit:'px'}));
+        prefixSource('前缀颜色来源','color',item.style.color);if(prefixStyle.color!=null)prefixControl(field('前缀颜色','color','color'));
+      }
+    }
     propertyHeading(container,'位置');control(field('定位区域','region','select',{options:[['header','头像区'],['body-top','正文上沿']]}),item,()=>renderFields());
     if(item.region==='body-top')control(field('正文上沿排布','flow','select',{options:[['reserve','保留占位'],['overlay','叠放在正文上沿']]}));
     control(field('对齐锚点','anchor','select',{options:[['left','左侧'],['center','居中'],['right','右侧']]}));

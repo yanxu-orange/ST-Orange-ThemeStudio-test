@@ -9,3 +9,31 @@ test('prefix participates in complete measured name anchors without altering nat
 test('host text changes, empty names, role switching and repeated render never accumulate prefix',async()=>{const{msg,name,c,adapter,window}=fixture();c.metadata.design='separate';c.metadata.roles.ai.name={...metadataItem(c,'name'),prefix:'阅 / ',anchor:'right'};c.metadata.roles.user.name={...metadataItem(c,'name'),prefix:'来稿 / ',anchor:'right'};adapter.update(msg,c);let records=[];const observer=new window.MutationObserver(r=>records.push(...r));observer.observe(name,{childList:true,subtree:true,attributes:true});adapter.update(msg,c);await new Promise(r=>setTimeout(r,0));assert.equal(records.length,0);observer.disconnect();name.textContent='Changed Longer';adapter.update(msg,c);assert.equal(name.textContent,'Changed Longer');assert.ok(name.hasAttribute('data-otl-name-prefix'));assert.equal(name.children.length,0);assert.equal(name.style.getPropertyValue('--om-left'),'230px');msg.setAttribute('is_user','true');adapter.update(msg,c);assert.equal(name.getAttribute('data-otl-name-prefix'),'来稿 / ');assert.ok(name.hasAttribute('data-otl-name-prefix'));assert.equal(name.children.length,0);name.textContent='';adapter.update(msg,c);assert.equal(name.children.length,0);assert.equal(name.hasAttribute('data-otl-name-prefix'),false);name.textContent='Return';adapter.update(msg,c);assert.ok(name.hasAttribute('data-otl-name-prefix'));assert.equal(name.children.length,0);c.metadata.roles.user.name.prefix='';adapter.update(msg,c);assert.equal(name.children.length,0);c.metadata.roles.user.name.prefix='来稿 / ';adapter.update(msg,c);c.metadata.roles.user.name=null;adapter.update(msg,c);assert.equal(name.children.length,0);assert.equal(name.textContent,'Return');adapter.stop();});
 test('prefix CSS is limited to the configured native name and replacement cleans detached nodes',()=>{const{document,msg,name,c,adapter}=fixture();c.metadata.unified.name={...metadataItem(c,'name'),prefix:'"<b> / '};const css=metadataRules('.mes',c);assert.match(css,/\[data-otl-name-prefix\]::before\{content:attr\(data-otl-name-prefix\)/);assert.match(css,/\.name_text\[data-otl-metadata="name"\]\[data-otl-name-prefix\]::before/);assert.ok(!css.includes('.timestamp[data-otl-metadata="time"][data-otl-name-prefix]'));assert.ok(!css.includes('"<b>'));adapter.update(msg,c);const next=document.createElement('span');next.className='name_text';next.textContent='Replacement';name.replaceWith(next);adapter.update(msg,c);assert.equal(name.children.length,0);assert.equal(next.textContent,'Replacement');assert.equal(next.children.length,0);assert.ok(next.hasAttribute('data-otl-name-prefix'));adapter.remove(msg);assert.equal(next.children.length,0);assert.equal(next.hasAttribute('data-otl-metadata'),false);assert.equal(next.hasAttribute('data-otl-name-prefix'),false);});
 test('prefix attribute restores its prior value and leaves later host-owned edits intact',()=>{const{msg,name,c,adapter}=fixture();name.setAttribute('data-otl-name-prefix','prior');c.metadata.unified.name={...metadataItem(c,'name'),prefix:'阅 / '};adapter.update(msg,c);assert.equal(name.getAttribute('data-otl-name-prefix'),'阅 / ');adapter.stop();assert.equal(name.getAttribute('data-otl-name-prefix'),'prior');adapter.update(msg,c);name.setAttribute('data-otl-name-prefix','host changed');adapter.stop();assert.equal(name.getAttribute('data-otl-name-prefix'),'host changed');});
+test('prefix appearance validates optional size and color without inserting defaults',()=>{
+ const c=config();c.metadata.unified.name={...metadataItem(c,'name'),prefix:'阅 / '};
+ assert.equal(Object.hasOwn(validateMetadata(c.metadata).unified.name,'prefixStyle'),false);
+ for(const prefixStyle of [{},{size:null,color:null},{size:8},{size:200,color:'#aAbBcC'}]){
+  c.metadata.unified.name.prefixStyle=prefixStyle;
+  assert.deepEqual(validateMetadata(c.metadata).unified.name.prefixStyle,prefixStyle);
+ }
+ for(const prefixStyle of [null,[],{size:7},{size:201},{size:'10'},{size:NaN},{color:'red'},{color:'#abc'},{color:8},{weight:400}]){
+  c.metadata.unified.name.prefixStyle=prefixStyle;assert.throws(()=>validateMetadata(c.metadata));
+ }
+ delete c.metadata.unified.name.prefixStyle;
+ c.metadata.unified.time={...metadataItem(c,'time'),prefixStyle:{size:10}};
+ assert.throws(()=>validateMetadata(c.metadata));
+});
+test('prefix appearance is independently scoped for both roles and clearing restores inheritance',()=>{
+ const c=config();c.metadata.design='separate';
+ c.metadata.roles.ai.name={...metadataItem(c,'name'),prefix:'阅 / ',prefixStyle:{size:10,color:'#123456'}};
+ c.metadata.roles.user.name={...metadataItem(c,'name'),prefix:'来稿 / ',prefixStyle:{size:9,color:'#abcdef'}};
+ const pseudoRules=()=>metadataRules('.mes',c).split('\n').filter(rule=>rule.includes('::before'));
+ let rules=pseudoRules();assert.equal(rules.length,2);
+ assert.ok(rules[0].includes(':not([is_user="true"])'));assert.match(rules[0],/font:inherit!important;color:inherit!important;font-size:10px!important;color:#123456!important/);
+ assert.ok(rules[1].includes('.mes[is_user="true"]'));assert.match(rules[1],/font-size:9px!important;color:#abcdef!important/);
+ c.metadata.roles.ai.name.prefixStyle={size:null,color:null};rules=pseudoRules();
+ assert.match(rules[0],/font:inherit!important;color:inherit!important;\}/);assert.ok(!rules[0].includes('font-size:'));assert.match(rules[1],/font-size:9px/);
+ delete c.metadata.roles.ai.name.prefixStyle;assert.equal(pseudoRules()[0],rules[0]);
+ c.metadata.roles.user.name.prefix='';assert.equal(pseudoRules().length,1);
+ c.metadata.roles.ai.name.prefix='';assert.equal(pseudoRules().length,0);
+});
