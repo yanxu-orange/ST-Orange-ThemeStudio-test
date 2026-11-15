@@ -27,12 +27,12 @@ test('individual text editor hides batch controls but preserves legacy offsets t
  sh.querySelector('[data-kind="time"]').click();
  const timeBefore=(await save()),y=sh.querySelector('[aria-label="时间 纵向位置 数值"]'),plus=sh.querySelector('[aria-label="时间 纵向位置 增加"]'),minus=sh.querySelector('[aria-label="时间 纵向位置 减少"]');
  assert.equal(y.min,-400);assert.equal(y.max,1600);assert.equal(y.step,1);
- plus.click();plus.click();assert.equal((await save()).textItems.time.y,timeBefore.textItems.time.y+2);
- sh.querySelector('#undo').click();assert.equal((await save()).textItems.time.y,timeBefore.textItems.time.y+1);
+ plus.click();plus.click();assert.equal((await save()).metadata.unified.time.y,timeBefore.textItems.time.y+timeBefore.textTop+2);
+ sh.querySelector('#undo').click();assert.equal((await save()).metadata.unified.time.y,timeBefore.textItems.time.y+timeBefore.textTop+1);
  sh.querySelector('#undo').click();assert.deepEqual((await save()),timeBefore);
  const setY=value=>{const field=sh.querySelector('[aria-label="时间 纵向位置 数值"]');field.value=String(value);field.dispatchEvent(new window.Event('input'));field.dispatchEvent(new window.Event('change'));};
- setY(1600);assert.equal(sh.querySelector('[aria-label="时间 纵向位置 增加"]').disabled,true);sh.querySelector('[aria-label="时间 纵向位置 减少"]').click();assert.equal((await save()).textItems.time.y,1599);
- setY(-400);assert.equal(sh.querySelector('[aria-label="时间 纵向位置 减少"]').disabled,true);sh.querySelector('[aria-label="时间 纵向位置 增加"]').click();assert.equal((await save()).textItems.time.y,-399);
+ setY(1600);assert.equal(sh.querySelector('[aria-label="时间 纵向位置 增加"]').disabled,true);sh.querySelector('[aria-label="时间 纵向位置 减少"]').click();assert.equal((await save()).metadata.unified.time.y,1599);
+ setY(-400);assert.equal(sh.querySelector('[aria-label="时间 纵向位置 减少"]').disabled,true);sh.querySelector('[aria-label="时间 纵向位置 增加"]').click();assert.equal((await save()).metadata.unified.time.y,-399);
  setY('');assert.equal(sh.querySelector('[aria-label="时间 纵向位置 增加"]').disabled,true);assert.equal(sh.querySelector('[aria-label="时间 纵向位置 减少"]').disabled,true);
  setY(timeBefore.textItems.time.y);const beforeOrder=(await save());sh.querySelector('#mode-layers').click();assert.equal(sh.querySelector('.region-layer-row.selected').dataset.layerKey,'time');const up=[...sh.querySelectorAll('.region-layer-row.selected button')].find(b=>b.textContent==='上移');assert.ok(up);up.click();const ordered=(await save());assert.equal(ordered.regionOrder.header.indexOf('time'),beforeOrder.regionOrder.header.indexOf('time')+1);assert.deepEqual(ordered.textItems,beforeOrder.textItems);assert.equal(new Set(ordered.regionOrder.header).size,ordered.regionOrder.header.length);assert.equal(sh.querySelector('.region-layer-row.selected').dataset.layerKey,'time');sh.querySelector('#undo').click();assert.deepEqual((await save()),beforeOrder);
 

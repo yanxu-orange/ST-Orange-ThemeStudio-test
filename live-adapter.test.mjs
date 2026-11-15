@@ -348,3 +348,8 @@ test('page scene fonts share the live session and page render notifications stay
  c.pageHeaders.worldbook.enabled=false;adapter.update(c);await settle();assert.equal(added.size,1);assert.equal(adapter.fontStatus(pageHeaderSceneFontKey('worldbook','a')),'idle');
  c.pageHeaders.personas.enabled=false;adapter.update(c);await settle();assert.equal(added.size,0);adapter.stop();assert.equal(document.querySelector('[data-otl-header-scene]'),null);
 });
+
+test('metadata color updates remain CSS-only after active layout',async()=>{
+ const {newMetadata,metadataItem}=await import('./native-metadata.mjs');
+ const renders=[];const {adapter,settle}=environment({onRender:r=>renders.push(r.updated)}),c=config();c.metadata=newMetadata();c.metadata.unified.name=metadataItem(c,'name');adapter.start(c);await settle();renders.length=0;const next=structuredClone(c);next.metadata.unified.name.style.color='#123456';adapter.update(next);await settle();assert.equal(renders.reduce((a,b)=>a+b,0),0);adapter.stop();
+});

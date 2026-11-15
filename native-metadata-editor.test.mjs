@@ -1,0 +1,26 @@
+import {navigateRegion} from './test-support/editor-navigation.mjs';
+import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
+import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
+test('metadata editing activates only on change and preserves per-role designs',async()=>{
+ const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
+ const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
+ const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
+ const scheme=await editorStorage(null);seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
+ const save=()=>saveEditorScheme(sh,scheme);
+ sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="name"]').click();assert.equal((await save()).metadata.unified.name,null);
+ edit('名字 水平位置 数值',12);let c=await save();assert.equal(c.metadata.unified.name.x,12);assert.equal(c.textItems.name.x,0);
+ edit('姓名时间设计','separate');edit('姓名时间对象','user');edit('名字 纵向位置 数值',129);c=await save();assert.equal(c.metadata.roles.user.name.y,129);assert.equal(c.metadata.roles.ai.name.x,12);
+ edit('姓名时间对象','ai');edit('定位区域','body-top');edit('正文上沿排布','overlay');edit('名字 纵向位置 数值',3);edit('对齐锚点','right');c=await save();assert.equal(c.metadata.roles.ai.name.region,'body-top');assert.equal(c.metadata.roles.ai.name.flow,'overlay');assert.equal(c.metadata.roles.ai.name.anchor,'right');
+ edit('姓名时间设计','unified');assert.equal((await save()).metadata.unified.name.x,12);edit('姓名时间设计','separate');assert.equal((await save()).metadata.roles.user.name.y,129);
+ const msg=document.querySelector('.mes[is_user="false"]'),body=msg.querySelector('.mes_text'),name=msg.querySelector('.name_text');
+ body.getBoundingClientRect=()=>({left:0,top:200,width:366,height:100,right:366,bottom:300});Object.defineProperty(body,'clientWidth',{value:366,configurable:true});
+ const previousStyle=window.getComputedStyle;window.getComputedStyle=n=>({...previousStyle?.(n),transform:'none',zoom:'1',getPropertyValue:()=>'',paddingLeft:n===body?'27px':'0px',paddingRight:n===body?'19px':'0px'});
+ await settleNativeCanvas();name.click();const beforeDrag=(await save()).metadata.roles.ai.name.x;
+ const pointer=(type,x,y)=>{const event=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(event,{pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y});name.dispatchEvent(event);};
+ pointer('pointerdown',0,0);pointer('pointermove',32,0);pointer('pointerup',32,0);
+ assert.equal((await save()).metadata.roles.ai.name.x,beforeDrag+10,'32px drag uses 320px padded body content width, not 366px border box');
+ sh.querySelector('#undo').click();
+ edit('名字 纵向位置 数值',20);sh.querySelector('#restore').click();assert.equal((await save()).metadata.roles.ai.name.y,3);sh.querySelector('#close').click();assert.equal(document.querySelector('[data-otl-metadata-slot]'),null);
+});

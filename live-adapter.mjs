@@ -1,3 +1,4 @@
+import {validateMetadata,metadataRules,metadataFontEntries,createMetadataAdapter} from './native-metadata.mjs';
 import {pageHeaderSceneFontEntries} from './page-header-scene.mjs';
 import {swipeFontEntries} from './native-swipe-style.mjs';
 import {nativeStatFontEntries} from './native-stat-style.mjs';
@@ -86,6 +87,7 @@ ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-i
 ${meta} .otl-live-caption[hidden]{display:none!important}
 ${textItemRules(items,selectors,families,tokens,fallbacks,{position:false})}
 ${sceneTextRules(config,selectors)}
+${metadataRules(q,config,families)}
 ${sceneFrameRules(q,head,config)}
 ${meta} > .otl-live-caption-slot{position:static!important;display:contents!important}
 ${q} .otl-live-art.otl-scene-art{display:block!important}
@@ -101,7 +103,7 @@ ${pageStyleRules(config,{families})}
 function normalizeLiveConfig(config){
   const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
   Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
-  next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
+  if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
 }
 const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground']);
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
@@ -110,6 +112,7 @@ function cssOnlyField(path,key){
   if(!path.length&&['pageStyle','pageHeaders'].includes(key))return true;
   if(!path.length)return cssRootFields.has(key);
   const [root,group,part]=path;
+  if(root==='metadata'&&path.at(-1)==='style'&&key==='color')return true;
   if(path.length===2){
     if(['captions','footerCaptions','nativeStyle','avatarFill'].includes(root))return key==='color';
     if(root==='photos')return key==='frameColor';
@@ -132,11 +135,12 @@ function sameLayout(a,b,path=[]){
   if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
   return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
 }
-function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config),...swipeFontEntries(config),...pageHeaderSceneFontEntries(config)};}
+function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config),...swipeFontEntries(config),...pageHeaderSceneFontEntries(config),...metadataFontEntries(config)};}
 
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
 export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {
   const pageHeaders=createPageHeaderAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,onRender:({nodes})=>{if(nodes.length)onRender?.({messages:0,updated:0,nodes:[],pageHeaderNodes:nodes,chromeChanged:false});}});
+  const metadata=createMetadataAdapter({document});
   const pageDropdowns=createPageDropdownBridge({document,MutationObserver:Observe});
   const imageDisplay=createImageDisplay({document,selector:'img[data-layer-id][data-otl-live-owned]'});
   const chrome=createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize});
@@ -162,7 +166,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function observeMessage(msg){
     if(!resizer)return;
-    const state=states.get(msg),wanted=new Set([msg,msg.querySelector('[data-otl-live-meta]'),...msg.querySelectorAll('[data-otl-live-meta] .name_text,[data-otl-live-meta] .timestamp,[data-otl-live-meta] .otl-live-caption'),msg.querySelector('.mes_reasoning_header'),msg.querySelector('.mes_reasoning'),msg.querySelector('.otl-footer'),msg.querySelector('.otl-footer-flow'),...nativeControlNodes(msg)].filter(Boolean));
+    const state=states.get(msg),wanted=new Set([msg,msg.querySelector('[data-otl-live-meta]'),...msg.querySelectorAll('[data-otl-live-meta] .name_text,[data-otl-live-meta] .timestamp,[data-otl-live-meta] .otl-live-caption'),msg.querySelector('.mes_reasoning_header'),msg.querySelector('.mes_reasoning'),msg.querySelector('.otl-footer'),msg.querySelector('.otl-footer-flow'),msg.querySelector('.mes_text'),msg.querySelector('[data-otl-metadata-slot]'),msg.querySelector('.timestamp-icon'),...nativeControlNodes(msg)].filter(Boolean));
     for(const node of state.observed||[])if(!wanted.has(node)){resizer.unobserve(node);observedSizes.delete(node);}
     for(const node of wanted)if(!observedSizes.has(node)){observedSizes.set(node,{message:msg,size:null});resizer.observe(node);}
     state.observed=wanted;
@@ -273,7 +277,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     }
     messages=[...(chat?.children||[])].filter(isMessage);
     const live=new Set(messages);
-    for(const [msg,state]of states)if(!live.has(msg)){unobserveMessage(msg);clearState(state);states.delete(msg);dirtyMessages.delete(msg);}
+    for(const [msg,state]of states)if(!live.has(msg)){unobserveMessage(msg);metadata.remove(msg);clearState(state);states.delete(msg);dirtyMessages.delete(msg);}
     for(const msg of dirtyMessages)if(!live.has(msg))dirtyMessages.delete(msg);
     for(const msg of messages)if(!states.has(msg))dirtyMessages.add(msg);
     const nextLatest=latestAI(messages);
@@ -301,9 +305,10 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const pending=[...dirtyMessages].filter(isMessage);dirtyMessages.clear();
     const prepared=runLayoutPass(pending.map(prepareMessage)).filter(Boolean);
     runLayoutPass(prepared.flatMap(({headerArtwork,scene})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-cardPadding(snapshot)),cardPadding(snapshot)))));
+    runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
+    runLayoutPass(prepared.map(({msg,header,sceneNodes})=>metadata.layout(msg,snapshot,{header,name:sceneNodes.name,time:sceneNodes.time})));
     runLayoutPass(prepared.map(({msg})=>footerLayout(msg,snapshot)));
     runLayoutPass(prepared.map(({msg,state})=>nativeLayout(msg,snapshot,nativeOptions(msg,state,msg===latest))));
-    runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
     for(const {msg}of prepared)observeMessage(msg);
     onRender?.({messages:states.size,updated:prepared.length,nodes:prepared.map(({msg})=>msg),chromeChanged});
     return prepared.length;
@@ -346,7 +351,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function stop(){
     if(!snapshot)return;
-    pageHeaders.stop();pageDropdowns.stop();
+    pageHeaders.stop();pageDropdowns.stop();metadata.stop();
     imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
