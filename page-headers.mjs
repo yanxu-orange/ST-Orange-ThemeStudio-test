@@ -1,3 +1,4 @@
+import {normalizePageTitleSubtitle} from './page-title-subtitle.mjs';
 import {normalizePageHeaderScene,sceneHasLayers,createPageHeaderScene} from './page-header-scene.mjs';
 import {normalizePageHeaderNative,createPageHeaderNative} from './page-header-native.mjs';
 import {createPageTitleLayoutAdapter} from './page-title-layout.mjs';
@@ -6,7 +7,7 @@ import {ASSETS,assetUrl} from './catalog.mjs';
 import {validImage} from './image-sources.mjs';
 
 export const PAGE_HEADER_PAGES=Object.freeze({home:'首页',presets:'预设',connection:'API',worldbook:'世界书',settings:'设置',backgrounds:'背景',extensions:'扩展',personas:'人设',characters:'角色',formatting:'回复格式'});
-export const PAGE_HEADER_DEFAULTS=Object.freeze({enabled:false,asset:'',image:'',sizing:'fixed',height:160,fit:'cover',x:50,y:50,topGap:0,sideGap:0,layout:'native',title:'',titleSize:22,titleColor:'#354b42',titleAlign:'left',titleWeight:400,placement:'banner',scene:Object.freeze({images:[],texts:[],order:[]}),native:Object.freeze({hideLogo:false,version:null,settings:null,show:null,hide:null})});
+export const PAGE_HEADER_DEFAULTS=Object.freeze({enabled:false,asset:'',image:'',sizing:'fixed',height:160,fit:'cover',x:50,y:50,topGap:0,sideGap:0,layout:'native',titleSubtitle:null,title:'',titleSize:22,titleColor:'#354b42',titleAlign:'left',titleWeight:400,placement:'banner',scene:Object.freeze({images:[],texts:[],order:[]}),native:Object.freeze({hideLogo:false,version:null,settings:null,show:null,hide:null})});
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 export function normalizePageHeaders(raw={}){
  if(!object(raw))throw Error('页面头部方案无效');
@@ -24,7 +25,7 @@ export function normalizePageHeaders(raw={}){
   for(const k of ['topGap','sideGap'])if(!Number.isFinite(v[k])||v[k]<0||v[k]>160)throw Error('页面头部留白须为 0–160 像素');
   if(!['native','standard'].includes(v.layout)||typeof v.title!=='string'||v.title.length>300||!Number.isFinite(v.titleSize)||v.titleSize<8||v.titleSize>60||typeof v.titleColor!=='string'||!/^#[a-f0-9]{6}$/i.test(v.titleColor)||!['left','center','right'].includes(v.titleAlign)||!Number.isFinite(v.titleWeight)||v.titleWeight<100||v.titleWeight>900)throw Error('页面标题设置无效');
   if(!['banner','native'].includes(v.placement)||page!=='home'&&v.placement!=='banner')throw Error('页面头部挂载方式无效');
-  v.scene=normalizePageHeaderScene(v.scene);v.native=normalizePageHeaderNative(v.native);
+  v.titleSubtitle=normalizePageTitleSubtitle(page,v.titleSubtitle);v.scene=normalizePageHeaderScene(v.scene);v.native=normalizePageHeaderNative(v.native);
   if(page!=='home'&&(v.native.hideLogo||['version','settings','show','hide'].some(k=>v.native[k])))throw Error('原生首页对象仅用于首页');
   pageHeaders[page]=v;
  }
@@ -128,6 +129,6 @@ export function createPageHeaderAdapter({document,MutationObserver:Observe,reque
   if(enabled&&!observer&&Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true});}
  }
  function stop(){unwatch();scroll.stop();titles.stop();native.stop();scene.stop();scrollStyle?.remove();scrollStyle=null;config=null;for(const host of mounted.keys())remove(host);}
- return {update,stop,reconcile,updateFonts(families){const sceneChanged=scene.setFontFamilies(families),nativeChanged=native.updateFonts(families);if(!sceneChanged&&!nativeChanged)return false;onRender({nodes:[...mounted.values()].map(n=>n.querySelector('[data-otl-header-scene]')).filter(Boolean)});return true;}};
+ return {update,stop,reconcile,updateFonts(families){const sceneChanged=scene.setFontFamilies(families),nativeChanged=native.updateFonts(families),titleChanged=titles.updateFonts(families);if(!sceneChanged&&!nativeChanged&&!titleChanged)return false;onRender({nodes:[...mounted.values()].map(n=>n.querySelector('[data-otl-header-scene]')).filter(Boolean)});return true;}};
 }
 

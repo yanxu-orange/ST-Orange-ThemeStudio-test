@@ -1,5 +1,6 @@
 import {newMetadata,metadataItem,validateMetadata,resolveMetadata,metadataFontKey} from './native-metadata.mjs';
 import {newPageHeaderNative} from './page-header-native.mjs';
+import {PAGE_TITLE_SUBTITLE_TARGETS,newPageTitleSubtitle,pageTitleSubtitleFontKey} from './page-title-subtitle.mjs';
 import {newPageHeaderImage,newPageHeaderText,pageHeaderSceneFontKey} from './page-header-scene.mjs';
 import {SWIPE_COUNTER_DEFAULTS,swipeValueStyle} from './native-swipe-style.mjs';
 import {statValueStyle,resolveNativeStats} from './native-stat-style.mjs';
@@ -469,6 +470,7 @@ await (async () => {
     if(m.design==='separate'){const l=make('label','field','正在设计'),sel=make('select');sel.setAttribute('aria-label','姓名时间对象');for(const [v,t]of [['ai','AI'],['user','用户']]){const o=make('option','',t);o.value=v;sel.append(o);}sel.value=metadataScope;l.append(sel);container.append(l);sel.addEventListener('change',()=>{metadataScope=sel.value;renderFields();});}
     const scope=m.design==='separate'?metadataScope:'unified',group=scope==='unified'?m.unified:m.roles[scope],item=group[key]||metadataItem(config,key),commit=()=>{config.metadata=m;group[key]=item;};
     const control=(f,target=item,after)=>editorControl(container,{...f,beforeApply:commit,beforePreview:()=>{const previous=group[key];commit();return()=>{group[key]=previous;};}},target,after);
+    if(key==='name')control(field('姓名前缀','prefix','text',{maxLength:40}),new Proxy(item,{get:(value,name)=>name==='prefix'?value.prefix??'':value[name]}));
     propertyHeading(container,'位置');control(field('定位区域','region','select',{options:[['header','头像区'],['body-top','正文上沿']]}),item,()=>renderFields());
     if(item.region==='body-top')control(field('正文上沿排布','flow','select',{options:[['reserve','保留占位'],['overlay','叠放在正文上沿']]}));
     control(field('对齐锚点','anchor','select',{options:[['left','左侧'],['center','居中'],['right','右侧']]}));
@@ -576,11 +578,27 @@ await (async () => {
       const width=make('label','field','文字宽度'),select=make('select');select.setAttribute('aria-label','文字宽度模式');for(const [v,t]of [['auto','自动'],['custom','指定宽度']]){const o=make('option','',t);o.value=v;select.append(o);}select.value=item.width==='auto'?'auto':'custom';select.addEventListener('change',()=>{remember();item.width=select.value==='auto'?'auto':50;apply();renderFields();});width.append(select);container.append(width);if(item.width!=='auto')editorControl(container,field('文字宽度','width','range',{min:10,max:100,unit:'%'}),item);
     }
   }
+  const pageSubtitleTargets=new Map();
+  function renderPageSubtitleFields(container,page,head){
+    const targets=PAGE_TITLE_SUBTITLE_TARGETS[page],subtitle=head.titleSubtitle||newPageTitleSubtitle(page),commit=()=>{head.titleSubtitle=subtitle;};
+    editorControl(container,field('显示页面头部','enabled','select',{options:[['false','关闭'],['true','开启']]}),head);
+    editorControl(container,field('页面头部排版','layout','select',{options:[['native','原生排版'],['standard','标准排版']]}),head);
+    container.append(make('p','hint','只在标准排版且原生标题保留时显示；有头图或自定义标题替代原生标题时不显示。清空文案即可关闭对应副题。'));
+    const keys=Object.keys(targets);let target=pageSubtitleTargets.get(page);if(!keys.includes(target))target=keys[0];
+    if(keys.length>1){const row=make('label','field','原生标题'),select=make('select');select.setAttribute('aria-label','原生标题');for(const [key,label]of Object.entries(targets)){const option=make('option','',label);option.value=key;select.append(option);}select.value=target;select.addEventListener('change',()=>{pageSubtitleTargets.set(page,select.value);renderFields();});row.append(select);container.append(row);}
+    const control=(f,value=subtitle.style)=>editorControl(container,{...f,beforeApply:commit,beforePreview:()=>{const previous=head.titleSubtitle;commit();return()=>{head.titleSubtitle=previous;};}},value);
+    control(field('副题文案',target,'text',{maxLength:160}),new Proxy(subtitle.texts,{get:(value,key)=>value[key]??''}));
+    propertyHeading(container,'本页副题外观');container.append(make('p','hint','本页各个原生标题的副题共用这组外观。'));
+    for(const f of [field('副题字体','font','select',{options:TIME_FONTS.map(font=>[font,font])}),field('副题字号','size','range',{min:8,max:60,unit:'px'}),field('副题颜色','color','color'),field('副题行高','lineHeight','range',{min:1,max:3,step:.05,unit:'倍'}),field('副题字距','letterSpacing','range',{min:-2,max:10,step:.1,unit:'px'})])control(f);
+    control(field('副题字重','weight','select',{options:[['auto','沿用字体'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}),new Proxy(subtitle.style,{set(value,key,next){value[key]=next==='auto'?next:Number(next);return true;}}));
+    renderFontLinkFields(container,pageTitleSubtitleFontKey(page),subtitle.style,'原生标题副题',commit);
+  }
   function renderPageHeaderFields(container){
     if(ui.page==='home'&&ui.kind==='native-home')return renderPageNativeFields(container);
     if(ui.mobileView==='layers')return renderPageSceneOrder(container);
     if(['scene-images','scene-texts'].includes(ui.kind))return renderPageSceneFields(container);
     const page=ui.page,item=config.pageHeaders[page],hasImage=!!(item.asset||item.image);
+    if(ui.object==='subtitle'&&PAGE_TITLE_SUBTITLE_TARGETS[page])return renderPageSubtitleFields(container,page,item);
     container.append(make('p','hint',page==='home'?'在近期聊天首页上方显示图片或标题。':'在本页内容上方显示图片或标题。'));
     editorControl(container,field('显示页面头部','enabled','select',{options:[['false','关闭'],['true','开启']],notice:'页面头部已更新，尚未保存'}),item);
     container.append(make('p','hint','开启后，有图片或非空标题时才显示页面头部。'));
@@ -849,7 +867,7 @@ await (async () => {
     normalizeSelection(ui,config.layers,config.captions,config.footerCaptions);
     shadow.querySelector('.inspector-head .material-categories')?.remove();const container=shadow.querySelector('.fields');disposeIconLibrary?.();disposeIconLibrary=null;disposeFontLibrary?.();disposeFontLibrary=null;container.replaceChildren();let kinds=[],objects=[],title='',keys=[];const names={name:'名字',time:'时间',caption:'文案'};
     const headerEditing=Object.hasOwn(PAGE_HEADER_PAGES,ui.page)&&ui.region==='page-header'&&ui.mode!=='library',pageEditing=Object.hasOwn(PAGE_ROOTS,ui.page)&&!headerEditing&&ui.mode!=='library',commonEditing=ui.page==='home'&&ui.region==='common'&&ui.mode!=='library',unavailable=ui.mode!=='library'&&!headerEditing&&(!['home','chat'].includes(ui.page)&&!Object.hasOwn(PAGE_ROOTS,ui.page)||ui.region==='home-design');
-    if(headerEditing){kinds=[['base','基础'],['scene-images','图片与形状'],['scene-texts','文字'],...(ui.page==='home'?[['native-home','原生对象']]:[])];if(!kinds.some(([key])=>key===ui.kind))ui.kind='base';objects=ui.kind==='base'?[['image','头图'],['title','标题'],['layout','排版']]:ui.kind==='native-home'?[['version','版本文字'],['settings','设置按钮'],['show','展开按钮'],['hide','收起按钮']]:(ui.kind==='scene-images'?config.pageHeaders[ui.page].scene.images:config.pageHeaders[ui.page].scene.texts).map(item=>[item.id,item.name+(item.visible?'':' · 已隐藏')]);if(!objects.some(([key])=>key===ui.object))ui.object=objects[0]?.[0]||'';title=PAGE_HEADER_PAGES[ui.page]+' / 页面头部';}
+    if(headerEditing){kinds=[['base','基础'],['scene-images','图片与形状'],['scene-texts','文字'],...(ui.page==='home'?[['native-home','原生对象']]:[])];if(!kinds.some(([key])=>key===ui.kind))ui.kind='base';objects=ui.kind==='base'?[['image','头图'],['title','标题'],['layout','排版'],...(PAGE_TITLE_SUBTITLE_TARGETS[ui.page]?[['subtitle','原生标题副题']]:[])]:ui.kind==='native-home'?[['version','版本文字'],['settings','设置按钮'],['show','展开按钮'],['hide','收起按钮']]:(ui.kind==='scene-images'?config.pageHeaders[ui.page].scene.images:config.pageHeaders[ui.page].scene.texts).map(item=>[item.id,item.name+(item.visible?'':' · 已隐藏')]);if(!objects.some(([key])=>key===ui.object))ui.object=objects[0]?.[0]||'';title=PAGE_HEADER_PAGES[ui.page]+' / 页面头部';}
     else if(pageEditing){if(!['page-common','page-content',...(ui.page==='presets'?['page-bai']:[])].includes(ui.region))ui.region='page-common';if(ui.region==='page-common'){kinds=COMMON_PARTS;title=PAGE_NAMES[ui.page]+' / 页面基础';}else if(ui.region==='page-bai'){kinds=[['group','分组'],['entry','条目']];if(!['group','entry'].includes(ui.kind))ui.kind='group';title='预设 / 柏宝箱';}else{kinds=ui.page==='worldbook'?[['surface','条目卡片'],['heading','条目标题']]:ui.page==='presets'?[['surface','提示词条目'],['tip','滑块提示']]:[];if(!(ui.page==='presets'?['surface','tip']:['surface','heading']).includes(ui.kind))ui.kind='surface';title=ui.page==='worldbook'?'世界书 / 条目':ui.page==='presets'?'预设 / 内容分组':'设置分组';}}
     else if(commonEditing){kinds=COMMON_PARTS;title='全局基础 / 界面共用';}
     else if(unavailable)title=ui.region==='home-design'?'首页独立设计尚未接入':PAGE_NAMES[ui.page]+'独立设计尚未接入';

@@ -1,3 +1,4 @@
+import {PAGE_TITLE_SUBTITLE_SELECTORS,createPageTitleSubtitleAdapter} from './page-title-subtitle.mjs';
 const ROW='data-otl-title-row',TEXT='data-otl-title-text',SETTINGS='data-otl-settings-layout';
 export const PAGE_TITLE_LAYOUT_CSS=`
 [${ROW}]{position:relative;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;min-height:87px;padding:9px 10px;margin:0 0 8px;gap:5px;border:0;border-bottom:1px solid var(--SmartThemeBorderColor,rgba(0,0,0,.15));border-radius:0}
@@ -25,17 +26,9 @@ export const PAGE_TITLE_LAYOUT_CSS=`
 [${SETTINGS}] #account_controls{grid-column:2;grid-row:2;min-width:0;max-width:6.5em;gap:6px}
 [${SETTINGS}] #settingsSearch{grid-column:3;grid-row:2;min-width:0;width:100%;max-width:100%;box-sizing:border-box;margin:0}
 `;
-const selectors={
- presets:['#kobold_api-presets > .standoutHeader > strong > span[data-i18n]','#novel_api-presets > .standoutHeader > strong > span[data-i18n]','#openai_api-presets > div > .standoutHeader > strong > span[data-i18n]','#textgenerationwebui_api-presets > .standoutHeader > strong > span[data-i18n]'],
- connection:['#title_api','h3 > span[data-i18n="Connection Profile"]'],
- worldbook:['h3 > span[data-i18n="Worlds/Lorebooks"]'],
- backgrounds:['#bg-header-fixed h3 > span[data-i18n="Backgrounds"]'],
- extensions:['h3[data-i18n="Extensions"]'],
- personas:['h3 > span[data-i18n="Persona Management"]'],
- formatting:['h3 > span[data-i18n="Advanced Formatting"]'],
-};
+const selectors=Object.fromEntries(Object.entries(PAGE_TITLE_SUBTITLE_SELECTORS).map(([page,targets])=>[page,Object.values(targets)]));
 export function createPageTitleLayoutAdapter({document}={}){
- const owned=new Map();let style=null;
+ const owned=new Map(),subtitles=createPageTitleSubtitleAdapter({document});let style=null;
  function set(node,key,value,wanted){if(!node)return;let values=owned.get(node);if(!values){values=new Map();owned.set(node,values);}if(!values.has(key))values.set(key,{old:node.getAttribute(key),last:value});values.get(key).last=value;if(node.getAttribute(key)!==value)node.setAttribute(key,value);if(!wanted.has(node))wanted.set(node,new Set());wanted.get(node).add(key);}
  function restore(node,key,r){if(node.getAttribute(key)!==r.last)return;if(r.old===null)node.removeAttribute(key);else node.setAttribute(key,r.old);}
  function sync(entries){const wanted=new Map();for(const {page,host,header,config}of entries){if(!config.enabled||config.layout!=='standard')continue;
@@ -49,7 +42,8 @@ export function createPageTitleLayoutAdapter({document}={}){
   }
  }
  for(const [node,values]of owned){for(const [key,r]of values)if(!wanted.get(node)?.has(key)){restore(node,key,r);values.delete(key);}if(!values.size)owned.delete(node);}
+ subtitles.sync(entries);
  if(owned.size&&!style){style=document.createElement('style');style.setAttribute('data-otl-title-style','');style.textContent=PAGE_TITLE_LAYOUT_CSS;document.head.append(style);}else if(!owned.size){style?.remove();style=null;}}
- function stop(){for(const [node,values]of owned)for(const [key,r]of values)restore(node,key,r);owned.clear();style?.remove();style=null;}
- return {sync,stop};
+ function stop(){subtitles.stop();for(const [node,values]of owned)for(const [key,r]of values)restore(node,key,r);owned.clear();style?.remove();style=null;}
+ return {sync,stop,updateFonts:subtitles.updateFonts};
 }
