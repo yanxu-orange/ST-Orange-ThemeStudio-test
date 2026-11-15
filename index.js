@@ -34,7 +34,7 @@ import {normalizeAvatarFill} from './avatar-fill.mjs';
 import {createInputFitBridge} from './chrome-adapter.mjs';
 import {normalizeChromeConfig,DRAWERS,INPUT_ICONS} from './chrome.mjs';
 import {sceneWidth,normalizeTextScene,newSceneCaption} from './text-scene.mjs';
-import {normalizeNativeConfig} from './native.mjs';
+import {normalizeNativeConfig,resolveNativeActions} from './native.mjs';
 import {footerBaseHeight,footerKey,newFooterCaption,normalizeFooterConfig} from './footer.mjs';
 import {normalizeReasoningConfig} from './reasoning.mjs';
 import {BODY_CARD_DEFAULTS,bodyCardSettings} from './body-card.mjs';
@@ -67,7 +67,7 @@ await (async () => {
   for(const theme of Object.values(templates))if(!theme.photos)theme.photos={ai:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius}),user:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius})};
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
-  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', statScope='ai', gestureSelection=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, libraryPurpose='layer', libraryTarget='', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry',previewChatWidth=0;
+  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', statScope='ai', actionScope='ai', gestureSelection=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, libraryPurpose='layer', libraryTarget='', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry',previewChatWidth=0;
   config=normalizePageHeaders(normalizePageConfig(normalizeCommonConfig(config)));
   const assetLibrary=createAssetLibrary();
   const iconLibrary=createIconLibrary();let disposeIconLibrary=null,disposeFontLibrary=null;
@@ -139,7 +139,7 @@ await (async () => {
   shadow.querySelector('#material-back').addEventListener('click',returnFromMaterials);
   shadow.addEventListener('keydown',event=>{if(event.key==='Escape'&&ui.mode==='library'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();returnFromMaterials();}});
   function openMaterialPicker(purpose,category='images',target='',onUse=null){
-    invalidateEditing();managerReturn=null;materialSession=Object.freeze({purpose,target,onUse,selection:Object.freeze(materialSelection(ui)),scroll:shadow.querySelector('.fields').scrollTop,inspectorScroll:shadow.querySelector('.inspector').scrollTop,config});
+    invalidateEditing();managerReturn=null;materialSession=Object.freeze({purpose,target,onUse,nativeActions:purpose==='native-edit-icon'||purpose==='native-more-icon'?resolveNativeActions(config.nativeStyle.actions,actionScope==='user'):null,selection:Object.freeze(materialSelection(ui)),scroll:shadow.querySelector('.fields').scrollTop,inspectorScroll:shadow.querySelector('.inspector').scrollTop,config});
     libraryPurpose=purpose;libraryTarget=target;materialCategory=category;ui.mode='library';renderFields();shadow.querySelector('.fields').scrollTop=0;shadow.querySelector('.inspector').scrollTop=0;
   }
   function returnFromMaterials(){
@@ -322,7 +322,7 @@ await (async () => {
     const shelf=make('div');container.append(shelf);
     disposeIconLibrary=renderIconLibrary(shelf,{library:iconLibrary,tab:iconLibraryTab,onTab:tab=>{invalidateEditing();iconLibraryTab=tab;renderFields();},isCurrent:()=>active&&shelf.isConnected&&ui.mode==='library'&&libraryPurpose===purpose&&materialCategory==='icons',onError:error=>notify(error.message||String(error)),onUse:materialSession?source=>{
       if(!active||!materialSession||materialSession.config!==config||!shelf.isConnected||libraryPurpose!==purpose)return;if(!key){notify('请先选择应用图标的按钮。');return;}
-      const [zone,id]=key.split(':'),target=zone==='native'?config.nativeStyle.actions[id]:config.chromeStyle[zone]?.icons[id];if(!target)return;
+      const [zone,id]=key.split(':'),target=zone==='native'?(materialSession.nativeActions||resolveNativeActions(config.nativeStyle.actions,actionScope==='user'))[id]:config.chromeStyle[zone]?.icons[id];if(!target)return;
       invalidateEditing();remember();seedIconStyle(target);target.mode='icon';target.icon=source.icon||'';target.tint=source.tint;
       if(zone==='native'){target.source=source.image?{kind:'custom',asset:'',image:source.image}:null;}
       else{target.asset='';target.image=source.image||'';}
@@ -331,7 +331,7 @@ await (async () => {
   }
   function renderSourceLibrary(container,chromeTarget=null){
     if(!chromeTarget&&libraryPurpose.startsWith('chrome:'))return renderChromeSourceLibrary(container);
-    const isPageBackground=['page-background','page-header','page-scene'].includes(libraryPurpose),isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon||isPageBackground,backgroundTarget=isEditIcon?config.nativeStyle.actions[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose,session=materialSession;
+    const isPageBackground=['page-background','page-header','page-scene'].includes(libraryPurpose),isBackground=libraryPurpose==='reasoning-background',isMoreIcon=libraryPurpose==='native-more-icon',isEditIcon=libraryPurpose==='native-edit-icon'||isMoreIcon,isSourceTarget=!!chromeTarget||isBackground||isEditIcon||isPageBackground,backgroundTarget=isEditIcon?(materialSession?.nativeActions||resolveNativeActions(config.nativeStyle.actions,actionScope==='user'))[isMoreIcon?'more':'edit']:config.reasoningStyle.entry.background,targetGroup=isEditIcon?'native':'reasoning',purpose=libraryPurpose,session=materialSession;
     const categories=make('div','actions material-categories');categories.setAttribute('aria-label','素材类型');
     for(const [id,label]of [['images','图片'],['shapes','图形'],['icons','图标'],['fonts','字体']]){const button=make('button','',label);button.type='button';button.dataset.materialCategory=id;button.setAttribute('aria-pressed',String(materialCategory===id));button.disabled=!!materialSession&&(libraryPurpose==='font'?id!=='fonts':['layer','page-scene'].includes(libraryPurpose)?!['images','shapes'].includes(id):id==='shapes'||id==='fonts'||(isBackground||isPageBackground)&&id==='icons');if(button.disabled)continue;button.addEventListener('click',()=>{invalidateEditing();materialCategory=id;renderFields();});categories.append(button);}shadow.querySelector('#library-expand').before(categories);
     if(materialCategory==='fonts'){renderFontShelf(container);return;}
@@ -550,6 +550,10 @@ await (async () => {
     const toggle=make('label','field','设计此原生对象'),enabled=make('input');enabled.type='checkbox';enabled.checked=!!native[key];enabled.setAttribute('aria-label','设计此原生对象');enabled.addEventListener('change',()=>{remember();native[key]=enabled.checked?newPageHeaderNative(key):null;if(enabled.checked)head.enabled=true;apply();renderFields();});toggle.append(enabled);container.append(toggle);const item=native[key];if(!item)return;
     for(const f of [field('横向位置','x','range',{min:-100,max:200,unit:'%'}),field('纵向位置','y','range',{min:-400,max:1600,unit:'px'}),field('对象字号','size','range',{min:8,max:200}),field('对象颜色','color','color')])editorControl(container,f,item);
     if(key==='version'){editorControl(container,field('版本字体','font','select',{options:TIME_FONTS.map(font=>[font,font])}),item);const weight=new Proxy(item,{set(target,key,value){target[key]=value==='auto'?value:Number(value);return true;}});editorControl(container,field('版本字重','weight','select',{options:[['auto','沿用字体'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}),weight);renderFontLinkFields(container,'page-header-home-native-version',item,'版本文字');const b=make('button','',item.width==='auto'?'指定版本宽度':'恢复自动宽度');b.type='button';b.addEventListener('click',()=>{remember();item.width=item.width==='auto'?80:'auto';apply();renderFields();});container.append(b);if(item.width!=='auto')editorControl(container,field('版本宽度','width','range',{min:10,max:100,unit:'%'}),item);
+      const initialMode=(label,value,change)=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [id,text]of [['inherit','沿用整段'],['custom','单独设置']]){const option=make('option','',text);option.value=id;select.append(option);}select.value=value;select.addEventListener('change',()=>{remember();change(select.value==='custom');apply();renderFields();});row.append(select);container.append(row);};
+      initialMode('首字母样式',item.firstLetter?'custom':'inherit',custom=>{item.firstLetter=custom?{size:null,color:null}:null;});
+      if(item.firstLetter){const initial=item.firstLetter;initialMode('首字母字号来源',initial.size===null?'inherit':'custom',custom=>{initial.size=custom?item.size:null;});if(initial.size!==null)editorControl(container,field('首字母字号','size','range',{min:8,max:200,unit:'px'}),initial);initialMode('首字母颜色来源',initial.color===null?'inherit':'custom',custom=>{initial.color=custom?item.color:null;});if(initial.color!==null)editorControl(container,field('首字母颜色','color','color'),initial);}
+
     }else editorControl(container,field('按钮宽度','width','range',{min:16,max:200,unit:'px'}),item);
     container.append(make('p','hint','仅在与原生内容共处时生效；保留原生内容和按钮功能。'));
   }
@@ -706,7 +710,11 @@ await (async () => {
   }
   function renderNativeFields(container){
     if(ui.kind==='actions'){
-      const actions=config.nativeStyle.actions,edit=actions.edit;
+      const rootActions=config.nativeStyle.actions;
+      const designRow=make('label','field','设计对象'),design=make('select');design.setAttribute('aria-label','设计对象');for(const [value,text]of [['unified','一起设置'],['separate','分开设置']]){const option=make('option','',text);option.value=value;design.append(option);}design.value=rootActions.design||'unified';designRow.append(design);container.append(designRow);
+      design.addEventListener('change',()=>{remember();rootActions.design=design.value;if(design.value==='separate'&&!rootActions.roles){const shared=Object.fromEntries(Object.entries(rootActions).filter(([key])=>!['design','roles'].includes(key)));rootActions.roles={ai:clone(shared),user:clone(shared)};}apply();renderFields();});
+      if(rootActions.design==='separate'){const scopeRow=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const option=make('option','',text);option.value=value;scope.append(option);}scope.value=actionScope;scopeRow.append(scope);container.append(scopeRow);scope.addEventListener('change',()=>{actionScope=scope.value;renderFields();});}
+      const actions=resolveNativeActions(rootActions,actionScope==='user'),edit=actions.edit;
       propertyHeading(container,'编辑');nativePositionFields(container,edit);
       renderMaterialControl(container,edit,{label:'显示方式',purpose:'native-edit-icon',id:'native-edit-pick',native:true});
       if(edit.mode==='text')nativeControl(container,edit,field('文字','text','text',{maxLength:40}));
