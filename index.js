@@ -1,4 +1,5 @@
-import {statValueStyle} from './native-stat-style.mjs';
+import {SWIPE_COUNTER_DEFAULTS,swipeValueStyle} from './native-swipe-style.mjs';
+import {statValueStyle,resolveNativeStats} from './native-stat-style.mjs';
 import {uniqueId} from './unique-id.mjs';
 import {createWorkshopEntries} from './workshop-entries.mjs';
 import {installWorkshopEventBoundary} from './workshop-events.mjs';
@@ -63,7 +64,7 @@ await (async () => {
   for(const theme of Object.values(templates))if(!theme.photos)theme.photos={ai:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius}),user:defaultPhoto({size:theme.avatarSize,radius:theme.avatarRadius})};
   fonts.push(['"LabSongti",serif','随包思源宋体']);
   templates.scrapbook.layers=[newLayer('tape',{name:'照片上方胶带',side:'left',width:135,x:-9,y:-7,rotation:-12,z:4}),newLayer('leaf',{name:'右侧叶枝',width:105,x:5,y:14,rotation:14,z:0,opacity:.5}),newLayer('flower',{name:'角落小花',width:64,x:8,y:95,rotation:-15,z:3}),newLayer('star',{name:'小星星',width:38,x:100,y:10,rotation:12,z:2})];
-  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', gestureSelection=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, libraryPurpose='layer', libraryTarget='', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry',previewChatWidth=0;
+  let config=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig({...base,textItems:validateTextItems(),layers:migrateLayers(base),photos:validatePhotos()}))))))), saved=null, history=[], active=false, panel, selected='global', selectedLayerId=config.layers[0]?.id, photoScope='ai', statScope='ai', gestureSelection=null, textItemKey='name', editEpoch=0, cancelCrop=null, imageUploadAbort=null, uploadFeedback=null, libraryPurpose='layer', libraryTarget='', materialCategory='images', iconLibraryTab='builtin', iconTargetKey='input:options_button', reasoningAnchor='reasoning-entry',previewChatWidth=0;
   config=normalizePageHeaders(normalizePageConfig(normalizeCommonConfig(config)));
   const assetLibrary=createAssetLibrary();
   const iconLibrary=createIconLibrary();let disposeIconLibrary=null,disposeFontLibrary=null;
@@ -623,24 +624,48 @@ await (async () => {
       if(actions.more.mode==='icon')renderIconAppearance(container,actions.more,{native:true,prefix:'更多图标'});
       propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
     }else if(ui.kind==='info'){
-      const stats=config.nativeStyle.stats,key=ui.object,item=stats[key];
+      const rootStats=config.nativeStyle.stats,key=ui.object;
+      const designRow=make('label','field','设计对象'),design=make('select');design.setAttribute('aria-label','设计对象');for(const [value,text]of [['unified','统一设计'],['separate','分别设计']]){const option=make('option','',text);option.value=value;design.append(option);}design.value=rootStats.design||'unified';designRow.append(design);container.append(designRow);
+      design.addEventListener('change',()=>{remember();rootStats.design=design.value;if(design.value==='separate'&&!rootStats.roles){const items=Object.fromEntries(['floor','time','tokens'].map(name=>[name,rootStats[name]]));rootStats.roles={ai:clone(items),user:clone(items)};}apply();renderFields();});
+      if(rootStats.design==='separate'){const scopeRow=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const option=make('option','',text);option.value=value;scope.append(option);}scope.value=statScope;scopeRow.append(scope);container.append(scopeRow);scope.addEventListener('change',()=>{statScope=scope.value;renderFields();});}
+      const stats=resolveNativeStats(rootStats,statScope==='user'),item=stats[key],fontPrefix='native-'+(rootStats.design==='separate'?statScope+'-':'')+key;
+
       const modeField=(label,current,change)=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [value,title]of [['inherit',label==='标签样式'?'跟随数值样式':'跟随公共样式'],['custom','单独设置']]){const option=make('option','',title);option.value=value;select.append(option);}select.value=current?'custom':'inherit';select.addEventListener('change',()=>{remember();change(select.value==='custom');apply();renderFields();});row.append(select);container.append(row);};
-      const appearance=(style,id)=>{nativeAppearanceFields(container,style,true,8);nativeControl(container,style,field('字体','font','select',{options:[['auto',id==='label'?'跟随数值字体':'沿用原生字体'],...fonts]}));nativeControl(container,{get weight(){return style.weight;},set weight(v){style.weight=v==='auto'?'auto':Number(v);}},field('字重','weight','select',{options:[['auto',id==='label'?'跟随数值字重':'沿用原生字重'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}));renderFontLinkFields(container,'native-'+key+'-'+id,style,'楼层信息');};
+      const appearance=(style,id)=>{nativeAppearanceFields(container,style,true,8);nativeControl(container,style,field('字体','font','select',{options:[['auto',id==='label'?'跟随数值字体':'沿用原生字体'],...fonts]}));nativeControl(container,{get weight(){return style.weight;},set weight(v){style.weight=v==='auto'?'auto':Number(v);}},field('字重','weight','select',{options:[['auto',id==='label'?'跟随数值字重':'沿用原生字重'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}));renderFontLinkFields(container,fontPrefix+'-'+id,style,'楼层信息');};
       propertyHeading(container,'文字');
       if(key==='floor'){nativeControl(container,item,field('前缀','prefix','text',{maxLength:40}));nativeControl(container,item,field('后缀','suffix','text',{maxLength:40}));}
       const label=item.label||{text:'',style:null,gap:8};
       nativeControl(container,{get text(){return label.text;},set text(v){label.text=v;item.label=label;}},field('标签文案','text','text',{maxLength:40}));const labelInput=container.querySelector('[aria-label="标签文案"]'),hadLabel=Boolean(label.text);const refreshLabelFields=()=>{if(labelInput.isConnected&&Boolean(label.text)!==hadLabel)renderFields();};labelInput.addEventListener('change',refreshLabelFields);labelInput.addEventListener('blur',refreshLabelFields);
       propertyHeading(container,'数值外观');modeField('数值样式',item.valueStyle,custom=>{item.valueStyle=custom?statValueStyle(stats,key):null;});if(item.valueStyle)appearance(item.valueStyle,'value');
       if(label.text){propertyHeading(container,'标签外观');modeField('标签样式',label.style,custom=>{label.style=custom?{...statValueStyle(stats,key)}:null;});if(label.style)appearance(label.style,'label');nativeControl(container,label,field('标签间距','gap','range',{min:0,max:40,unit:'px'}));}
-      propertyHeading(container,'位置');nativePositionFields(container,item);
+      propertyHeading(container,'位置');nativeControl(container,item,field('所在区域','position','select',{options:[['header','头像区'],['footer','尾部区']]}));nativeControl(container,{get anchor(){return item.anchor||'default';},set anchor(value){item.anchor=value;}},field('水平定位','anchor','select',{options:[['default','默认位置'],['left','左侧'],['center','居中'],['right','右侧']]}));nativeControl(container,item,field('左右移动','x','range',{min:-100,max:100,unit:'%'}));nativeControl(container,item,field('上下移动','y','range',{min:-160,max:160,unit:'px'}));
     }else{
-      const swipe=config.nativeStyle.swipe;
-      propertyHeading(container,'排列');nativeControl(container,swipe,field('箭头排列','layout','select',{options:[['compact','紧凑'],['ends','左右两端']]}),()=>renderFields());
-      if(swipe.layout==='compact')nativeControl(container,swipe,field('中间间距','gap','range',{min:0,max:40,unit:'px'}));
-      propertyHeading(container,'位置');nativePositionFields(container,swipe);
-      propertyHeading(container,'外观');nativeAppearanceFields(container,swipe);
-      propertyHeading(container,'箭头文字');for(const [key,name]of [['left','左箭头'],['right','右箭头']]){const arrow=swipe[key];nativeControl(container,arrow,field(name+'显示','mode','select',{options:[['default','原生箭头'],['text','自定义文字']]}),()=>renderFields());if(arrow.mode==='text')nativeControl(container,arrow,field(name+'文字','text','text',{maxLength:40}));}
-      propertyHeading(container,'版本计数');for(const [key,label]of [['hideHistory','隐藏历史版本页数'],['hideLatest','隐藏最新AI版本页数']])nativeControl(container,swipe,field(label,key,'select',{options:[['true','隐藏'],['false','不额外隐藏']]}));
+      const swipe=config.nativeStyle.swipe,key=ui.object;
+      const modeField=(label,current,change,follow='跟随翻页样式')=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [value,title]of [['inherit',follow],['custom','单独设置']]){const option=make('option','',title);option.value=value;select.append(option);}select.value=current?'custom':'inherit';select.addEventListener('change',()=>{remember();change(select.value==='custom');apply();renderFields();});row.append(select);container.append(row);};
+      const valueStyle=()=>swipeValueStyle(swipe);
+      const appearance=(style,id,label=false)=>{nativeAppearanceFields(container,style,false,8);nativeControl(container,style,field('字体','font','select',{options:[['auto',label?'跟随数值字体':'沿用原生字体'],...fonts]}));nativeControl(container,{get weight(){return style.weight;},set weight(v){style.weight=v==='auto'?'auto':Number(v);}},field('字重','weight','select',{options:[['auto',label?'跟随数值字重':'沿用原生字重'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}));renderFontLinkFields(container,'native-swipe-'+id,style,'回复翻页');};
+      const flag=(target,name,label)=>nativeControl(container,{get value(){return target[name]??false;},set value(v){target[name]=v===true||v==='true';}},field(label,'value','select',{options:[['false','不额外隐藏'],['true','隐藏']]}));
+      if(key==='group'){
+        propertyHeading(container,'排列');nativeControl(container,swipe,field('箭头排列','layout','select',{options:[['compact','紧凑'],['ends','左右两端']]}),()=>renderFields());
+        if(swipe.layout==='compact')nativeControl(container,swipe,field('中间间距','gap','range',{min:0,max:40,unit:'px'}));
+        propertyHeading(container,'位置');nativePositionFields(container,swipe);
+        propertyHeading(container,'外观');nativeAppearanceFields(container,swipe);
+        propertyHeading(container,'显示');flag(swipe,'hideHistoryControls','隐藏历史翻页按钮与计数');
+      }else if(key==='left'||key==='right'){
+        const arrow=swipe[key],name=key==='left'?'左箭头':'右箭头';
+        propertyHeading(container,'文字');nativeControl(container,arrow,field(name+'显示','mode','select',{options:[['default','原生箭头'],['text','自定义文字']]}),()=>renderFields());if(arrow.mode==='text')nativeControl(container,arrow,field(name+'文字','text','text',{maxLength:40}));
+        propertyHeading(container,'外观');modeField('按钮样式',arrow.valueStyle,custom=>{arrow.valueStyle=custom?valueStyle():null;});if(arrow.valueStyle){if(arrow.mode==='text')appearance(arrow.valueStyle,key);else nativeAppearanceFields(container,arrow.valueStyle,false,8);}
+      }else{
+        const raw=swipe.counter||{...SWIPE_COUNTER_DEFAULTS},counter=new Proxy(raw,{set(target,name,value){target[name]=value;swipe.counter=target;return true;}});
+        propertyHeading(container,'显示');for(const [name,label]of [['hideHistory','隐藏历史版本页数'],['hideLatest','隐藏最新AI版本页数']])flag(swipe,name,label);flag(counter,'hideSingle','隐藏单候选计数');
+        propertyHeading(container,'数字');nativeControl(container,counter,field('计数显示','mode','select',{options:[['native','原生当前 / 总数'],['current','仅当前版本']]}),()=>renderFields());
+        if(counter.mode==='current')nativeControl(container,{get value(){return counter.pad;},set value(v){counter.pad=v===true||v==='true';}},field('两位补零','value','select',{options:[['false','不补零'],['true','补零']]}));
+        propertyHeading(container,'数值外观');modeField('数值样式',counter.valueStyle,custom=>{counter.valueStyle=custom?valueStyle():null;});if(counter.valueStyle)appearance(counter.valueStyle,'counter-value');
+        nativeControl(container,{get value(){return counter.italic;},set value(v){counter.italic=v===true||v==='true';}},field('斜体','value','select',{options:[['false','不使用'],['true','使用']]}));
+        propertyHeading(container,'标签');const label=counter.label||{text:'',style:null,gap:8};nativeControl(container,{get text(){return label.text;},set text(v){label.text=v;counter.label=label;}},field('标签文案','text','text',{maxLength:40}));const labelInput=container.querySelector('[aria-label="标签文案"]'),hadLabel=Boolean(label.text),refresh=()=>{if(labelInput.isConnected&&Boolean(label.text)!==hadLabel)renderFields();};labelInput.addEventListener('change',refresh);labelInput.addEventListener('blur',refresh);
+        if(label.text){modeField('标签样式',label.style,custom=>{label.style=custom?{...(counter.valueStyle||valueStyle())}:null;},'跟随数值样式');if(label.style)appearance(label.style,'counter-label',true);nativeControl(container,label,field('标签间距','gap','range',{min:0,max:40,unit:'px'}));}
+        propertyHeading(container,'位置');nativeControl(container,counter,field('计数位置','position','select',{options:[['group','跟随翻页按钮'],['header','头像区'],['footer','尾部区']]}),()=>renderFields());if(counter.position!=='group'){nativeControl(container,counter,field('水平定位','anchor','select',{options:[['left','左侧'],['center','居中'],['right','右侧']]}));nativeControl(container,counter,field('左右移动','x','range',{min:-100,max:100,unit:'%'}));nativeControl(container,counter,field('上下移动','y','range',{min:-160,max:160,unit:'px'}));}
+      }
     }
   }
   function renderBodySettings(container){
@@ -670,6 +695,12 @@ await (async () => {
       if(!isInput){propertyHeading(container,'图形与点击槽');controls(v,[range('顶栏图标大小','iconSize',12,40),range('顶栏点击槽','slot',28,64),range('顶栏按钮间距','gap',0,16),range('顶栏上下内距','padY',0,16)]);}
     }else if(ui.kind==='text'){
       propertyHeading(container,'字体设计');controls(v,[['输入字体来源','fontMode','select',{options:[['interface','跟随界面字体'],['chat','跟随聊天正文'],['custom','自定义字体']]}]]);if(v.fontMode==='custom')controls(v,[['输入字体','font','select',{options:fonts}]]);controls(v,[range('输入字号','size',8,60),range('输入字重','weight',100,900,'',100),['输入文字颜色','textColor','color'],range('输入行高','lineHeight',1,3,'',.1)]);propertyHeading(container,'自动增高范围');controls(v,[range('输入最小高度','minHeight',32,160),range('输入最大高度','maxHeight',80,600)]);container.append(make('p','hint','最大高度需不小于最小高度，且不超过当前可视区域高度的60%。'));if(v.fontMode==='custom'){propertyHeading(container,'外链字体');renderFontLinkFields(container,'chrome-input',v,'输入文字');}
+      propertyHeading(container,'文字区域底色');editorControl(container,field('启用文字区域底色','enabled','select',{options:[['false','关闭'],['true','启用']]}),v.textSurface);controls(v.textSurface,[['文字区域底色','color','color'],range('文字区域透明度','alpha',0,1,'',.05),range('文字区域圆角','radius',0,40)]);
+    }else if(ui.kind==='placeholder'){
+      const empty=v.emptyText;propertyHeading(container,'空框文案');editorControl(container,field('启用空框文案','enabled','select',{options:[['false','关闭'],['true','启用']]}),empty);
+      for(const [key,title]of [['idle','待输入文案'],['generating','生成中文案']]){const row=make('label','field',title),input=make('textarea');input.rows=2;input.maxLength=300;input.value=empty[key];input.setAttribute('aria-label',title);let tracking=false;input.addEventListener('input',()=>{if(!tracking){remember();tracking=true;}empty[key]=input.value;apply();notify('空框文案已更新，尚未保存');});for(const event of ['change','blur'])input.addEventListener(event,()=>{tracking=false;});row.append(input);container.append(row);}
+      container.append(make('p','hint','生成中文案留空时沿用待输入文案；断开连接时保留原生提示，已有草稿时不覆盖输入内容。'));container.append(make('p','hint','文案超出输入区可见范围会裁切，可在输入文字中调整最小高度。'));
+      propertyHeading(container,'文案外观');controls(empty,[['空框文案颜色','color','color'],range('空框文案字号','size',8,60)]);
     }else if(['tools','icons'].includes(ui.kind)){
       if(isInput){propertyHeading(container,'工具共用尺寸');controls(v,[range('输入图标大小','iconSize',12,40),range('输入点击槽','slot',28,64),range('输入工具间距','gap',0,24)]);}
       propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];
@@ -730,12 +761,12 @@ await (async () => {
     }else if(ui.region==='body'){selected='body';title='正文阅读样式';keys=['text','font','fontSize','lineHeight'];}
     else if(ui.region==='footer'){kinds=[['text','自定义文案'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'footer').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'尾部图片';}else{ui.kind='text';objects=config.footerCaptions.map(c=>[footerKey(c.id),c.name+(c.visible?'':' · 已隐藏')]);textItemKey=ui.object;selected='footer';title=selectedCaption()?selectedCaption().name+'':'尾部文案 · 默认空';}}
     else if(['input','topbar'].includes(ui.region)){
-      kinds=ui.region==='topbar'?[['surface','顶栏整体'],['icons','按钮图标']]:[['surface','输入外框'],['text','输入文字'],['tools','工具与发送'],['image','图片素材']];if(!kinds.some(([k])=>k===ui.kind))ui.kind='surface';
+      kinds=ui.region==='topbar'?[['surface','顶栏整体'],['icons','按钮图标']]:[['surface','输入外框'],['text','输入文字'],['placeholder','空框文案'],['tools','工具与发送'],['image','图片素材']];if(!kinds.some(([k])=>k===ui.kind))ui.kind='surface';
       if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'input').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'输入区图片';}
       else if(['icons','tools'].includes(ui.kind)){objects=ui.region==='topbar'?DRAWERS:INPUT_ICONS;if(!objects.some(([id])=>id===ui.object))ui.object=objects[0][0];title=objects.find(([id])=>id===ui.object)[1]+' · '+(ui.region==='topbar'?'顶栏按钮':'输入按钮');}
-      else title=ui.region==='topbar'?'顶栏整体':ui.kind==='text'?'输入文字':'输入外框';
+      else title=ui.region==='topbar'?'顶栏整体':ui.kind==='text'?'输入文字':ui.kind==='placeholder'?'空框文案':'输入外框';
     }
-    else if(ui.region==='native'){kinds=[['actions','编辑与更多'],['info','楼层信息'],['swipe','回复翻页']];if(!['actions','info','swipe'].includes(ui.kind))ui.kind='actions';selected='native';title=kinds.find(([key])=>key===ui.kind)[1];if(ui.kind==='info'){objects=[['floor','楼层号'],['tokens','Token 统计'],['time','生成时长']];if(!objects.some(([key])=>key===ui.object))ui.object='floor';title=objects.find(([key])=>key===ui.object)[1];}}
+    else if(ui.region==='native'){kinds=[['actions','编辑与更多'],['info','楼层信息'],['swipe','回复翻页']];if(!['actions','info','swipe'].includes(ui.kind))ui.kind='actions';selected='native';title=kinds.find(([key])=>key===ui.kind)[1];if(ui.kind==='info'){objects=[['floor','楼层号'],['tokens','Token 统计'],['time','生成时长']];if(!objects.some(([key])=>key===ui.object))ui.object='floor';title=objects.find(([key])=>key===ui.object)[1];}else if(ui.kind==='swipe'){objects=[['group','整体排列'],['left','上一版'],['right','下一版'],['counter','版本计数']];if(!objects.some(([key])=>key===ui.object))ui.object='group';title=objects.find(([key])=>key===ui.object)[1];}}
     else if(ui.region==='reasoning'){kinds=[['entry','思维入口'],['reason-body','思维正文'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'reasoning').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'思维图片';}else{if(ui.kind!=='reason-body')ui.kind='entry';selected='reasoning';title=ui.kind==='entry'?'思维入口':'思维正文';}}
     else title='此区域尚未开放';
     let extra;if(supportsLayers(ui)&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{openMaterialPicker('layer','images',targetForRegion());});}
@@ -844,3 +875,4 @@ await (async () => {
   shadow.querySelector('#import').addEventListener('click',()=>shadow.querySelector('#import-file').click());
   shadow.querySelector('#import-file').addEventListener('change',async event=>{const input=event.target,file=input.files[0];if(!file)return;invalidateEditing();const epoch=editEpoch,originalConfig=config;try{const contents=await file.text();if(!active||epoch!==editEpoch||config!==originalConfig)return;const next=validate(JSON.parse(contents));invalidateEditing();remember();config=next;selectedLayerId=config.layers[0]?.id;apply();renderFields();notify('已导入预览，点击保存后记住。');}catch(error){notify('未导入：'+error.message);}finally{input.value='';}});
 })();
+

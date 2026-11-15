@@ -2,7 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';
 import {NATIVE_DEFAULTS,validateNativeStyle,nativeRules} from './native.mjs';
 import {statValueStyle,nativeStatFontEntries} from './native-stat-style.mjs';
 const style={size:9,color:'#998877',font:'serif',weight:400,fontLink:null};
-test('old stats preserve public style, prefixes and every independent position',()=>{
+test('stat defaults inherit shared appearance without changing prefixes or positions',()=>{
  const original=structuredClone(NATIVE_DEFAULTS);original.stats.size=17;original.stats.floor.prefix='第 ';original.stats.floor.suffix=' 期';original.stats.time.x=32;
  const normalized=validateNativeStyle(original);assert.deepEqual(normalized,original);assert.equal(statValueStyle(normalized.stats,'time').size,17);assert.equal(normalized.stats.time.x,32);assert.equal(normalized.stats.time.label,undefined);
 });

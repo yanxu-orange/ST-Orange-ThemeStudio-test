@@ -144,3 +144,26 @@ test('hidden native swipe children reserve no phantom footer despite a nonzero c
  arrow.hidden=true;render();assert.equal(value('footer-height'),0);
  left.style.visibility='visible';render();assert.equal(value('footer-height'),67,'left arrow can remain independently visible');
 });
+
+
+test('independent counter anchors ignore missing arrows, preserve native text, and fall back on invalid counts',async()=>{
+ const {SWIPE_COUNTER_DEFAULTS}=await import('./native-swipe-style.mjs');const {msg,c,rect,render,value}=fixture(),counter=msg.querySelector('.swipes-counter'),right=msg.querySelector('.swipeRightBlock'),left=msg.querySelector('.swipe_left');
+ c.nativeStyle.swipe.counter={...SWIPE_COUNTER_DEFAULTS,position:'footer',anchor:'center',mode:'current',pad:true,label:{text:'版次',style:null,gap:4}};
+ right.getBoundingClientRect=()=>rect(value('swipe-right-x')||0,value('swipe-right-y')||0,25,25);
+ counter.textContent='2\u200b/\u200b3';render();assert.equal(counter.textContent,'2\u200b/\u200b3');assert.equal(counter.dataset.otlCounterText,'02');assert.equal(counter.dataset.otlCounterCustom,'true');assert.equal(value('counter-x')+value('swipe-right-x'),204);
+ left.style.visibility='hidden';render();assert.equal(value('counter-x')+value('swipe-right-x'),204);assert.equal(left.style.visibility,'hidden');
+ c.nativeStyle.swipe.counter.anchor='right';render();assert.equal(value('counter-x')+value('swipe-right-x'),384);
+ counter.textContent='?/?';render();assert.equal(counter.dataset.otlCounterCustom,'false');assert.equal(counter.textContent,'?/?');
+ counter.textContent='1/1';c.nativeStyle.swipe.counter.hideSingle=true;render();assert.equal(counter.dataset.otlCounterSingle,'true');counter.textContent='1/3';render();assert.equal(counter.dataset.otlCounterSingle,'false');
+ counter.hidden=true;render();assert.equal(counter.hidden,true);assert.equal(counter.parentNode,right);
+});
+
+test('stat role layouts use complete measured width and correct header or footer anchors',()=>{
+ const {msg,c,rect,render,value}=fixture();const items=Object.fromEntries(['floor','time','tokens'].map(k=>[k,structuredClone(c.nativeStyle.stats[k])]));c.nativeStyle.stats.design='separate';c.nativeStyle.stats.roles={ai:structuredClone(items),user:structuredClone(items)};
+ const ai=c.nativeStyle.stats.roles.ai,user=c.nativeStyle.stats.roles.user;ai.floor.prefix='第';ai.floor.suffix='期';user.floor.prefix='';user.floor.suffix='号';user.floor.position='footer';user.floor.anchor='right';user.tokens.position='footer';user.tokens.anchor='center';
+ msg.setAttribute('mesid','123');msg.setAttribute('is_user','false');render();assert.equal(msg.querySelector('.mesIDDisplay').dataset.otlNativeFloorLabel,'第123期');const aiX=value('stat-0-x');
+ msg.setAttribute('is_user','true');render();assert.equal(msg.querySelector('.mesIDDisplay').dataset.otlNativeFloorLabel,'123号');assert.equal(value('stat-0-x'),360);assert.equal(value('stat-2-x'),185);
+ msg.querySelector('.mesIDDisplay').getBoundingClientRect=()=>rect(0,0,100,15);render();assert.equal(value('stat-0-x'),300);
+ user.floor.x=-10;render();assert.equal(value('stat-0-x'),260);msg.querySelector('.tokenCounterDisplay').textContent='';render();assert.equal(msg.querySelector('.tokenCounterDisplay').dataset.otlStatValue,'false');
+ msg.setAttribute('is_user','false');render();assert.equal(value('stat-0-x'),aiX);assert.equal(msg.querySelector('.mesIDDisplay').dataset.otlNativeFloorLabel,'第123期');
+});

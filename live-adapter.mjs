@@ -1,3 +1,4 @@
+import {swipeFontEntries} from './native-swipe-style.mjs';
 import {nativeStatFontEntries} from './native-stat-style.mjs';
 import {updateAvatarSource,releaseAvatarSource} from './avatar-source.mjs';
 import {normalizePageHeaders,createPageHeaderAdapter} from './page-headers.mjs';
@@ -130,7 +131,7 @@ function sameLayout(a,b,path=[]){
   if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
   return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
 }
-function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config)};}
+function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config),...swipeFontEntries(config)};}
 
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
 export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {
@@ -377,3 +378,4 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   return {start,update,stop,reconcile,fontStatus:key=>fontSession?.status(key)||'idle',retryFonts:()=>fontSession?.retry(),get active(){return !!snapshot;},get messageCount(){return states.size;}};
 }
+
