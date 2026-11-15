@@ -108,10 +108,32 @@ function normalizeLiveConfig(config){
 const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground']);
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
 const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
+const nativeRoles = new Set(['ai', 'user']);
+const nativeStatNames = new Set(['floor', 'time', 'tokens']);
+const swipeValueNames = new Set(['left', 'right', 'counter']);
+
+function cssOnlyNativeColor(path) {
+  const [, group, part, role] = path;
+  if (group === 'actions') {
+    return path.length === 4 && part === 'roles' && nativeRoles.has(role);
+  }
+  if (group === 'stats') {
+    const statIndex = part === 'roles' && nativeRoles.has(role) ? 4 : 2;
+    if (!nativeStatNames.has(path[statIndex])) return false;
+    return (path.length === statIndex + 2 && path[statIndex + 1] === 'valueStyle')
+      || (path.length === statIndex + 3 && path[statIndex + 1] === 'label' && path[statIndex + 2] === 'style');
+  }
+  return group === 'swipe' && (
+    (path.length === 4 && swipeValueNames.has(part) && path[3] === 'valueStyle')
+    || (path.length === 5 && part === 'counter' && path[3] === 'label' && path[4] === 'style')
+  );
+}
+
 function cssOnlyField(path,key){
   if(!path.length&&['pageStyle','pageHeaders'].includes(key))return true;
   if(!path.length)return cssRootFields.has(key);
   const [root,group,part]=path;
+  if(root==='nativeStyle'&&key==='color'&&cssOnlyNativeColor(path))return true;
   if(root==='metadata'&&path.at(-1)==='style'&&key==='color')return true;
   if(path.length===2){
     if(['captions','footerCaptions','nativeStyle','avatarFill'].includes(root))return key==='color';

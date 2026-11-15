@@ -34,6 +34,102 @@ test('color updates coalesce without visiting message artwork or replacing nodes
   assert.equal(queue.size,1);await settle();
   assert.equal(visits,0);assert.equal(msg.querySelector('.otl-live-caption'),caption);assert.equal(msg.querySelector('[data-layer-id]'),art);assert.equal(msg.querySelector('.name_text'),native);assert.equal(document.getElementById('orange-theme-live-style'),style);assert.match(style.textContent,/#123456/);adapter.stop();
 });
+test('native colors update CSS without reading any of 20 message layouts', async t => {
+  const measured = new Set(), rendered = [];
+  const {document, adapter, settle, queue} = environment({
+    onRender: result => rendered.push(result.updated),
+  });
+  const chat = document.querySelector('#chat');
+  chat.innerHTML = Array.from({length: 20}, (_, i) => markup(i, i % 2 === 1)).join('');
+  for (const [i, msg] of [...chat.children].entries()) {
+    const header = msg.querySelector('.ch_name');
+    const original = header.getBoundingClientRect.bind(header);
+    header.getBoundingClientRect = () => { measured.add(i); return original(); };
+  }
+  const c = normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(config()))));
+  const {actions, stats, swipe} = c.nativeStyle;
+  const valueStyle = {size: 15, color: '#123456', font: 'auto', weight: 'auto', fontLink: null};
+  const label = {text: '示例：', gap: 2, style: {...valueStyle}};
+  actions.design = 'separate';
+  actions.roles = Object.fromEntries(['ai', 'user'].map(role => [role, {
+    size: actions.size, color: '#123456', edit: structuredClone(actions.edit), more: structuredClone(actions.more),
+  }]));
+  for (const key of ['floor', 'time', 'tokens']) {
+    stats[key].valueStyle = {...valueStyle};
+    stats[key].label = structuredClone(label);
+  }
+  stats.roles = Object.fromEntries(['ai', 'user'].map(role => [role, Object.fromEntries(
+    ['floor', 'time', 'tokens'].map(key => [key, structuredClone(stats[key])]),
+  )]));
+  for (const key of ['left', 'right']) swipe[key].valueStyle = {...valueStyle};
+  swipe.counter = {position:'group', anchor:'left', x:0, y:0, mode:'native', pad:false,
+    hideSingle:false, italic:false, valueStyle:{...valueStyle}, label:structuredClone(label)};
+  adapter.start(c);
+  await settle();
+  assert.equal(measured.size, 20);
+  const results = [];
+  async function update(label, expected, edit, changeCount = 1) {
+    measured.clear();
+    rendered.length = 0;
+    for (let i = 0; i < changeCount; i++) {
+      edit(i);
+      adapter.update(c);
+    }
+    assert.equal(queue.size, 1);
+    await settle();
+    results.push({label, updated:rendered[0], measured:measured.size, expected});
+    assert.equal(rendered.length, 1);
+  }
+  const style = document.getElementById('orange-theme-live-style');
+  let colorNumber = 0xa1b2c2;
+  const nextColor = () => '#' + (++colorNumber).toString(16);
+  async function recolor(label, item, color = nextColor()) {
+    assert.ok(!style.textContent.includes(color));
+    await update(label, 0, () => { item.color = color; });
+    assert.ok(style.textContent.includes('color:' + color + '!important'), label);
+  }
+  const changed = nextColor();
+  await update('action role color, four updates in one frame', 0, index => {
+    actions.roles.ai.color = index === 3 ? changed : '#374859';
+  }, 4);
+  assert.match(style.textContent, /color:#a1b2c3!important/);
+
+  await recolor('user action color', actions.roles.user);
+  for (const key of ['floor', 'time', 'tokens']) {
+    await recolor('unified '+key+' value', stats[key].valueStyle);
+    await recolor('unified '+key+' label', stats[key].label.style);
+  }
+  await update('statistics design switch', 20, () => { stats.design = 'separate'; });
+  for (const role of ['ai', 'user']) {
+    for (const key of ['floor', 'time', 'tokens']) {
+      await recolor(role+' '+key+' value', stats.roles[role][key].valueStyle);
+      await recolor(role+' '+key+' label', stats.roles[role][key].label.style);
+    }
+  }
+  for (const key of ['left', 'right', 'counter']) {
+    await recolor('swipe '+key+' value', swipe[key].valueStyle);
+  }
+  await recolor('swipe counter label', swipe.counter.label.style);
+  await update('color plus size', 20, () => {
+    stats.roles.user.floor.valueStyle.color = '#345678';
+    stats.roles.user.floor.valueStyle.size = 18;
+  });
+  await update('font family', 20, () => { swipe.counter.label.style.font = 'monospace'; });
+  await update('label text', 20, () => { swipe.counter.label.text = '改用版本'; });
+  await update('action position', 20, () => { actions.roles.user.edit.y = 10; });
+  measured.clear();
+  rendered.length = 0;
+  chat.lastElementChild.querySelector('.mes_text p').textContent += ' streamed token';
+  await settle();
+  results.push({label:'one streaming message', updated:rendered[0], measured:measured.size, expected:1});
+  t.diagnostic(JSON.stringify(results));
+  adapter.stop();
+  for (const {label, measured, updated, expected} of results) {
+    assert.equal(updated, expected, label);
+    assert.equal(measured, expected, label);
+  }
+});
+
 test('geometry updates retain keyed caption and artwork; removed captions and slots are cleaned',async()=>{
   const {document,adapter,settle}=environment();let c=normalizeCaptionConfig(config());c.captions=[newCaption({id:'a',content:'A',width:50}),newCaption({id:'b',content:'B'})];
   const before=document.querySelector('#chat').innerHTML;adapter.start(c);await settle();const msg=document.querySelector('.mes'),caption=msg.querySelector('[data-caption-id=a].otl-live-caption'),art=msg.querySelector('[data-layer-id]');
