@@ -1,10 +1,10 @@
 import {validateCaptionStyle} from './captions.mjs';
-export const BODY_CARD_DEFAULTS=Object.freeze({bodyFontLink:null,cardGutter:12,cardFullWidth:false,bodyWeight:'auto',bodyParagraphGap:12,bodyPaddingLeft:10,bodyPaddingRight:10,bodyIndent:false,cardBorderMode:'all',cardBorderColor:'auto',cardBorderWidth:1,cardBorderStyle:'solid',cardBorderTop:true,cardBorderRight:true,cardBorderBottom:true,cardBorderLeft:true});
+export const BODY_CARD_DEFAULTS=Object.freeze({bodyFontLink:null,cardGutter:12,messageGap:18,cardFullWidth:false,bodyWeight:'auto',bodyParagraphGap:12,bodyPaddingLeft:10,bodyPaddingRight:10,bodyIndent:false,cardBorderMode:'all',cardBorderColor:'auto',cardBorderWidth:1,cardBorderStyle:'solid',cardBorderTop:true,cardBorderRight:true,cardBorderBottom:true,cardBorderLeft:true});
 export function bodyCardSettings(raw={}){
  const value={...BODY_CARD_DEFAULTS};for(const key of Object.keys(value))if(raw[key]!==undefined)value[key]=raw[key];
  value.bodyFontLink=validateCaptionStyle({fontLink:value.bodyFontLink}).fontLink;
  if(value.bodyWeight!=='auto'&&(!Number.isFinite(value.bodyWeight)||value.bodyWeight<100||value.bodyWeight>900))throw Error('正文字重超出范围');
- for(const [key,max]of [['cardGutter',80],['bodyParagraphGap',80],['bodyPaddingLeft',100],['bodyPaddingRight',100],['cardBorderWidth',12]])if(!Number.isFinite(value[key])||value[key]<0||value[key]>max)throw Error('排版数值超出范围：'+key);
+ for(const [key,max]of [['messageGap',120],['cardGutter',80],['bodyParagraphGap',80],['bodyPaddingLeft',100],['bodyPaddingRight',100],['cardBorderWidth',12]])if(!Number.isFinite(value[key])||value[key]<0||value[key]>max)throw Error('排版数值超出范围：'+key);
  for(const key of ['cardFullWidth','bodyIndent','cardBorderTop','cardBorderRight','cardBorderBottom','cardBorderLeft'])if(typeof value[key]!=='boolean')throw Error('排版开关无效：'+key);
  if(!['none','all','custom'].includes(value.cardBorderMode)||!['solid','dashed','dotted'].includes(value.cardBorderStyle))throw Error('卡片边框选项无效');
  if(value.cardBorderColor!=='auto'&&(typeof value.cardBorderColor!=='string'||!/^#[0-9a-f]{6}$/i.test(value.cardBorderColor)))throw Error('卡片边框颜色无效');return value;
@@ -27,4 +27,4 @@ ${paragraphs}{margin-top:0!important;margin-bottom:${c.bodyParagraphGap}px!impor
 
 
 /** The same chat-area gutters and card limit on both surfaces. */
-export function chatFrameRules(chat,card,raw){const c=bodyCardSettings(raw);return `${chat}{box-sizing:border-box!important;padding:20px ${c.cardGutter}px 90px!important;gap:0!important}\n${card}{max-width:${c.cardFullWidth?'none':raw.cardWidth+'px'}!important}\n@media(max-width:700px){${card}{max-width:none!important}}`;}
+export function chatFrameRules(chat,card,raw){const c=bodyCardSettings(raw);return `${chat}{box-sizing:border-box!important;padding:20px ${c.cardGutter}px 90px!important;gap:0!important}\n${card}{margin-bottom:${c.messageGap}px!important;max-width:${c.cardFullWidth?'none':raw.cardWidth+'px'}!important}\n@media(max-width:700px){${card}{max-width:none!important}}`;}
