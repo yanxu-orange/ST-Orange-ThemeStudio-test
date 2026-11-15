@@ -1,3 +1,4 @@
+import {validateStatStyle,validateStatLabel,nativeStatRules} from './native-stat-style.mjs';
 import {ICON_STYLE_FIELDS,validateIconStyle,builtinIconUrl,styleIconElement} from './icon-style.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {validImage} from './layers.mjs';
@@ -23,7 +24,7 @@ export function validateNativeStyle(raw){
  object(raw.actions,['size','color','edit','more',...groupFields]);object(raw.stats,['size','color',...statKeys,...groupFields]);object(raw.swipe,['size','color','gap','x','y','position','layout','left','right','hideHistory','hideLatest']);
  for(const v of [raw.actions,raw.stats,raw.swipe]){number(v.size,10,28);if(v.color!=='auto'&&(typeof v.color!=='string'||!/^#[a-f0-9]{6}$/i.test(v.color)))throw Error('原生功能颜色无效');}
  for(const key of ['edit','more']){placement(raw.actions[key],true);number(raw.actions[key].imageSize,8,120);}
- for(const key of statKeys){object(raw.stats[key],['position','x','y',...(key==='floor'?['prefix','suffix']:[])]);placement(raw.stats[key]);}
+ for(const key of statKeys){object(raw.stats[key],['position','x','y','valueStyle','label',...(key==='floor'?['prefix','suffix']:[])]);placement(raw.stats[key]);validateStatStyle(raw.stats[key].valueStyle);validateStatLabel(raw.stats[key].label);}
  for(const key of ['prefix','suffix'])if(typeof raw.stats.floor[key]!=='string'||raw.stats.floor[key].length>40)throw Error('楼层号文字过长');
  placement(raw.swipe);number(raw.swipe.gap,0,40);choice(raw.swipe.layout,['compact','ends']);
  for(const [v,image]of [[raw.actions.edit,true],[raw.actions.more,true],[raw.swipe.left,false],[raw.swipe.right,false]]){object(v,image?['position','anchor','x','y','imageSize','mode','text','source',...ICON_STYLE_FIELDS]:['mode','text']);choice(v.mode,image?['default','text','image','icon']:['default','text']);if(typeof v.text!=='string'||v.text.length>40)throw Error('原生功能文字过长');if(image)validateIconStyle(v);if(image&&v.source!==null){object(v.source,['kind','asset','image']);if(v.source.kind==='asset'){if(!Object.hasOwn(ASSETS,v.source.asset)||v.source.image!=='')throw Error('原生图标素材无效');}else if(v.source.kind!=='custom'||v.source.asset!==''||!validImage(v.source.image))throw Error('原生图标图片无效');}}
@@ -34,7 +35,7 @@ export function nativeImageUrl(source){return source?.kind==='asset'?assetUrl(so
 export const nativeIconUrl=v=>builtinIconUrl(v)||nativeImageUrl(v.source);
 export function effectiveNativeMode(v){return v.mode==='icon'&&nativeIconUrl(v)?'icon': v.mode==='text'&&v.text.trim()?'text':v.mode==='image'&&nativeImageUrl(v.source)?'image':'default';}
 export function latestAI(messages){return [...messages].reverse().find(m=>m.getAttribute('is_user')!=='true'&&m.getAttribute('is_system')!=='true'&&!m.classList.contains('smallSysMes'))||null;}
-export function nativeRules(q,c,header='.ch_name'){
+export function nativeRules(q,c,header='.ch_name',families={}){
  const s=c.nativeStyle,actions=s.actions,stats=s.stats,swipe=s.swipe,ac=actions.color==='auto'?c.accent:actions.color,sc=stats.color==='auto'?c.timeColor:stats.color,wc=swipe.color==='auto'?c.accent:swipe.color;
  const role=k=>`${q} [data-otl-native-role="${k}"]`;
  return `${q} ${header}{overflow:visible!important}
@@ -65,6 +66,7 @@ ${q} .otl-native-icon{position:absolute;left:50%;top:50%;transform:translate(-50
 ${q} .mesIDDisplay[data-otl-native-floor-custom=true]{font-size:0!important;}
 ${q} .mesIDDisplay[data-otl-native-floor-custom=true]::before{display:none!important;}
 ${q} .mesIDDisplay[data-otl-native-floor-custom=true]::after{content:attr(data-otl-native-floor-label)!important;font-size:${stats.size}px!important;}
+${nativeStatRules(q,c,families)}
 `;
 }
 function box(node){if(!node||node.hidden)return {width:0,height:0};const css=node.ownerDocument.defaultView?.getComputedStyle?.(node);if(css?.display==='none'||css?.visibility==='hidden')return {width:0,height:0};const r=node.getBoundingClientRect();return {width:r.width||0,height:r.height||0};}
@@ -96,6 +98,7 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  }else if(icon)remove(icon);
  attr(node,'data-otl-native-mode',mode);let label=node.querySelector(':scope > .otl-native-label');if(mode==='text'){if(!label)label=create('span','otl-native-label',node);if(label.textContent!==style.text)label.textContent=style.text;label.setAttribute('aria-hidden','true');}else if(label)remove(label);}
  const floor=stats[0],mesid=msg.getAttribute('mesid');if(floor){const custom=/^\d+$/.test(mesid||'')&&(s.stats.floor.prefix!=='#'||s.stats.floor.suffix!=='');attr(floor,'data-otl-native-floor-custom',String(custom));attr(floor,'data-otl-native-floor-label',custom?s.stats.floor.prefix+mesid+s.stats.floor.suffix:'');}
+ for(const [i,node]of stats.entries())if(node){attr(node,'data-otl-stat-value',String(Boolean(node.textContent.trim())));attr(node,'data-otl-stat-label',s.stats[statKeys[i]].label?.text||'');}
  // Docks never change the fixed header height. Only the footer reserves flow space.
  set('--on-head-height','0px');
  const widths=yield()=>({header:header.getBoundingClientRect().width,tools:s.actions.more.position==='footer'?block.getBoundingClientRect().width:null});

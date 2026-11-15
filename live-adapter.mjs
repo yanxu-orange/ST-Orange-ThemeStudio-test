@@ -1,3 +1,4 @@
+import {nativeStatFontEntries} from './native-stat-style.mjs';
 import {updateAvatarSource,releaseAvatarSource} from './avatar-source.mjs';
 import {normalizePageHeaders,createPageHeaderAdapter} from './page-headers.mjs';
 import {snapshotDraft} from './draft-snapshot.mjs';
@@ -76,7 +77,7 @@ ${q}[data-otl-live-avatar-hidden=true] > .mesAvatarWrapper{position:relative!imp
 body.documentstyle ${q} > .mesAvatarWrapper,body.documentstyle ${captionHost}{display:none!important}
 
 ${footerRules(q,config,families)}
-${nativeRules(q,config)}
+${nativeRules(q,config,'.ch_name',families)}
 ${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config,'live',families.body)}
 ${chatFrameRules('html[data-orange-live] #chat',q,config)}
 ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-id="${cap.id}"]`;return `${node}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important;${cap.visible?'':'display:none!important;'}}`;}).join('\n')}
@@ -129,7 +130,7 @@ function sameLayout(a,b,path=[]){
   if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
   return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
 }
-function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config)};}
+function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config)};}
 
 /** Only owns private markers, CSS variables and injected nodes. Native nodes are never moved. */
 export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFrame,MutationObserver:Observe,ResizeObserver:Resize,fitInput,onRender}={}) {

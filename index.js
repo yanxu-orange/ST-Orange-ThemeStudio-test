@@ -1,3 +1,4 @@
+import {statValueStyle} from './native-stat-style.mjs';
 import {uniqueId} from './unique-id.mjs';
 import {createWorkshopEntries} from './workshop-entries.mjs';
 import {installWorkshopEventBoundary} from './workshop-events.mjs';
@@ -600,8 +601,8 @@ await (async () => {
     nativeControl(container,v,field('左右移动','x','range',{min:-100,max:100,unit:'%'}));
     nativeControl(container,v,field('上下移动','y','range',{min:-160,max:160,unit:'px'}));
   }
-  function nativeAppearanceFields(container,v,isStats=false){
-    nativeControl(container,v,field('字号','size','range',{min:10,max:28,unit:'px'}));
+  function nativeAppearanceFields(container,v,isStats=false,minSize=10){
+    nativeControl(container,v,field('字号','size','range',{min:minSize,max:28,unit:'px'}));
     const label=make('label','field','颜色来源'),mode=make('select');mode.setAttribute('aria-label','颜色来源');
     for(const [id,text]of [['auto','沿用主题颜色'],['custom','自定义']]){const o=make('option','',text);o.value=id;mode.append(o);}mode.value=v.color==='auto'?'auto':'custom';
     mode.addEventListener('change',()=>{remember();v.color=mode.value==='auto'?'auto':isStats?config.timeColor:config.accent;apply();renderFields();});label.append(mode);container.append(label);
@@ -622,9 +623,16 @@ await (async () => {
       if(actions.more.mode==='icon')renderIconAppearance(container,actions.more,{native:true,prefix:'更多图标'});
       propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
     }else if(ui.kind==='info'){
-      const stats=config.nativeStyle.stats;
-      for(const [key,title]of [['floor','楼层号'],['time','生成时长'],['tokens','Token 统计']]){propertyHeading(container,title);nativePositionFields(container,stats[key]);if(key==='floor'){nativeControl(container,stats.floor,field('前缀','prefix','text',{maxLength:40}));nativeControl(container,stats.floor,field('后缀','suffix','text',{maxLength:40}));}}
-      propertyHeading(container,'外观');nativeAppearanceFields(container,stats,true);
+      const stats=config.nativeStyle.stats,key=ui.object,item=stats[key];
+      const modeField=(label,current,change)=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [value,title]of [['inherit',label==='标签样式'?'跟随数值样式':'跟随公共样式'],['custom','单独设置']]){const option=make('option','',title);option.value=value;select.append(option);}select.value=current?'custom':'inherit';select.addEventListener('change',()=>{remember();change(select.value==='custom');apply();renderFields();});row.append(select);container.append(row);};
+      const appearance=(style,id)=>{nativeAppearanceFields(container,style,true,8);nativeControl(container,style,field('字体','font','select',{options:[['auto',id==='label'?'跟随数值字体':'沿用原生字体'],...fonts]}));nativeControl(container,{get weight(){return style.weight;},set weight(v){style.weight=v==='auto'?'auto':Number(v);}},field('字重','weight','select',{options:[['auto',id==='label'?'跟随数值字重':'沿用原生字重'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}));renderFontLinkFields(container,'native-'+key+'-'+id,style,'楼层信息');};
+      propertyHeading(container,'文字');
+      if(key==='floor'){nativeControl(container,item,field('前缀','prefix','text',{maxLength:40}));nativeControl(container,item,field('后缀','suffix','text',{maxLength:40}));}
+      const label=item.label||{text:'',style:null,gap:8};
+      nativeControl(container,{get text(){return label.text;},set text(v){label.text=v;item.label=label;}},field('标签文案','text','text',{maxLength:40}));const labelInput=container.querySelector('[aria-label="标签文案"]'),hadLabel=Boolean(label.text);const refreshLabelFields=()=>{if(labelInput.isConnected&&Boolean(label.text)!==hadLabel)renderFields();};labelInput.addEventListener('change',refreshLabelFields);labelInput.addEventListener('blur',refreshLabelFields);
+      propertyHeading(container,'数值外观');modeField('数值样式',item.valueStyle,custom=>{item.valueStyle=custom?statValueStyle(stats,key):null;});if(item.valueStyle)appearance(item.valueStyle,'value');
+      if(label.text){propertyHeading(container,'标签外观');modeField('标签样式',label.style,custom=>{label.style=custom?{...statValueStyle(stats,key)}:null;});if(label.style)appearance(label.style,'label');nativeControl(container,label,field('标签间距','gap','range',{min:0,max:40,unit:'px'}));}
+      propertyHeading(container,'位置');nativePositionFields(container,item);
     }else{
       const swipe=config.nativeStyle.swipe;
       propertyHeading(container,'排列');nativeControl(container,swipe,field('箭头排列','layout','select',{options:[['compact','紧凑'],['ends','左右两端']]}),()=>renderFields());
@@ -727,7 +735,7 @@ await (async () => {
       else if(['icons','tools'].includes(ui.kind)){objects=ui.region==='topbar'?DRAWERS:INPUT_ICONS;if(!objects.some(([id])=>id===ui.object))ui.object=objects[0][0];title=objects.find(([id])=>id===ui.object)[1]+' · '+(ui.region==='topbar'?'顶栏按钮':'输入按钮');}
       else title=ui.region==='topbar'?'顶栏整体':ui.kind==='text'?'输入文字':'输入外框';
     }
-    else if(ui.region==='native'){kinds=[['actions','编辑与更多'],['info','楼层信息'],['swipe','回复翻页']];if(!['actions','info','swipe'].includes(ui.kind))ui.kind='actions';selected='native';title=kinds.find(([key])=>key===ui.kind)[1];}
+    else if(ui.region==='native'){kinds=[['actions','编辑与更多'],['info','楼层信息'],['swipe','回复翻页']];if(!['actions','info','swipe'].includes(ui.kind))ui.kind='actions';selected='native';title=kinds.find(([key])=>key===ui.kind)[1];if(ui.kind==='info'){objects=[['floor','楼层号'],['tokens','Token 统计'],['time','生成时长']];if(!objects.some(([key])=>key===ui.object))ui.object='floor';title=objects.find(([key])=>key===ui.object)[1];}}
     else if(ui.region==='reasoning'){kinds=[['entry','思维入口'],['reason-body','思维正文'],['image','图片素材']];if(ui.kind==='image'){selected='decoration';objects=matchingLayers(config.layers,'reasoning').map(l=>[l.id,l.name]);selectedLayerId=ui.object;title=config.layers.find(l=>l.id===ui.object)?.name||'思维图片';}else{if(ui.kind!=='reason-body')ui.kind='entry';selected='reasoning';title=ui.kind==='entry'?'思维入口':'思维正文';}}
     else title='此区域尚未开放';
     let extra;if(supportsLayers(ui)&&ui.mode==='edit'&&ui.kind==='image'){extra=make('button','','＋ 添加图片');extra.id='add-current-image';extra.addEventListener('click',()=>{openMaterialPicker('layer','images',targetForRegion());});}
