@@ -39,6 +39,7 @@ import {normalizeNativeConfig,resolveNativeActions} from './native.mjs';
 import {footerBaseHeight,footerKey,newFooterCaption,normalizeFooterConfig} from './footer.mjs';
 import {normalizeReasoningConfig} from './reasoning.mjs';
 import {BODY_CARD_DEFAULTS,bodyCardSettings} from './body-card.mjs';
+import {createBodyCardEditors} from './body-card-editor.mjs';
 import {CAPTION_LIMIT,captionKey,normalizeCaptionConfig,stripLegacyCaptions,validateCaptionStyle} from './captions.mjs';
 import {PAGE_NAMES,supportsLayers,COMMON_PARTS,workbenchMarkup,createWorkbench,matchingLayers,normalizeSelection,layerRegion,layoutWidths,mobileGeometry} from './workbench-ui.mjs';
 import {newLayer,migrateLayers,clone,cropRect,LAYER_LIMIT} from './layers.mjs';
@@ -803,22 +804,11 @@ await (async () => {
       }
     }
   }
-  function renderBodySettings(container){
-    propertyHeading(container,'字体设计');const fontRow=pairedFields(container);renderConfigFields(fontRow,['font']);
-    const label=make('label','field','正文字重'),mode=make('select');mode.setAttribute('aria-label','正文字重模式');for(const [value,name]of [['auto','沿用当前'],['custom','自定义']]){const option=make('option','',name);option.value=value;mode.append(option);}mode.value=config.bodyWeight==='auto'?'auto':'custom';mode.addEventListener('change',()=>{remember();config.bodyWeight=mode.value==='auto'?'auto':400;apply();renderFields();});label.append(mode);fontRow.append(label);
-    if(config.bodyWeight!=='auto')editorControl(container,field('正文字重','bodyWeight','range',{min:100,max:900,step:50,notice:'正文排版已更新，尚未保存'}),config);renderConfigFields(container,['fontSize','text']);
-    renderFontLinkFields(container,'body',{get fontLink(){return config.bodyFontLink;},set fontLink(v){config.bodyFontLink=v;}},'正文');
-    propertyHeading(container,'段落排版');renderConfigFields(container,['lineHeight']);
-    for(const f of [field('段距（含末段下方）','bodyParagraphGap','range',{min:0,max:80,unit:'px'}),field('首行缩进','bodyIndent','select',{options:[['false','关闭'],['true','两个字']]})])editorControl(container,{...f,notice:'正文排版已更新，尚未保存'},config);
-    propertyHeading(container,'左右留白');for(const f of [field('正文左侧留白','bodyPaddingLeft','range',{min:0,max:100,unit:'px'}),field('正文右侧留白','bodyPaddingRight','range',{min:0,max:100,unit:'px'})])editorControl(container,{...f,notice:'正文排版已更新，尚未保存'},config);
-  }
-  function renderCardBorderSettings(container){
-    propertyHeading(container,'消息卡片边框');editorControl(container,field('边框范围','cardBorderMode','select',{options:[['none','关闭'],['all','四周'],['custom','指定边']],notice:'卡片边框已更新，尚未保存'}),config,()=>renderFields());
-    if(config.cardBorderMode==='custom'){const row=make('div','actions');for(const [key,title]of [['Top','上边'],['Right','右边'],['Bottom','下边'],['Left','左边']]){const label=make('label','',title),input=make('input');input.type='checkbox';input.style.width='auto';input.checked=config['cardBorder'+key];input.setAttribute('aria-label','卡片'+title);input.addEventListener('change',()=>{remember();config['cardBorder'+key]=input.checked;apply();});label.prepend(input);row.append(label);}container.append(row);}
-    const colorLabel=make('label','field','边框颜色来源'),mode=make('select');mode.setAttribute('aria-label','卡片边框颜色来源');for(const [value,name]of [['auto','默认半透明白'],['custom','自定义颜色']]){const option=make('option','',name);option.value=value;mode.append(option);}mode.value=config.cardBorderColor==='auto'?'auto':'custom';mode.addEventListener('change',()=>{remember();config.cardBorderColor=mode.value==='auto'?'auto':'#ffffff';apply();renderFields();});colorLabel.append(mode);container.append(colorLabel);
-    if(config.cardBorderColor!=='auto')editorControl(container,field('卡片边框颜色','cardBorderColor','color',{notice:'卡片边框已更新，尚未保存'}),config);
-    for(const f of [field('卡片边框粗细','cardBorderWidth','range',{min:0,max:12,step:.25,unit:'px'}),field('卡片边框线型','cardBorderStyle','select',{options:[['solid','实线'],['dashed','虚线'],['dotted','点线']]} )])editorControl(container,{...f,notice:'卡片边框已更新，尚未保存'},config);
-  }
+  const {renderBodySettings, renderCardBorderSettings} = createBodyCardEditors({
+    getConfig: () => config,
+    make, field, propertyHeading, pairedFields, editorControl, renderConfigFields, renderFontLinkFields,
+    remember, apply, renderFields,
+  });
   function renderChromeFields(container){
     const zone=ui.region,v=config.chromeStyle[zone],isInput=zone==='input';
     propertyHeading(container,'区域开关');editorControl(container,field(isInput?'启用输入区美化':'启用顶栏美化','enabled','select',{options:[['true','启用'],['false','关闭']],notice:'区域开关已更新，尚未保存'}),v,()=>renderFields());if(!v.enabled)container.append(make('p','hint','当前关闭；下方设置保存为草稿，启用后生效。'));
