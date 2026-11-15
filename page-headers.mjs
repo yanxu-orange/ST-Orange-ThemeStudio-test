@@ -36,8 +36,15 @@ export function normalizePageHeaders(raw={}){
 // never a system message. Scroll ownership is adapted only for enabled headers.
 export const PAGE_HEADER_MOUNTS=Object.freeze({home:'#chat > .welcomePanel',presets:'#left-nav-panel',connection:'#rm_api_block',worldbook:'#WorldInfo',settings:'#user-settings-block',backgrounds:'#Backgrounds',extensions:'#rm_extensions_block',personas:'#PersonaManagement',characters:'#right-nav-panel',formatting:'#AdvancedFormatting'});
 const OWN='data-otl-page-header';
-const headerKeys=Object.keys(PAGE_HEADER_DEFAULTS);
-function sameHeaders(a,b){return !!a&&Object.keys(PAGE_HEADER_PAGES).every(page=>headerKeys.every(key=>JSON.stringify(a[page]?.[key])===JSON.stringify(b[page]?.[key])));}
+function sameHeaders(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length
+    && keys.every(key => Object.hasOwn(b, key) && sameHeaders(a[key], b[key]));
+}
 export function createPageHeaderAdapter({document,MutationObserver:Observe,requestFrame,cancelFrame,resolveArtwork,onRender=()=>{}}={}){
  const win=document.defaultView,Observer=Observe||win?.MutationObserver;
  const raf=requestFrame||win?.requestAnimationFrame?.bind(win)||(fn=>setTimeout(fn,0)),caf=cancelFrame||win?.cancelAnimationFrame?.bind(win)||clearTimeout;
@@ -115,11 +122,11 @@ export function createPageHeaderAdapter({document,MutationObserver:Observe,reque
   if(records.some(r=>!r.target.closest?.(`[${OWN}]`)&&([...r.addedNodes,...r.removedNodes].some(relevant)||(mounted.has(r.target)||r.target.closest?.(candidates))&&([...r.removedNodes].includes(mounted.get(r.target))||[...r.addedNodes].some(node=>node.nodeType===1&&!node.hasAttribute(OWN))))))frame=raf(()=>{frame=null;reconcile();});
  }
  function unwatch(){observer?.disconnect();observer=null;resize?.disconnect();resize=null;win?.removeEventListener?.('resize',refreshLayout);if(frame!==null)caf(frame);frame=null;}
- function update(raw,{validated=false}={}){
+ function update(raw,{validated=false,skipUnchangedLayout=false}={}){
   // Live editor snapshots are already isolated and validated; avoid re-scanning
   // multi-megabyte embedded sources during unrelated color/slider updates.
   const next=validated&&raw.pageHeaders?raw.pageHeaders:normalizePageHeaders(raw).pageHeaders;
-  if(sameHeaders(config,next)){refreshLayout();return;}
+  if(sameHeaders(config,next)){if(!skipUnchangedLayout)refreshLayout();return;}
   config=structuredClone(next);
   const enabledPages=Object.keys(config).filter(page=>config[page].enabled&&(config[page].asset||config[page].image||config[page].title.trim()||sceneHasLayers(config[page].scene)||config[page].placement==='native'||config[page].layout==='standard'));
   candidates=enabledPages.flatMap(page=>[...PAGE_HEADER_MOUNTS[page].split(',').map(selector=>selector.split(' > ').at(-1)),...(page==='home'&&config[page].placement==='native'?['.welcomeHeaderTitle']:[])]).join(',');

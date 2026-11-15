@@ -150,12 +150,26 @@ function cssOnlyField(path,key){
 }
 // Compare scalar leaves directly. In particular, never serialize/base64-copy
 // image sources to detect a change. No global source cache retains old images.
-function sameLayout(a,b,path=[]){
+function sameLayout(a,b,path=[],ignore=cssOnlyField){
   if(a===b)return true;
   if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;
-  const keys=Object.keys(a).filter(key=>!cssOnlyField(path,key));
-  if(keys.length!==Object.keys(b).filter(key=>!cssOnlyField(path,key)).length)return false;
-  return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key]));
+  const keys=Object.keys(a).filter(key=>!ignore(path,key,a,b));
+  if(keys.length!==Object.keys(b).filter(key=>!ignore(path,key,a,b)).length)return false;
+  return keys.every(key=>Object.hasOwn(b,key)&&sameLayout(a[key],b[key],[...path,key],ignore));
+}
+
+const headerIndependentColors = new Set(['text', 'nameColor', 'timeColor']);
+
+function onlyHeaderIndependentColors(previous, next) {
+  let changed = false;
+  const equal = sameLayout(previous, next, [], (path, key, a, b) => {
+    const color = path.length === 0 ? headerIndependentColors.has(key)
+      : path[0] === 'nativeStyle' && key === 'color' && cssOnlyNativeColor(path);
+    if (!color || !Object.hasOwn(a, key) || !Object.hasOwn(b, key)) return false;
+    changed ||= a[key] !== b[key];
+    return true;
+  });
+  return equal && changed;
 }
 function fontEntries(config){return {body:{fontLink:config.bodyFontLink},...textEntries(config),...reasoningFontEntries(config),...footerTextEntries(config),...chromeFontEntries(config),...commonFontEntries(config),...pageFontEntries(config),...nativeStatFontEntries(config),...swipeFontEntries(config),...pageHeaderSceneFontEntries(config),...metadataFontEntries(config)};}
 
@@ -311,8 +325,12 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(pendingConfig){
       const next=pendingConfig;pendingConfig=null;
       const needsLayout=!sameLayout(snapshot,next);
-      snapshot=next;pageHeaders.update(snapshot,{validated:true});scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));pageHeaders.updateFonts(fontSession?.families()||{});
-      const css=styleText(snapshot,fontSession?.families()||{},currentInterface);if(style.textContent!==css)style.textContent=css;
+      const skipUnchangedLayout = !needsLayout && !fullPending && onlyHeaderIndependentColors(snapshot, next);
+      snapshot=next;scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
+      const families = fontSession?.families() || {};
+      const css=styleText(snapshot,families,currentInterface);if(style.textContent!==css)style.textContent=css;
+      pageHeaders.update(snapshot,{validated:true,skipUnchangedLayout});
+      pageHeaders.updateFonts(families);
       chrome.update(snapshot,fontSession?.families()||{});chromeChanged=true;
       if(needsLayout)for(const msg of messages)dirtyMessages.add(msg);
     }
@@ -385,10 +403,11 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const next=normalizeLiveConfig(config);stop();snapshot=next;hostModes=readHostModes();
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
-      pageHeaders.update(snapshot,{validated:true});pageDropdowns.start();
+      pageDropdowns.start();
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);
+      pageHeaders.update(snapshot,{validated:true});
       let layoutFamilies='{}';
       fontSession=createFontSession({document,onChange:()=>{if(!snapshot)return;const families=fontSession.families();pageHeaders.updateFonts(families);style.textContent=styleText(snapshot,families,currentInterface);const next=JSON.stringify(Object.fromEntries(Object.entries(families).filter(([key])=>!key.startsWith('page-'))));if(next!==layoutFamilies){layoutFamilies=next;schedule();}}});fontSession.update(fontEntries(snapshot));pageHeaders.updateFonts(fontSession.families());stopInterfaceWatch=watchInterfaceFont(document,schedule,{fontEvents:false});
       if(ResizeObs)resizer=new ResizeObs(resized);

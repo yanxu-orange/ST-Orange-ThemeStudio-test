@@ -1,3 +1,4 @@
+import {newPageHeaderImage, pageHeaderImageKey} from './page-header-scene.mjs';
 import {normalizeAvatarFill} from './avatar-fill.mjs';
 import {normalizeChromeConfig} from './chrome.mjs';
 import {normalizeTextScene} from './text-scene.mjs';
@@ -219,4 +220,130 @@ test('ordinary theme color and text changes perform zero page-header mount scans
  const query=document.querySelectorAll.bind(document);let scans=0;document.querySelectorAll=selector=>{if(selector==='#WorldInfo')scans++;return query(selector);};
  adapter.update({...c,text:'#abcdef'});await settle();adapter.update({...c,caption:'Changed text'});await settle();assert.equal(scans,0);
  adapter.update({...c,pageHeaders:{worldbook:{...c.pageHeaders.worldbook,height:250}}});await settle();assert.equal(scans,1);assert.equal(host.querySelector('[data-otl-page-header]').style.height,'250px');adapter.stop();
+});
+
+test('mounted page headers skip comparison serialization and reads during chat-only colors', async t => {
+  const renders = [];
+  const {document, window, adapter, settle} = environment({onRender: result => renders.push(result), resolveArtwork: layer => layer.image});
+  document.querySelector('#chat').innerHTML = Array.from({length:20}, (_, i) => markup(i, i % 2 === 1)).join('');
+  for (const id of ['WorldInfo', 'user-settings-block']) {
+    const host = document.createElement('div');
+    host.id = id;
+    document.body.append(host);
+  }
+  const banner = 'data:image/png;base64,' + 'A'.repeat(1024 * 1024);
+  const sticker = 'data:image/png;base64,' + 'B'.repeat(1024 * 1024);
+  const image = newPageHeaderImage('custom', {id:'header-sticker', image:sticker});
+  const c = {
+    ...config(),
+    commonStyle:normalizeCommonConfig(config()).commonStyle,
+    pageHeaders:{
+      worldbook:{enabled:true, image:banner, scene:{images:[image], texts:[], order:[pageHeaderImageKey(image.id)]}},
+      settings:{enabled:true, title:'设置'},
+    },
+  };
+  let reads = 0, left = '5px', right = '7px';
+  const cssAtRead = [];
+  const initialStyleAtRead = [];
+  window.getComputedStyle = node => {
+    if (node.id === 'WorldInfo' || node.id === 'user-settings-block') {
+      reads++;
+      const css = document.getElementById('orange-theme-live-style')?.textContent || '';
+      initialStyleAtRead.push(css.includes('--ol-size:15px') && document.documentElement.hasAttribute('data-orange-live'));
+      if (css.includes('font-size:23px!important')) cssAtRead.push('common');
+      if (css.includes('font-size:21px!important')) cssAtRead.push('page');
+      return {paddingLeft:left, paddingRight:right, paddingTop:'4px'};
+    }
+    return {};
+  };
+  adapter.start(c);
+  await settle();
+  assert.deepEqual(initialStyleAtRead, [true, true], 'initial style and scope exist before either host read');
+  const host = document.getElementById('WorldInfo');
+  const node = host.querySelector('[data-otl-page-header]');
+  const liveStyle = document.getElementById('orange-theme-live-style');
+  let serializations = 0;
+  const stringify = JSON.stringify;
+  JSON.stringify = (value, ...args) => {
+    if (value === banner || value?.images?.some(layer => layer.image === sticker)) serializations++;
+    return stringify(value, ...args);
+  };
+  try {
+    reads = 0;
+    renders.length = 0;
+    adapter.update({...c, text:'#215364', nameColor:'#394857', timeColor:'#566778'});
+    await settle();
+  } finally {
+    JSON.stringify = stringify;
+  }
+  const colorReads = reads;
+  assert.match(liveStyle.textContent, /#215364/);
+  assert.equal(renders.at(-1).updated, 0);
+  assert.equal(host.querySelector('[data-otl-page-header]'), node);
+  assert.equal(node.querySelector('[data-otl-header-base-image]').getAttribute('src'), banner);
+  assert.ok(node.querySelector('[data-otl-header-layer]').getAttribute('src') === sticker, 'scene image retains its source');
+  t.diagnostic(`20 chat floors, 2 mounted page headers: ${colorReads} header reads, ${serializations} large-image/scene serializations.`);
+
+  left = '8px'; right = '4px'; reads = 0;
+  const colorConfig = {...c, text:'#215364', nameColor:'#394857', timeColor:'#566778'};
+  adapter.update(colorConfig);
+  await settle();
+  assert.equal(reads, 2, 'an unchanged manual update still checks host padding');
+  assert.equal(node.style.marginLeft, '-8px');
+  left = '7px'; right = '5px'; reads = 0;
+  window.dispatchEvent(new window.Event('resize'));
+  assert.equal(reads, 2);
+  assert.equal(node.style.marginLeft, '-7px');
+
+  const commonStyle = {...c.commonStyle, text:{...c.commonStyle.text, size:23}};
+  reads = 0;
+  cssAtRead.length = 0;
+  const commonConfig = {...colorConfig, text:'#193857', commonStyle};
+  adapter.update(commonConfig);
+  await settle();
+  assert.equal(reads, 2, 'mixed common style changes check the header');
+  assert.ok(cssAtRead.includes('common'), 'new common CSS is active before the read');
+
+  reads = 0;
+  cssAtRead.length = 0;
+  const pageConfig = {...commonConfig, nameColor:'#333333', pageStyle:{settings:{text:{size:21}}}};
+  adapter.update(pageConfig);
+  await settle();
+  assert.equal(reads, 2, 'mixed page style changes check the header');
+  assert.ok(cssAtRead.includes('page'), 'new page CSS is active before the read');
+
+  reads = 0;
+  const changedHeader = {...c.pageHeaders.worldbook, image:'https://example.com/changed.png', height:245,
+    scene:{...c.pageHeaders.worldbook.scene, images:[{...image, x:12}]}};
+  adapter.update({...pageConfig, pageHeaders:{...c.pageHeaders, worldbook:changedHeader}});
+  await settle();
+  assert.equal(reads, 2);
+  assert.equal(node.style.height, '245px');
+  assert.equal(node.querySelector('[data-otl-header-base-image]').getAttribute('src'), changedHeader.image);
+  assert.equal(node.querySelector('[data-otl-header-layer]').style.right, '12px');
+  reads = 0;
+  const withNativeStyle = normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(pageConfig))));
+  withNativeStyle.nativeStyle.swipe.left.valueStyle = {size:15, color:'#223344', font:'auto', weight:'auto', fontLink:null};
+  adapter.update(withNativeStyle);
+  await settle();
+  assert.equal(reads, 2, 'adding a new style block still checks layout');
+  reads = 0;
+  withNativeStyle.nativeStyle.swipe.left.valueStyle.color = '#224455';
+  adapter.update(withNativeStyle);
+  await settle();
+  assert.equal(reads, 0, 'a scoped native color keeps headers unchanged');
+  assert.match(liveStyle.textContent, /color:#224455!important/);
+
+  // Without explicit common styles, a root text change supplies page colors too.
+  const inherited = {...pageConfig, commonStyle:undefined};
+  adapter.update(inherited);
+  await settle();
+  reads = 0;
+  adapter.update({...inherited, text:'#c2beb7'});
+  await settle();
+  assert.equal(reads, 2);
+  adapter.stop();
+
+  assert.equal(colorReads, 0);
+  assert.equal(serializations, 0);
 });
