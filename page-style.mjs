@@ -1,3 +1,4 @@
+import {staticPresetManager,baiPresetRules,guardPresetRules} from './bai-preset-style.mjs';
 import {normalizeCommonConfig,commonStyleRules,COMMON_STYLE_DEFAULTS} from './common-style.mjs';
 import {ASSETS,assetUrl} from './catalog.mjs';
 import {validImage} from './image-sources.mjs';
@@ -6,7 +7,7 @@ const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const common=Object.keys(COMMON_STYLE_DEFAULTS);
 // Native SillyTavern 1.18 page roots; no copied pages or business controls.
 export const PAGE_ROOTS={settings:'#user-settings-block',worldbook:'#WorldInfo',presets:'#left-nav-panel',connection:'#rm_api_block',backgrounds:'#Backgrounds',extensions:'#rm_extensions_block',personas:'#PersonaManagement',characters:'#right-nav-panel',formatting:'#AdvancedFormatting'};
-export const PAGE_GROUPS=Object.fromEntries(Object.keys(PAGE_ROOTS).map(page=>[page,[...common,...({settings:['section'],worldbook:['entry','entryHeading']}[page]||[])]]));
+export const PAGE_GROUPS=Object.fromEntries(Object.keys(PAGE_ROOTS).map(page=>[page,[...common,...({settings:['section'],worldbook:['entry','entryHeading'],presets:['entry']}[page]||[])]]));
 const baseGroup=group=>({section:'panel',entry:'panel',entryHeading:'heading'}[group]||group);
 export const PAGE_ART_DEFAULTS={asset:'',image:'',fit:'cover',x:50,y:50};
 function normalizeArt(raw){
@@ -24,9 +25,10 @@ export function normalizePageConfig(raw={}){
  const pageStyle={};
  for(const page of Object.keys(PAGE_ROOTS)){
   const source=supplied[page]===undefined?{}:supplied[page],groups=PAGE_GROUPS[page];
-  if(!object(source)||Object.keys(source).some(k=>!groups.includes(k)&&k!=='art'))throw Error('页面外观分组无效');
+  if(!object(source)||Object.keys(source).some(k=>!groups.includes(k)&&k!=='art'&&!(page==='presets'&&['promptList','sliderTip'].includes(k))))throw Error('页面外观分组无效');
   const result={};
   for(const group of groups){const v=source[group];result[group]=v===null||v===undefined?null:normalizeCommonConfig({commonStyle:{[baseGroup(group)]:v}}).commonStyle[baseGroup(group)];}
+  if(page==='presets'){result.promptList=source.promptList??false;result.sliderTip=source.sliderTip??'native';if(typeof result.promptList!=='boolean'||!['native','flow'].includes(result.sliderTip))throw Error('预设内容设置无效');}
   const surfaces=['page',...({settings:['section'],worldbook:['entry']}[page]||[])],art=source.art===undefined?{}:source.art;
   if(!object(art)||Object.keys(art).some(k=>!surfaces.includes(k)))throw Error('页面素材区域无效');
   result.art=Object.fromEntries(surfaces.map(k=>[k,normalizeArt(art[k]===undefined?null:art[k])]));pageStyle[page]=result;
@@ -64,12 +66,36 @@ export function pageStyleRules(config,{preview=false,page=null,families={},resol
    rules.push(`@media(max-width:700px){${title}{font-size:${Math.max(16,h.size)}px!important}}`);
    if(preview)rules.push(`@container(max-width:700px){${title}{font-size:${Math.max(16,h.size)}px!important}}`);
   }
+  if(key==='presets')rules.push(presetContentRules(root,v,global));
   for(const [surface,art]of Object.entries(v.art)){
    if(!art)continue;
    const src=art.image||(art.asset?(resolveArtwork?.({kind:'asset',asset:art.asset,image:''})||assetUrl(art.asset)):'');
    if(src)rules.push(`${surface==='page'?root:section}{background-image:url(${JSON.stringify(src)})!important;background-size:${art.fit}!important;background-position:${art.x}% ${art.y}%!important;background-repeat:no-repeat!important}`);
   }
  }
+ return rules.filter(Boolean).join('\n');
+}
+
+
+export function presetContentRules(root,page,global){
+ const text=page.text||global.text,field=page.field||global.field,panel=page.entry||page.panel||global.panel,rules=[];
+ if(page.promptList){
+  const manager=staticPresetManager(root),list=`${manager} #completion_prompt_manager_list`,item=`${manager} li.completion_prompt_manager_prompt`,name=`${manager} .completion_prompt_manager_prompt_name`,off=`${manager} .completion_prompt_manager_prompt_disabled`,tokens=`${manager} .prompt_manager_prompt_tokens`;
+  const surface=page.panel||global.panel,bg=`rgba(${[1,3,5].map(i=>parseInt(surface.background.slice(i,i+2),16)).join(',')},${surface.opacity})`;
+  rules.push(`${manager},${list}{background-color:${bg}!important;box-shadow:none!important}`);
+  rules.push(`${item}{${panelCSS(panel)}}`);
+  rules.push(`${name},${name} .prompt-manager-inspect-action{white-space:normal!important;overflow-wrap:anywhere;color:${text.color}!important}`);
+  rules.push(`${off} .completion_prompt_manager_prompt_name,${off} .completion_prompt_manager_prompt_name .prompt-manager-inspect-action{color:${text.muted}!important}`);
+  rules.push(`${manager} .prompt-manager-edit-action,${manager} .completion_prompt_manager_prompt_draggable > .drag-handle{color:${text.color}!important}`);
+  rules.push(`${manager} .completion_prompt_manager_prompt:not(.completion_prompt_manager_prompt_disabled) .prompt-manager-toggle-action{color:${text.accent}!important}`);
+  rules.push(`${off} .prompt-manager-toggle-action{color:${text.muted}!important}`);
+  rules.push(`${tokens},${name} > :is(.fa-star,.fa-asterisk){color:${text.muted}!important}`);
+  rules.push(`${manager} :is(.prompt-manager-edit-action,.prompt-manager-toggle-action,.prompt-manager-detach-action):focus-visible{outline:2px solid ${field.focus};outline-offset:2px}`);
+  rules.push(`${manager} .completion_prompt_manager_header > div:has(> span[data-i18n="Total Tokens:"]){color:${text.muted}!important}`);
+  rules.push(`${manager} .completion_prompt_manager_header_advanced > span[data-i18n="Prompts"],${list} > .completion_prompt_manager_list_head > span[data-i18n="Name"]{color:${text.color}!important}`);
+ }
+ if(page.promptList){for(let i=0;i<rules.length;i++)rules[i]=guardPresetRules(rules[i]);rules.push(baiPresetRules(root,page,global));}
+ if(page.sliderTip==='flow')rules.push(`${root} #clickSlidersTips{position:static!important;inset:auto!important;box-sizing:border-box;width:auto!important;margin:2px 32px 3px 10px!important;padding:0!important;text-align:left!important;font-size:${text.size*.8}px!important;line-height:1.4!important;color:${text.muted}!important}`);
  return rules.join('\n');
 }
 
@@ -100,3 +126,4 @@ export function createPageDropdownBridge({document,MutationObserver:Observe}={})
  function start(){stop();sync();const Observer=Observe||document.defaultView?.MutationObserver;if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','aria-controls','aria-owns','id']});}}
  return {start,stop,sync};
 }
+

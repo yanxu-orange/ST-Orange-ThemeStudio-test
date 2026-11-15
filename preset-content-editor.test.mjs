@@ -1,0 +1,21 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
+import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
+import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
+test('preset entry and slider tip editors preserve independent values, restore and export',async()=>{
+ const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div><div id="user-settings-block"><input id="native-setting" value="keep"></div><div id="WorldInfo"></div></body></html>');
+ const descriptor=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:descriptor.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
+ const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});window.innerWidth=390;window.innerHeight=844;window.confirm=()=>true;
+ seedNativeChat(document);const storage=await editorStorage();await import('./index.js?preset-content-editor');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const click=selector=>{const el=sh.querySelector(selector);assert.ok(el,selector);el.click();};const set=(label,value)=>{const el=sh.querySelector(`[aria-label="${label}"]`);assert.ok(el,label);el.value=String(value);el.dispatchEvent(new window.Event('input'));el.dispatchEvent(new window.Event('change'));};const change=(selector,value)=>{const el=sh.querySelector(selector);el.value=value;el.dispatchEvent(new window.Event('change'));};const save=()=>saveEditorScheme(sh,storage),object=key=>click(`[data-object="${key}"]`);
+ click('.launcher');sh.querySelector('[data-flow=continue]')?.click();change('#workspace-page','presets');change('#region-select','page-content');
+ assert.deepEqual([...sh.querySelectorAll('.kind-tabs [data-kind]')].map(n=>n.dataset.kind),['surface','tip']);
+ const initial=await save();assert.equal(initial.pageStyle.presets.sliderTip,'native');assert.equal(initial.pageStyle.presets.entry,null);
+ set('启用提示词条目外观','true');set('样式来源','custom');set('面板底色 HEX','#f4eee4');set('面板不透明度 数值',.6);set('面板圆角 数值',3);
+ click('[data-kind=tip]');set('提示位置','flow');assert.equal(sh.querySelector('[aria-label="面板底色 HEX"]'),null);
+ const saved=await save();assert.equal(saved.pageStyle.presets.promptList,true);assert.equal(saved.pageStyle.presets.sliderTip,'flow');assert.equal(saved.pageStyle.presets.entry.background,'#f4eee4');assert.equal(saved.pageStyle.presets.entry.opacity,.6);assert.equal(saved.pageStyle.presets.entry.radius,3);
+ for(const page of Object.keys(initial.pageStyle).filter(k=>k!=='presets'))assert.deepEqual(saved.pageStyle[page],initial.pageStyle[page]);
+ set('提示位置','native');click('#restore');assert.equal(sh.querySelector('[aria-label="提示位置"]').value,'flow');
+ click('[data-kind=surface]');set('样式来源','inherit');assert.equal((await save()).pageStyle.presets.entry,null);click('#undo');assert.deepEqual((await save()).pageStyle.presets.entry,saved.pageStyle.presets.entry);
+ change('#workspace-page','worldbook');change('#region-select','page-content');assert.ok(sh.querySelector('[data-kind=heading]'));change('#workspace-page','presets');assert.equal(sh.querySelector('[aria-label="样式来源"]').value,'custom');
+ let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:preset-content';};URL.revokeObjectURL=()=>{};click('#export');assert.deepEqual(JSON.parse(await blob.text()).pageStyle.presets,saved.pageStyle.presets);URL.createObjectURL=create;URL.revokeObjectURL=revoke;click('#close');
+});

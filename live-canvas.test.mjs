@@ -120,3 +120,20 @@ test('unchanged canvas geometry does not rewrite its stylesheet',()=>{
  for(let i=0;i<20;i++)canvas.layout({top:6,height:800,preserveTopbar:true});assert.equal(writes,3);
  canvas.stop();canvas.start();canvas.layout({top:64,height:500});assert.ok(document.getElementById('orange-workbench-layout').textContent);canvas.stop();
 });
+
+
+test('native prompt editor is above the canvas without changing its visibility, geometry contract or DOM ownership',()=>{
+ const {document}=documentFor(),wrapper=document.createElement('div'),popup=document.createElement('div');
+ wrapper.setAttribute('name','templatesAndPopupsWrapper');popup.id='completion_prompt_manager_popup';popup.className='drawer-content';popup.style.display='none';popup.innerHTML='<textarea>native prompt</textarea><button>save</button>';wrapper.append(popup);document.body.append(wrapper);
+ const original=wrapper.innerHTML,canvas=createLiveCanvas({document});canvas.start();
+ for(const preserveTopbar of [false,true,false]){
+  canvas.layout({left:24,width:366,top:88,height:600,preserveTopbar});
+  const style=document.getElementById('orange-workbench-layout'),rule=[...style.sheet.cssRules].find(r=>r.selectorText==='html[data-orange-editor] #completion_prompt_manager_popup');
+  assert.ok(rule);assert.equal(rule.style.getPropertyValue('z-index'),'10030');assert.equal(rule.style.getPropertyPriority('z-index'),'important');assert.equal(rule.style.length,1,'only stacking order is overridden');
+  assert.match(style.textContent,/body :is\(\.drawer-content,#WorldInfo,#floatingPrompt\)\{[^}]*left:24px!important[^}]*width:366px!important/);
+  assert.equal(popup.parentElement,wrapper);assert.equal(wrapper.innerHTML,original);
+  popup.style.display='block';popup.classList.add('openDrawer');canvas.layout({left:24,width:366,top:88,height:600,preserveTopbar});assert.equal(popup.style.display,'block');assert.ok(popup.classList.contains('openDrawer'));
+  popup.style.display='none';popup.classList.remove('openDrawer');
+ }
+ canvas.stop();assert.equal(document.getElementById('orange-workbench-layout'),null);assert.equal(document.documentElement.hasAttribute('data-orange-editor'),false);assert.equal(wrapper.innerHTML,original);assert.equal(document.getElementById('completion_prompt_manager_popup'),popup);
+});

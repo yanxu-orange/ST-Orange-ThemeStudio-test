@@ -83,11 +83,11 @@ test('page header gaps compensate native padding without changing content or oth
  adapter.stop();assert.equal(host.innerHTML,before);assert.equal(document.querySelector('#WorldInfo input').value,'keep');
 });
 
-test('presets, characters and backgrounds place one header before original controls without moving native nodes',()=>{
+test('page headers preserve native nodes and character headers follow the native tabs',()=>{
  const {document,adapter}=env('<div id="left-nav-panel"><p>native hint</p><div class="scrollableInner">presets</div></div><div id="right-nav-panel"><div id="rm_PinAndTabs">tabs</div><div class="scrollableInner">characters</div></div><div id="Backgrounds"><div id="bg-header-fixed">controls</div><div id="bg_tabs"><div id="bg_global_tab">global</div><div id="bg_chat_tab">chat</div></div></div>');
  const before=document.body.innerHTML,native=[...document.querySelectorAll('#left-nav-panel > *,#right-nav-panel > *,#Backgrounds > *')],parents=native.map(n=>n.parentNode);
  adapter.update({pageHeaders:{presets:art,characters:art,backgrounds:art}});
- for(const [id,page]of [['left-nav-panel','presets'],['right-nav-panel','characters'],['Backgrounds','backgrounds']])assert.equal(document.getElementById(id).firstElementChild.getAttribute('data-otl-page-header'),page);
+ for(const [id,page]of [['left-nav-panel','presets'],['right-nav-panel','characters'],['Backgrounds','backgrounds']])assert.equal((page==='characters'?document.querySelector('#rm_PinAndTabs').nextElementSibling:document.getElementById(id).firstElementChild).getAttribute('data-otl-page-header'),page);
  assert.equal(document.querySelectorAll('#Backgrounds '+field).length,1);for(const [i,n]of native.entries())assert.equal(n.parentNode,parents[i]);
  adapter.stop();assert.equal(document.body.innerHTML,before);
 });
@@ -120,3 +120,4 @@ test('unchanged header layout avoids writes, reads all hosts first, and detects 
  assert.equal(calls.length,2);assert.ok(calls.every(call=>call.startsWith('read:')));
  adapter.stop();
 });
+
