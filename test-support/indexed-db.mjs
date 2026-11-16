@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 // Minimal event-driven IndexedDB boundary double. Records commit after request
 // success, allowing tests to catch premature success and transaction rollback.
 export function indexedDatabase() {
-  const databases = new Map(), controls = {failNext: '', blocked: false, failOpen: false, holdCommit: false, finish: null, opens: 0};
+  const databases = new Map(), controls = {failNext: '', blocked: false, failOpen: false, holdCommit: false, finish: null, opens: 0, reads: []};
   const factory = {open(name, version) {
     controls.opens++;
     const request = {result: null, transaction: {abort() { request.error = new DOMException('aborted', 'AbortError'); request.onerror?.(); }}};
@@ -15,33 +15,49 @@ export function indexedDatabase() {
       let closed = false;
       const db = {version, objectStoreNames: {contains: store => data.has(store)},
         createObjectStore(store) { data.set(store, new Map()); }, close() { closed = true; },
-        transaction(storeName, mode) {
+        transaction(storeNames, mode) {
           if (closed) throw new DOMException('closed', 'InvalidStateError');
-          assert.ok(data.has(storeName));
+          const names = Array.isArray(storeNames) ? storeNames : [storeNames];
+          for (const name of names) assert.ok(data.has(name));
+          const staged = new Map(names.map(name => [name, new Map(data.get(name))])), writes = [];
+          let pending = 0, completed = false;
           const tx = {error: null, aborted: false, abort() { this.aborted = true; this.error ||= new DOMException('aborted', 'AbortError'); queueMicrotask(() => this.onabort?.()); },
-            objectStore() {
+            objectStore(storeName = names[0]) {
+              assert.ok(names.includes(storeName));
               function operation(kind, argument) {
-                const req = {};
+                const req = {}, input = structuredClone(argument);
+                pending++;
                 queueMicrotask(() => {
-                  const store = data.get(storeName);
+                  const store = staged.get(storeName);
                   if (tx.aborted) return;
                   let result;
+                  if (kind === 'getAll' || kind === 'get') controls.reads.push({database: name, store: storeName, kind, key: input});
                   if (kind === 'getAll') result = [...store.values()];
-                  if (kind === 'get') result = store.get(argument);
+                  if (kind === 'get') result = store.get(input);
                   if (kind === 'add' || kind === 'put') {
                     assert.equal(mode, 'readwrite');
-                    if (kind === 'add' && store.has(argument.id)) { tx.error = new DOMException('duplicate', 'ConstraintError'); tx.abort(); return; }
-                    result = argument.id;
+                    if (kind === 'add' && store.has(input.id)) { tx.error = new DOMException('duplicate', 'ConstraintError'); tx.abort(); return; }
+                    result = input.id;
+                    store.set(input.id, input);
+                    writes.push(() => data.get(storeName).set(input.id, input));
+                  }
+                  if (kind === 'delete') {
+                    assert.equal(mode, 'readwrite');
+                    store.delete(input);
+                    writes.push(() => data.get(storeName).delete(input));
                   }
                   req.result = structuredClone(result); req.onsuccess?.();
+                  pending--;
                   const finish = () => {
+                    if (completed || tx.aborted || pending) return;
                     if (controls.failNext) { tx.error = new DOMException('failed transaction', controls.failNext); controls.failNext = ''; tx.abort(); return; }
-                    if (tx.aborted) return;
-                    if (kind === 'add' || kind === 'put') store.set(argument.id, structuredClone(argument));
-                    if (kind === 'delete') store.delete(argument);
+                    for (const write of writes) write();
+                    completed = true;
                     tx.oncomplete?.();
                   };
-                  if (controls.holdCommit) controls.finish = finish; else queueMicrotask(finish);
+                  if (!pending) {
+                    if (controls.holdCommit) controls.finish = finish; else queueMicrotask(finish);
+                  }
                 });
                 return req;
               }

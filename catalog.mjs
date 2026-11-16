@@ -27,13 +27,135 @@ const sharedEntries = [
 ];
 export const SHARED_ASSETS = Object.fromEntries(sharedEntries.map(([id,name,path,category,theme])=>[id,{id,name,path:'shared/'+path,category,theme}]));
 export const ASSET_CATEGORIES = ['贴纸','花饰','邮戳','边框'];
-export const ASSETS = {...Object.fromEntries(kittyEntries.map(([id,name,path])=>[id,{id,name,path}])),...SHARED_ASSETS};
+const springEntries = [
+  [
+    "spring-pageheaders-presets-scene-images-0",
+    "预设头图",
+    "spring/pageheaders-presets-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-connection-scene-images-0",
+    "API头图",
+    "spring/pageheaders-connection-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-worldbook-scene-images-0",
+    "世界书头图",
+    "spring/pageheaders-worldbook-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-settings-scene-images-0",
+    "设置头图",
+    "spring/pageheaders-settings-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-backgrounds-scene-images-0",
+    "背景头图",
+    "spring/pageheaders-backgrounds-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-extensions-scene-images-0",
+    "扩展头图",
+    "spring/pageheaders-extensions-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-personas-scene-images-0",
+    "用户人设头图",
+    "spring/pageheaders-personas-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-characters-scene-images-0",
+    "角色管理头图",
+    "spring/pageheaders-characters-scene-images-0.webp"
+  ],
+  [
+    "spring-pageheaders-formatting-scene-images-0",
+    "格式头图",
+    "spring/pageheaders-formatting-scene-images-0.webp"
+  ],
+  [
+    "spring-layers-2",
+    "发送按钮旁小花",
+    "spring/layers-2.webp"
+  ],
+  [
+    "spring-layers-3",
+    "尾部叶片",
+    "spring/layers-3.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-ai-config-button",
+    "chromeStyle topbar icons ai-config-button",
+    "spring/chromestyle-topbar-icons-ai-config-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-sys-settings-button",
+    "chromeStyle topbar icons sys-settings-button",
+    "spring/chromestyle-topbar-icons-sys-settings-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-advanced-formatting-button",
+    "chromeStyle topbar icons advanced-formatting-button",
+    "spring/chromestyle-topbar-icons-advanced-formatting-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-wi-sp-button",
+    "chromeStyle topbar icons WI-SP-button",
+    "spring/chromestyle-topbar-icons-wi-sp-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-user-settings-button",
+    "chromeStyle topbar icons user-settings-button",
+    "spring/chromestyle-topbar-icons-user-settings-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-backgrounds-button",
+    "chromeStyle topbar icons backgrounds-button",
+    "spring/chromestyle-topbar-icons-backgrounds-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-extensions-settings-button",
+    "chromeStyle topbar icons extensions-settings-button",
+    "spring/chromestyle-topbar-icons-extensions-settings-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-persona-management-button",
+    "chromeStyle topbar icons persona-management-button",
+    "spring/chromestyle-topbar-icons-persona-management-button.png"
+  ],
+  [
+    "spring-chromestyle-topbar-icons-rightnavholder",
+    "chromeStyle topbar icons rightNavHolder",
+    "spring/chromestyle-topbar-icons-rightnavholder.png"
+  ],
+  [
+    "spring-chromestyle-input-icons-options_button",
+    "chromeStyle input icons options_button",
+    "spring/chromestyle-input-icons-options_button.png"
+  ],
+  [
+    "spring-chromestyle-input-icons-extensionsmenubutton",
+    "chromeStyle input icons extensionsMenuButton",
+    "spring/chromestyle-input-icons-extensionsmenubutton.png"
+  ],
+  [
+    "spring-chromestyle-input-icons-send_but",
+    "chromeStyle input icons send_but",
+    "spring/chromestyle-input-icons-send_but.png"
+  ],
+  [
+    "spring-chromestyle-input-icons-mes_stop",
+    "chromeStyle input icons mes_stop",
+    "spring/chromestyle-input-icons-mes_stop.png"
+  ]
+];
+export const ASSETS = {...Object.fromEntries(kittyEntries.map(([id,name,path])=>[id,{id,name,path}])),...SHARED_ASSETS,...Object.fromEntries(springEntries.map(([id,name,path])=>[id,{id,name,path}]))};
 
 // The current template-owned resource stays selected when editing an existing
 // layer; merely opening this list must not replace or rewrite the layer.
 export function builtinAssetGroups(currentId='') {
   const groups=ASSET_CATEGORIES.map(name=>({name,assets:Object.values(SHARED_ASSETS).filter(asset=>asset.category===name)}));
-  if(currentId && ASSETS[currentId] && !SHARED_ASSETS[currentId])groups.unshift({name:'当前小猫模板素材',assets:[ASSETS[currentId]]});
+  if(currentId && ASSETS[currentId] && !SHARED_ASSETS[currentId])groups.unshift({name:currentId.startsWith('spring-')?'当前春日模板素材':'当前小猫模板素材',assets:[ASSETS[currentId]]});
   return groups;
 }
 export function assetUrl(id) {

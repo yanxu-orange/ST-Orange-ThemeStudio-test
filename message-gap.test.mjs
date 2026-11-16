@@ -31,6 +31,6 @@ test('live editor gap applies to both roles, persists, exports, undoes and resto
  check(18);await set(32);check(32);assert.equal((await saveEditorScheme(shadow,storage)).messageGap,32);
  await set(80);check(80);shadow.querySelector('#undo').click();await settleNativeCanvas();check(32);
  let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:gap';};URL.revokeObjectURL=()=>{};
- shadow.querySelector('#export').click();assert.equal(JSON.parse(await blob.text()).messageGap,32);URL.createObjectURL=create;URL.revokeObjectURL=revoke;
+ shadow.querySelector('#export').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(JSON.parse(await blob.text()).messageGap,32);URL.createObjectURL=create;URL.revokeObjectURL=revoke;
  await set(0);check(0);shadow.querySelector('#close').click();assert.equal(document.querySelectorAll('[data-otl-live]').length,0);assert.equal(document.querySelector('#chat').style.gap,'18px');assert.equal(document.documentElement.hasAttribute('data-orange-live'),false);
 });

@@ -22,6 +22,7 @@ import { validateRegionOrder, syncRegionOrder } from './region-layers.mjs';
 import { normalizeAvatarFill } from './avatar-fill.mjs';
 import { normalizeChromeConfig } from './chrome.mjs';
 import { createJinghaiTemplate } from './jinghai-template.mjs';
+import { createSpringTemplate } from './spring-template.mjs';
 
 export function createSchemeModel() {
   const fonts = [
@@ -159,6 +160,7 @@ export function createSchemeModel() {
     layers: [],
   };
   templates.jinghai = createJinghaiTemplate();
+  templates.spring = createSpringTemplate();
   for (const theme of Object.values(templates))
     if (!theme.photos)
       theme.photos = {

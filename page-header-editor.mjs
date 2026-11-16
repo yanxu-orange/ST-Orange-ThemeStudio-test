@@ -29,7 +29,7 @@ export function createPageHeaderEditor({
   renderFontLinkFields,
   openMaterialPicker,
   invalidateEditing,
-  renderCaptionLineHeight,
+  renderCaptionMetrics,
   propertyHeading,
   notify,
   pairedFields,
@@ -556,7 +556,7 @@ export function createPageHeaderEditor({
           });
           editorControl(container, f, proxy);
         } else editorControl(container, f, item);
-        if (f.key === 'size') renderCaptionLineHeight(container, item, 1.35);
+        if (f.key === 'size') renderCaptionMetrics(container, item, 1.35);
       }
       renderFontLinkFields(
         container,

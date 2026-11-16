@@ -346,12 +346,14 @@ export function createTextEditor({
       commit,
     );
   }
-  function renderCaptionLineHeight(container, item, fallback) {
+  function renderCaptionMetrics(container, item, fallback) {
     const target = new Proxy(item, {
       get(value, key) {
         return key === 'lineHeight'
           ? (value.lineHeight ?? fallback)
-          : value[key];
+          : key === 'scaleX'
+            ? (value.scaleX ?? 1)
+            : value[key];
       },
     });
     editorControl(
@@ -360,6 +362,16 @@ export function createTextEditor({
         min: 1,
         max: 3,
         step: 0.05,
+        unit: '倍',
+      }),
+      target,
+    );
+    editorControl(
+      container,
+      field('文案横向缩放', 'scaleX', 'range', {
+        min: 0.5,
+        max: 2,
+        step: 0.001,
         unit: '倍',
       }),
       target,
@@ -502,7 +514,7 @@ export function createTextEditor({
         }),
         cap,
       );
-      renderCaptionLineHeight(container, cap, 1.6);
+      renderCaptionMetrics(container, cap, 1.6);
       editorControl(
         container,
         field('文案颜色', 'color', 'color', { notice: '颜色已更新，尚未保存' }),
@@ -558,6 +570,6 @@ export function createTextEditor({
     currentCaptionKey,
     currentNewCaption,
     renderTextFields,
-    renderCaptionLineHeight,
+    renderCaptionMetrics,
   };
 }

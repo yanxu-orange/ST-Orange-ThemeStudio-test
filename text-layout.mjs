@@ -56,6 +56,7 @@ export function textItemRules(items,selectors,families={},tokens={},fallbacks={}
     if(moving&&position)rules+=`position:relative!important;left:var(--otx-${token},0px)!important;top:${item.y}px!important;z-index:${z}!important;`;
     if((!moving||!position)&&zIndices[key]!==undefined)rules+=`z-index:${z}!important;`;
     if((key.startsWith('caption:')||key.startsWith('footer:'))&&item.lineHeight!==undefined)rules+=`line-height:${item.lineHeight}!important;`;
+    if((key.startsWith('caption:')||key.startsWith('footer:'))&&item.scaleX!==undefined)rules+=`transform:scaleX(${item.scaleX})!important;transform-origin:left top!important;`;
     if(item.weight!=='auto')rules+=`font-weight:${item.weight}!important;`;
     if(families[key])rules+=`font-family:"${families[key]}",${fallbacks[key]||`var(--otfallback-${token})`}!important;`;
     return rules?`${selectors[key]}{${rules}}`:'';

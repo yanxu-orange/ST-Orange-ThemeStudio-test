@@ -93,3 +93,11 @@ test('reasoning follows loaded body external font with preset fallback while cus
  const fallback=reasoningRules('.entry','.thought','.bg',c,{});assert.ok((fallback.match(/font-family:serif!important/g)||[]).length>=2);
  c.reasoningStyle.entry.fontSource='custom';c.reasoningStyle.entry.font='monospace';assert.match(reasoningRules('.entry','.thought','.bg',c,{body:'LoadedBody','reasoning:entry':'CustomEntry'}),/font-family:"CustomEntry",monospace!important/);
 });
+
+test('optional second entry text preserves legacy defaults and validates its own typography',()=>{
+ const c=current();assert.deepEqual(c.reasoningStyle.entry.secondary,{content:'',size:12,color:'auto',align:'right'});
+ c.reasoningStyle.entry.secondary={content:'——署名',size:12,color:'#788572',align:'right'};
+ assert.deepEqual(validateReasoningStyle(JSON.parse(JSON.stringify(c.reasoningStyle))),c.reasoningStyle);
+ const css=reasoningRules('.entry','.thought','.bg',c);assert.match(css,/otl-reasoning-secondary\{display:block;font-size:12px!important;color:#788572!important;text-align:right/);
+ for(const bad of [{size:0},{align:'justify'},{color:'red'},{content:null}])assert.throws(()=>validateReasoningStyle({...c.reasoningStyle,entry:{...c.reasoningStyle.entry,secondary:{...c.reasoningStyle.entry.secondary,...bad}}}));
+});

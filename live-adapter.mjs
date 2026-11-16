@@ -23,7 +23,7 @@ import {createChromeAdapter} from './chrome-adapter.mjs';
 import {normalizeTextScene,prepareScene,placeSceneLayout,sceneWidth,sceneTextRules,sceneFrameRules} from './text-scene.mjs';
 import {normalizeNativeConfig,nativeRules,nativeLayout,latestAI,nativeControlNodes,clearNativeIconFailures} from './native.mjs';
 import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,footerLayout} from './footer.mjs';
-import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,reasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
+import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,updateReasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
 import {bodyCardSettings,bodyCardRules,chatFrameRules,cardPadding} from './body-card.mjs';
 import {normalizeCaptionConfig,captionKey,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
@@ -105,7 +105,7 @@ function normalizeLiveConfig(config){
   Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
   if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
 }
-const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground','canvasWallpaper','canvasWallpaperAsset']);
+const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','bodyLeftBorderColor','glass','hideScrollbars','canvasBackground','canvasWallpaper','canvasWallpaperAsset']);
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
 const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
 const nativeRoles = new Set(['ai', 'user']);
@@ -143,6 +143,7 @@ function cssOnlyField(path,key){
     if(root==='reasoningStyle')return key==='color';
   }
   if(root==='reasoningStyle'&&path.length===3){
+    if(group==='entry'&&part==='secondary')return key==='color';
     if(group==='entry'&&part==='background')return key==='color'||key==='opacity';
     if(group==='body'&&part==='container')return key==='color'||key==='borderColor';
   }
@@ -274,7 +275,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(reasoning&&reasonEntry){
       attribute(state,reasoning,'data-otl-live-reasoning','');
       let label=[...state.nodes].find(n=>n.className==='otl-live-reasoning'&&n.parentNode===reasoning.parentElement);if(!label){label=owned(state,'span','otl-live-reasoning',reasoning.parentElement);label.setAttribute('data-otl-reason-owned','');reasoning.after(label);label.setAttribute('aria-hidden','true');}
-      const text=reasoningLabel(c.reasoningStyle.entry.content,reasoning.getAttribute('data-duration'));if(label.textContent!==text)label.textContent=text;
+      updateReasoningLabel(label,c.reasoningStyle.entry,reasoning.getAttribute('data-duration'));
       let bg=[...state.nodes].find(n=>n.className==='otl-reasoning-bg'&&n.parentNode===reasonEntry);if(!bg){bg=owned(state,'div','otl-reasoning-bg',reasonEntry);bg.setAttribute('data-otl-reason-owned','');bg.setAttribute('aria-hidden','true');reasonEntry.prepend(bg);}
     }
     const documentMode=document.body.classList.contains('documentstyle');

@@ -33,7 +33,7 @@ test('large schemes save, reload and roundtrip in IndexedDB; failed replacement 
   const {factory,controls}=indexedDatabase(),storage=createSchemeStorage({indexedDB:factory});let env=mount(factory),{document,window}=env;
   await import('./index.js?capacity-first');let shadow=document.querySelector('#orange-theme-lab').shadowRoot;
   let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=value=>{blob=value;return 'blob:capacity-test';};URL.revokeObjectURL=()=>{};
-  const exportText=async()=>{shadow.querySelector('#export').click();return blob.text();};
+  const exportText=async()=>{shadow.querySelector('#export').click();await new Promise(resolve=>setImmediate(resolve));return blob.text();};
   try{
     shadow.querySelector('.launcher').click();await settleNativeCanvas();const normal=JSON.stringify(await saveEditorScheme(shadow,storage),null,2);assert.notEqual(JSON.parse(normal).headerHeight,999,'legacy localStorage is not loaded');
     await importFile(shadow,window,new Blob([normal]));assert.match(shadow.querySelector('#notice').textContent,/已导入/);assert.deepEqual(JSON.parse(await exportText()),JSON.parse(normal));

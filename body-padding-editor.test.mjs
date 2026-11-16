@@ -1,3 +1,4 @@
+import { createSchemeModel } from './scheme-model.mjs';
 import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,33 +50,33 @@ test('new schemes use 10px gutters and templates preserve their configured gutte
   assert.equal(saved.bodyPaddingRight,10);
 
   const template=shadow.querySelector('[aria-label="基础模板"]');
-  for(const option of template.options){
+  for(const option of [...template.options].filter(option=>option.value)){
     template.value=option.value;
     template.dispatchEvent(new window.Event('change'));
     await settleNativeCanvas();
-    const gutter=option.value==='jinghai'?16:10;
-    assertGutters(gutter,gutter);
+    const expected=createSchemeModel().validate(createSchemeModel().templates[option.value]);
+    assertGutters(expected.bodyPaddingLeft,expected.bodyPaddingRight);
     saved=await saveEditorScheme(shadow,scheme);
     assert.equal(saved.template,option.value);
-    assert.equal(saved.bodyPaddingLeft,gutter);
-    assert.equal(saved.bodyPaddingRight,gutter);
+    assert.equal(saved.bodyPaddingLeft,expected.bodyPaddingLeft);
+    assert.equal(saved.bodyPaddingRight,expected.bodyPaddingRight);
   }
   shadow.querySelector('#apply-live').click();await settleSchemeApplication();
   await settleNativeCanvas();
   assert.equal(shadow.querySelector('.panel').classList.contains('hidden'),true,'apply closes the workbench');
-  assertGutters();
+  assertGutters(saved.bodyPaddingLeft,saved.bodyPaddingRight);
   shadow.querySelector('.launcher').click();
   await settleNativeCanvas();
-  assertGutters();
+  assertGutters(saved.bodyPaddingLeft,saved.bodyPaddingRight);
 
   // A deliberate edit remains independent from the starting values.
   const left=shadow.querySelector('[aria-label="正文左侧留白 数值"]');
   left.value='0';left.dispatchEvent(new window.Event('input'));left.dispatchEvent(new window.Event('change'));
   await settleNativeCanvas();
-  assertGutters(0,10);
+  assertGutters(0,saved.bodyPaddingRight);
   shadow.querySelector('#restore').click();
   await settleNativeCanvas();
-  assertGutters();
+  assertGutters(saved.bodyPaddingLeft,saved.bodyPaddingRight);
   shadow.querySelector('#close').click();await settleSchemeApplication();
   assert.equal(document.querySelector('#orange-theme-live-style'),null);
 });

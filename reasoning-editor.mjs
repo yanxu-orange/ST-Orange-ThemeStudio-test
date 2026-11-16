@@ -65,6 +65,11 @@ export function createReasoningEditor({
           ],
         }),
       );
+      propertyHeading(container, '入口第二文案');
+      reasoningControl(container, item.secondary, field('第二文案', 'content'));
+      reasoningControl(container, item.secondary, field('第二文案字号', 'size', 'range', {min:10,max:34,unit:'px'}));
+      renderReasoningColor(container, item.secondary, 'color', '第二文案颜色');
+      reasoningControl(container, item.secondary, field('第二文案对齐', 'align', 'select', {options:[['left','左对齐'],['center','居中'],['right','右对齐']]}));
       propertyHeading(container, '入口文字位置');
       for (const [key, label] of [
         ['x', '入口文字水平位置'],

@@ -353,3 +353,13 @@ test('metadata color updates remain CSS-only after active layout',async()=>{
  const {newMetadata,metadataItem}=await import('./native-metadata.mjs');
  const renders=[];const {adapter,settle}=environment({onRender:r=>renders.push(r.updated)}),c=config();c.metadata=newMetadata();c.metadata.unified.name=metadataItem(c,'name');adapter.start(c);await settle();renders.length=0;const next=structuredClone(c);next.metadata.unified.name.style.color='#123456';adapter.update(next);await settle();assert.equal(renders.reduce((a,b)=>a+b,0),0);adapter.stop();
 });
+
+test('reasoning second text stays within native summary and preserves actions duration and cleanup',async()=>{
+ const {normalizeReasoningConfig}=await import('./reasoning.mjs');const {document,adapter,settle}=environment();
+ const c=normalizeReasoningConfig(normalizeCaptionConfig(config()));c.reasoningStyle.entry.content='诗句';c.reasoningStyle.entry.secondary={content:'——署名',size:12,color:'#788572',align:'right'};
+ const summary=document.querySelector('summary'),title=summary.querySelector('.mes_reasoning_header_title'),copy=summary.querySelector('button');let clicked=0;copy.addEventListener('click',()=>clicked++);
+ adapter.start(c);await settle();const primary=summary.querySelector('.otl-reasoning-primary');assert.equal(primary.textContent,'诗句 · 2.5 s');assert.equal(summary.querySelector('.otl-reasoning-secondary').textContent,'——署名');assert.equal(document.querySelector('summary'),summary);assert.equal(summary.querySelector('button'),copy);copy.click();assert.equal(clicked,1);
+ title.dataset.duration='4.5';await settle();assert.equal(primary.textContent,'诗句 · 4.5 s');
+ c.reasoningStyle.entry.secondary.content='';adapter.update(c);await settle();assert.equal(summary.querySelector('.otl-reasoning-secondary'),null);assert.equal(summary.querySelector('.otl-live-reasoning').textContent,'诗句 · 4.5 s');
+ adapter.stop();assert.equal(summary.querySelector('.otl-live-reasoning'),null);assert.equal(title.textContent,'真实耗时标题');assert.equal(summary.querySelector('button'),copy);
+});

@@ -17,5 +17,5 @@ test('preset entry and slider tip editors preserve independent values, restore a
  set('提示位置','native');click('#restore');assert.equal(sh.querySelector('[aria-label="提示位置"]').value,'flow');
  click('[data-kind=surface]');set('样式来源','inherit');assert.equal((await save()).pageStyle.presets.entry,null);click('#undo');assert.deepEqual((await save()).pageStyle.presets.entry,saved.pageStyle.presets.entry);
  change('#workspace-page','worldbook');change('#region-select','page-content');assert.ok(sh.querySelector('[data-kind=heading]'));change('#workspace-page','presets');assert.equal(sh.querySelector('[aria-label="样式来源"]').value,'custom');
- let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:preset-content';};URL.revokeObjectURL=()=>{};click('#export');assert.deepEqual(JSON.parse(await blob.text()).pageStyle.presets,saved.pageStyle.presets);URL.createObjectURL=create;URL.revokeObjectURL=revoke;click('#close');
+ let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:preset-content';};URL.revokeObjectURL=()=>{};click('#export');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()).pageStyle.presets,saved.pageStyle.presets);URL.createObjectURL=create;URL.revokeObjectURL=revoke;click('#close');
 });

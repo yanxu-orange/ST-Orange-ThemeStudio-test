@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.24.2-jinghai",
+  "version": "0.24.3-mobile-works",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }

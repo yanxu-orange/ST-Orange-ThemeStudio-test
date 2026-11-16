@@ -17,14 +17,14 @@ test('Jinghai template selection saves, exports and reselects without shared mut
  assert.match(selected.canvasWallpaper,/^data:image\/png;base64,/);
  assert.ok(document.querySelector('#orange-theme-wallpaper'));
  let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:jinghai';};URL.revokeObjectURL=()=>{};
- click('#export');assert.deepEqual(JSON.parse(await blob.text()),selected);
+ click('#export');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()),selected);
  URL.createObjectURL=create;URL.revokeObjectURL=revoke;
- change('[aria-label="基础模板"]','clear');assert.equal((await save()).template,'clear');
+ click('[aria-label="打开工坊首页"]');click('[data-flow="blank"]');assert.equal((await save()).template,'blank');
  click('[aria-label="打开工坊首页"]');
  change('[aria-label="起点模板"]','jinghai');
  click('[data-flow="template"]');
  assert.deepEqual(await save(),selected);
- change('[aria-label="基础模板"]','clear');
+ click('[aria-label="打开工坊首页"]');click('[data-flow="blank"]');
  click('#restore');
  assert.deepEqual(await save(),selected);
  click('#apply-live');

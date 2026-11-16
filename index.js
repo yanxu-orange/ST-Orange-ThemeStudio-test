@@ -1,3 +1,8 @@
+import { rebaseBundledFontLinks } from './spring-fonts.mjs';
+import { portableScheme } from './portable-scheme.mjs';
+import { createCustomWorkStorage } from './custom-work-storage.mjs';
+import { createWorkLibrary } from './work-library.mjs';
+import { createBuiltinTemplateLibrary } from './builtin-template-library.mjs';
 import { createSchemeModel } from './scheme-model.mjs';
 import { createIconControlsEditor } from './icon-controls-editor.mjs';
 import { createLayerEditor } from './layer-editor.mjs';
@@ -83,6 +88,7 @@ await (async () => {
   if (document.getElementById('orange-theme-lab')) return;
   const schemeStorage = createSchemeStorage();
   const appliedStorage = createSchemeStorage({ key: APPLIED_SCHEME_KEY });
+  let workLibrary = null;
   let appliedSnapshot = null,
     applying = false,
     applicationLoadError = null;
@@ -159,7 +165,7 @@ await (async () => {
   try {
     const raw = await schemeStorage.load();
     if (raw !== null) {
-      saved = validate(JSON.parse(raw));
+      saved = validate(rebaseBundledFontLinks(JSON.parse(raw), import.meta.url));
       config = clone(saved);
       selectedLayerId = config.layers[0]?.id;
     }
@@ -169,7 +175,7 @@ await (async () => {
   }
   try {
     const raw = await appliedStorage.load();
-    if (raw !== null) appliedSnapshot = validate(JSON.parse(raw));
+    if (raw !== null) appliedSnapshot = validate(rebaseBundledFontLinks(JSON.parse(raw), import.meta.url));
   } catch (error) {
     applicationLoadError = error;
     console.warn('[主题工坊] 已应用方案未载入', error.message);
@@ -633,15 +639,13 @@ await (async () => {
     scrollbarVisibility.stop();
     liveAdapter.stop();
   });
-  const kittyOption = make('option', '', '小猫咪 · 照片与窗景');
-  kittyOption.value = 'kitty';
-  shadow.querySelector('[aria-label="基础模板"]').append(kittyOption);
-  const jinghaiOption = make('option', '', '京海日报 · 纸色报刊');
-  jinghaiOption.value = 'jinghai';
-  shadow.querySelector('[aria-label="基础模板"]').append(jinghaiOption);
-  const blankOption = make('option', '', '无装饰起稿 · 工具基础布局');
-  blankOption.value = 'blank';
-  shadow.querySelector('[aria-label="基础模板"]').append(blankOption);
+  const builtinLibrary = createBuiltinTemplateLibrary({
+    document,
+    availableIds: Object.keys(templates),
+    getCurrent: () => config.template,
+    onMessage: notify,
+  });
+  builtinLibrary.attach(shadow.querySelector('[aria-label="基础模板"]'), { current: true });
   function updateWorkbenchLayout() {
     layerDrag.cancel();
     headerDrag.cancel();
@@ -1488,7 +1492,7 @@ await (async () => {
     currentCaptionKey,
     currentNewCaption,
     renderTextFields,
-    renderCaptionLineHeight,
+    renderCaptionMetrics,
   } = createTextEditor({
     getUi: () => ui,
     getConfig: () => config,
@@ -1542,7 +1546,7 @@ await (async () => {
     renderFontLinkFields,
     openMaterialPicker,
     invalidateEditing,
-    renderCaptionLineHeight,
+    renderCaptionMetrics,
     propertyHeading,
     notify,
     pairedFields,
@@ -2244,7 +2248,7 @@ await (async () => {
     layerDrag.cancel();
     if (active) liveAdapter.update(config, { validated: true });
     updateFontStatuses();
-    shadow.querySelector('[aria-label="基础模板"]').value = config.template;
+    builtinLibrary.syncCurrent();
     shadow.querySelector('#undo').disabled = !history.length;
     for (const b of shadow.querySelectorAll('[data-object]')) {
       const layer = config.layers.find((l) => l.id === b.dataset.object),
@@ -2306,7 +2310,7 @@ await (async () => {
     shadow
       .querySelector('#narrow')
       .setAttribute('aria-pressed', String(ui.narrow));
-    shadow.querySelector('[aria-label="基础模板"]').value = config.template;
+    builtinLibrary.syncCurrent();
     renderFields();
     if (loadError)
       notify(
@@ -2319,6 +2323,7 @@ await (async () => {
     if (!keepApplied && appliedSnapshot !== null && !(await clearApplied()))
       return;
     if (materialSession || managerReturn) returnFromMaterials();
+    workLibrary?.hide();
     invalidateEditing();
     layerDrag.reset();
     headerDrag.reset();
@@ -2342,6 +2347,7 @@ await (async () => {
   }
 
   function replaceStart(id) {
+    if (!Object.hasOwn(templates, id)) return false;
     if (
       typeof window.confirm === 'function' &&
       !window.confirm(
@@ -2389,6 +2395,8 @@ await (async () => {
   });
   const mobileFlow = installMobileFlow({
     shadow,
+    templateLibrary: builtinLibrary,
+    onLibrary: () => workLibrary.show(),
     onVisibility: (visible) =>
       scrollbarVisibility.set(
         (active || visible) && normalizeScrollbars(config.hideScrollbars),
@@ -2401,6 +2409,37 @@ await (async () => {
       shadow.querySelector('#import-file').click();
     },
   });
+  workLibrary = createWorkLibrary({
+    shadow,
+    builtins: builtinLibrary,
+    storage: createCustomWorkStorage(),
+    snapshot: () => JSON.stringify(validate(config)),
+    onBuiltin: (id) => {
+      const replaced = replaceStart(id);
+      if (replaced) open();
+      return replaced;
+    },
+    onOpen: (json) => {
+      const next = validate(rebaseBundledFontLinks(JSON.parse(json), import.meta.url));
+      if (typeof window.confirm === 'function' && !window.confirm('打开作品会替换当前草稿，可撤销。继续吗？'))
+        return false;
+      invalidateEditing();
+      remember();
+      config = next;
+      selectedLayerId = config.layers[0]?.id;
+      apply();
+      renderFields();
+      open();
+      notify('作品已载入当前草稿');
+      return true;
+    },
+    onMessage: notify,
+  });
+  const libraryButton = make('button', '', '作品库');
+  libraryButton.type = 'button';
+  libraryButton.id = 'open-work-library';
+  shadow.querySelector('.desktop-scheme .menu').append(libraryButton);
+  libraryButton.addEventListener('click', () => workLibrary.show(libraryButton));
   const launch = () => {
     if (active) {
       workbench.restoreWorkbench();
@@ -2557,7 +2596,7 @@ await (async () => {
         draft = JSON.stringify(config);
       try {
         const raw = await schemeStorage.load();
-        saved = raw === null ? null : validate(JSON.parse(raw));
+        saved = raw === null ? null : validate(rebaseBundledFontLinks(JSON.parse(raw), import.meta.url));
         loadError = null;
         if (
           !active ||
@@ -2588,17 +2627,23 @@ await (async () => {
     renderFields();
     notify('已恢复上次保存的方案');
   });
-  shadow.querySelector('#export').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(validate(config), null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = make('a');
-    a.href = url;
-    a.download = '橙子的主题实验方案.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    notify('已导出实验方案；它不是酒馆原生主题文件。');
+  shadow.querySelector('#export').addEventListener('click', async () => {
+    const button = shadow.querySelector('#export');
+    button.disabled = true;
+    try {
+      const exported = validate(await portableScheme(validate(config)));
+      const blob = new Blob([JSON.stringify(exported, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = make('a');
+      a.href = url;
+      a.download = '橙子的主题实验方案.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify('已导出实验方案；它不是酒馆原生主题文件。');
+    } catch (error) { notify('导出失败：' + error.message); }
+    finally { button.disabled = false; }
   });
   shadow
     .querySelector('#import')
@@ -2617,7 +2662,7 @@ await (async () => {
       try {
         const contents = await file.text();
         if (!active || epoch !== editEpoch || config !== originalConfig) return;
-        const next = validate(JSON.parse(contents));
+        const next = validate(rebaseBundledFontLinks(JSON.parse(contents), import.meta.url));
         invalidateEditing();
         remember();
         config = next;
