@@ -20,12 +20,12 @@ test('only the two works are offered; browser-local removal never changes saved 
   assert.deepEqual(names(desktop), ['移动-京海日报', '移动-春日来信']);
   assert.deepEqual(names(mobile), names(desktop));
   assert.equal(current, 'letter', 'a legacy scheme is not replaced');
-  assert.equal(document.querySelector('.builtin-template-controls p').textContent, BUILTIN_TEMPLATE_NOTICE);
+  assert.equal(document.querySelector('[data-builtin-action=delete]'), null, 'deletion is managed only in the works library');
   current = 'jinghai'; library.syncCurrent();
   assert.equal(desktop.value, 'jinghai');
   const unchangedOption = desktop.firstElementChild; library.syncCurrent();
   assert.equal(desktop.firstElementChild, unchangedOption, 'ordinary edits do not rebuild the template selector');
-  document.querySelector('[data-builtin-action="delete"]').click();
+  library.remove('jinghai');
   assert.deepEqual(names(desktop), ['移动-春日来信']);
   assert.deepEqual(names(mobile), ['移动-春日来信']);
   assert.equal(current, 'jinghai', 'removing the builtin leaves the current scheme unchanged');
@@ -33,7 +33,7 @@ test('only the two works are offered; browser-local removal never changes saved 
   const reloaded = createBuiltinTemplateLibrary(options), another = document.createElement('select'); document.body.append(another); reloaded.attach(another);
   assert.deepEqual(names(another), ['移动-春日来信'], 'removal persists');
   mobile.value = 'spring'; mobile.dispatchEvent(new window.Event('change'));
-  mobile.nextElementSibling.querySelector('[data-builtin-action="delete"]').click();
+  library.remove('spring');
   assert.deepEqual(names(mobile), []); assert.equal(available, false);
   assert.equal(values.get('saved-user-scheme'), 'original'); assert.equal(values.get('material'), 'image');
   assert.equal(document.querySelector('[data-builtin-action="restore"]'), null, 'there is no recovery entry');

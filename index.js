@@ -2320,8 +2320,6 @@ await (async () => {
   }
   async function close({ keepApplied = false } = {}) {
     if (!active || (applying && !keepApplied)) return;
-    if (!keepApplied && appliedSnapshot !== null && !(await clearApplied()))
-      return;
     if (materialSession || managerReturn) returnFromMaterials();
     workLibrary?.hide();
     invalidateEditing();
@@ -2335,12 +2333,13 @@ await (async () => {
     canvas.stop();
     document.documentElement.removeAttribute('data-otl-narrow');
     gestureSelection = null;
-    if (!keepApplied) liveAdapter.stop();
+    if (appliedSnapshot !== null) liveAdapter.update(appliedSnapshot);
+    else liveAdapter.stop();
     fitInput()?.catch?.((error) =>
       console.warn('[主题输入增高]', error.message),
     );
     entries.setEditing(false);
-    entries.setApplied(keepApplied);
+    entries.setApplied(appliedSnapshot !== null);
     shadow.querySelector('.bar').classList.add('hidden');
     panel.classList.add('hidden');
     shadow.querySelector('.splitter').classList.add('hidden');
@@ -2438,7 +2437,7 @@ await (async () => {
   const libraryButton = make('button', '', '作品库');
   libraryButton.type = 'button';
   libraryButton.id = 'open-work-library';
-  shadow.querySelector('.desktop-scheme .menu').append(libraryButton);
+  shadow.querySelector('.desktop-scheme .menu').prepend(libraryButton);
   libraryButton.addEventListener('click', () => workLibrary.show(libraryButton));
   const launch = () => {
     if (active) {

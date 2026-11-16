@@ -11,6 +11,6 @@ test('mobile start flow never resets on return, confirms replacement, and blank 
  window.confirm=()=>true;sh.querySelector('[data-flow=blank]').click();assert.deepEqual(JSON.parse((await scheme.load())),before);const blank=(await save());assert.deepEqual(blank.layers,[]);assert.deepEqual(blank.captions,[]);assert.deepEqual(blank.footerCaptions,[]);assert.equal(blank.photos.ai.enabled,false);assert.equal(blank.avatarFill.ai.enabled,false);assert.ok(document.querySelector('[data-otl-live] .name_text'));assert.ok(document.querySelector('[data-otl-live] .mes_text'));
  sh.querySelector('#undo').click();assert.deepEqual((await save()),before);
  sh.querySelector('#mode-edit').click();sh.querySelector('#full-view').click();assert.equal(sh.querySelector('.panel').dataset.mobileView,'preview');
- assert.ok(sh.querySelector('.desktop-scheme #export'));assert.equal(sh.querySelector('#page-scope'),null);assert.ok(sh.querySelector('.panel-head #workspace-page'));window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('#save').textContent,'保存方案');sh.querySelector('#close').click();
+ assert.ok(sh.querySelector('.desktop-scheme #export'));assert.equal(sh.querySelector('#page-scope'),null);assert.ok(sh.querySelector('.panel-head #workspace-page'));window.innerWidth=1200;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('#save').textContent,'保存草稿');sh.querySelector('#close').click();
 
 });

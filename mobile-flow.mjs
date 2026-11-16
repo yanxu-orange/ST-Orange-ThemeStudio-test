@@ -5,7 +5,7 @@ export function installMobileFlow({shadow,onContinue,onTemplate,onBlank,onImport
  shadow.append(style);const overlay=make('section');overlay.className='flow-overlay hidden';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','工坊首页');overlay.innerHTML='<div class="flow-card"><h2>工坊首页</h2><button data-flow="continue" class="primary">继续当前草稿</button><button data-flow="import">导入方案</button><button data-flow="library">作品库</button><h3>新的起点</h3><select aria-label="起点模板"></select><button data-flow="template">使用所选模板</button><button data-flow="blank">无装饰起稿</button><p>新起点会替换当前草稿，可撤销。已保存方案不受影响。</p><button data-flow="back">返回</button></div>';
  shadow.append(overlay);const picker=overlay.querySelector('select');if(templateLibrary)templateLibrary.attach(picker,{onAvailability:available=>{overlay.querySelector('[data-flow=template]').disabled=!available;}});else for(const option of shadow.querySelector('[aria-label="基础模板"]').children)picker.append(option.cloneNode(true));
  const setup=make('button','工坊首页');setup.type='button';setup.className='mobile-work';setup.setAttribute('aria-label','打开工坊首页');shadow.querySelector('.desktop-scheme .menu>label').after(setup);
- const labels=[['#save','保存','保存方案'],['#apply-live','应用','应用到酒馆'],['#close','退出','退出编辑']];
+ const labels=[['#save','保存草稿','保存草稿'],['#apply-live','应用','应用到酒馆'],['#close','退出','退出编辑']];
  function mobile(){return (win.innerWidth||1200)<=700;}
  function dismissMenus(){for(const menu of bar.querySelectorAll('details'))menu.open=false;}
  function setEditorOpen(){dismissMenus();}

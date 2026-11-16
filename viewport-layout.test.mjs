@@ -17,5 +17,5 @@ test('viewport events share one frame and do not rewrite unchanged sizing',t=>{
  assert.equal(bench.ui.layoutEditing,false,'keyboard arrival cancels layout editing before the frame');frames.shift()();
  assert.equal(layouts,2);assert.equal(writes,2);assert.equal(style.getPropertyValue('--wb-vv-height'),'420px');assert.equal(style.getPropertyValue('--wb-vv-top'),'30px');
  window.visualViewport.height=844;window.visualViewport.offsetTop=0;window.visualViewport.dispatchEvent(new window.Event('resize'));frames.shift()();assert.equal(layouts,3);assert.equal(style.getPropertyValue('--wb-vv-height'),'844px');
- bench.ui.layoutEditing=true;window.innerWidth=1180;window.dispatchEvent(new window.Event('resize'));assert.equal(bench.ui.layoutEditing,false);frames.shift()();assert.equal(layouts,4);assert.equal(shadow.querySelector('#save').textContent,'保存方案');
+ bench.ui.layoutEditing=true;window.innerWidth=1180;window.dispatchEvent(new window.Event('resize'));assert.equal(bench.ui.layoutEditing,false);frames.shift()();assert.equal(layouts,4);assert.equal(shadow.querySelector('#save').textContent,'保存草稿');
 });

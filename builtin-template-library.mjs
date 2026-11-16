@@ -34,7 +34,6 @@ export function createBuiltinTemplateLibrary({ document, availableIds, getCurren
       view.select.append(option);
     }
     view.select.value = visible.some(item => item.id === selected) ? selected : view.current ? '' : visible[0]?.id || '';
-    view.remove.disabled = !visible.some(item => item.id === view.select.value);
     view.onAvailability?.(visible.length > 0);
   }
   function sync() { for (const view of views) render(view); }
@@ -51,24 +50,8 @@ export function createBuiltinTemplateLibrary({ document, availableIds, getCurren
     }
   }
   function attach(select, { current = false, onAvailability } = {}) {
-    const controls = document.createElement('div');
-    controls.className = 'menu-wide builtin-template-controls';
-    const notice = document.createElement('p');
-    notice.textContent = BUILTIN_TEMPLATE_NOTICE;
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.textContent = '删除所选内置作品';
-    remove.dataset.builtinAction = 'delete';
-    controls.append(notice, remove);
-    (select.closest('label') || select).after(controls);
-    const view = { select, current, remove, onAvailability };
+    const view = { select, current, onAvailability };
     views.push(view);
-    remove.addEventListener('click', () => {
-      const id = select.value;
-      if (!available.some(item => item.id === id)) return;
-      saveHidden([...new Set([...hidden, id])]);
-    });
-    select.addEventListener('change', () => { remove.disabled = !available.some(item => item.id === select.value && !hidden.includes(item.id)); });
     render(view);
   }
   return {

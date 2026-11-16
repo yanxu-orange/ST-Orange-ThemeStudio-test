@@ -33,6 +33,11 @@ test('named works open and save independently without replacing the saved draft 
   assert.equal((await works.list()).length, 2);
   click(`[data-work-id="${first.id}"] [data-work-action="open"]`); await settle();
   assert.equal((await saveEditorScheme(shadow, draft)).fontSize, 21);
+  assert.equal(shadow.querySelector('#save').textContent, '保存草稿');
+  changeSize(24);
+  assert.equal((await saveEditorScheme(shadow, draft)).fontSize, 24);
+  assert.equal(JSON.parse(await works.load(first.id)).fontSize, 21, 'saving a changed draft never silently overwrites the opened named work');
+  changeSize(21);
   click('#open-work-library'); await settle();
   click(`[data-work-id="${first.id}"] [data-work-action="delete"]`); await settle();
   assert.equal(await works.load(first.id), null); assert.equal((await works.list()).length, 1);

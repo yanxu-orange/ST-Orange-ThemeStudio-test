@@ -78,5 +78,7 @@ test('new schemes use 10px gutters and templates preserve their configured gutte
   await settleNativeCanvas();
   assertGutters(saved.bodyPaddingLeft,saved.bodyPaddingRight);
   shadow.querySelector('#close').click();await settleSchemeApplication();
-  assert.equal(document.querySelector('#orange-theme-live-style'),null);
+  assert.ok(document.querySelector('#orange-theme-live-style'), 'closing editing retains the applied theme');
+  window.dispatchEvent(new window.Event('pagehide'));
+  await settleSchemeApplication();
 });

@@ -4,6 +4,7 @@ import { parseHTML } from 'linkedom';
 import { indexedDatabase } from './test-support/indexed-db.mjs';
 import { createSchemeStorage, APPLIED_SCHEME_KEY } from './scheme-storage.mjs';
 import { createSchemeModel } from './scheme-model.mjs';
+import { navigateRegion } from './test-support/editor-navigation.mjs';
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -66,10 +67,26 @@ test('apply survives reload independently of saved draft; explicit exit clears a
   ui.shadow.querySelector('.launcher').click();
   ui.shadow.querySelector('#apply-live').click();
   await tick(); await tick();
+  const appliedCss = ui.document.querySelector('#orange-theme-live-style').textContent;
+  const appliedJson = await applied.load();
   ui.shadow.querySelector('.launcher').click();
+  navigateRegion(ui.shadow, 'body');
+  const size = ui.shadow.querySelector('[aria-label="正文字号 数值"]');
+  size.value = '26';
+  size.dispatchEvent(new ui.window.Event('input'));
+  size.dispatchEvent(new ui.window.Event('change'));
+  ui.shadow.querySelector('#save').click();
+  await tick(); await tick();
+  assert.equal(JSON.parse(await draft.load()).fontSize, 26, 'editing changed the draft independently');
   ui.shadow.querySelector('#close').click();
   await tick(); await tick();
-  assert.equal(await applied.load(), null, 'exit editing follows existing stop-application semantics');
+  assert.equal(await applied.load(), appliedJson, 'exit editing preserves applied theme');
+  assert.equal(ui.document.querySelector('#orange-theme-live-style').textContent, appliedCss, 'closing discards preview styling, not the applied snapshot');
+  assert.ok(ui.document.querySelector('#orange-theme-live-style'));
+  assert.equal(ui.document.querySelector('[data-workshop-action=stop]').hidden, false);
+  ui.document.querySelector('[data-workshop-action=stop]').click();
+  await tick(); await tick();
+  assert.equal(await applied.load(), null, 'only the explicit stop action clears application');
   assert.equal(ui.document.querySelector('#orange-theme-live-style'), null);
   assert.equal(JSON.parse(await draft.load()).bodyWeight, 700, 'stop leaves saved draft intact');
 });
