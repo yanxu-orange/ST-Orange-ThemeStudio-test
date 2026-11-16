@@ -58,8 +58,10 @@ test('boundary is local to the host and can be removed', () => {
 });
 
 test('editor installs the boundary and keeps explanatory copy without defensive disclaimers', () => {
-  const source = readFileSync(new URL('./index.js',import.meta.url),'utf8');
-  assert.match(source,/installWorkshopEventBoundary\(host\)/);
+  const sourceFiles = ['index.js','body-card-editor.mjs','reasoning-editor.mjs','native-controls-editor.mjs','chrome-editor.mjs'];
+  const sources = sourceFiles.map(file => readFileSync(new URL(file,import.meta.url),'utf8'));
+  assert.match(sources[0],/installWorkshopEventBoundary\(host\)/);
+  const source = sources.join('\n');
   for (const text of ['只调整原生用户设置页','只调整原生世界书','不拦截按钮、输入或滚动','内容由酒馆提供','这里不执行按钮业务','只换图形，保留原抽屉']) assert.equal(source.includes(text),false,text);
   assert.ok(source.includes('最大高度需不小于最小高度，且不超过当前可视区域高度的60%。'));
   assert.ok(source.includes('字体链接须允许跨域'));

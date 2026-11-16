@@ -1,9 +1,10 @@
+import {createChromeEditor} from './chrome-editor.mjs';
+import {createNativeControlsEditor} from './native-controls-editor.mjs';
+import {createReasoningEditor} from './reasoning-editor.mjs';
 import {newMetadata,metadataItem,validateMetadata,resolveMetadata,metadataFontKey} from './native-metadata.mjs';
 import {newPageHeaderNative} from './page-header-native.mjs';
 import {PAGE_TITLE_SUBTITLE_TARGETS,newPageTitleSubtitle,pageTitleSubtitleFontKey} from './page-title-subtitle.mjs';
 import {newPageHeaderImage,newPageHeaderText,pageHeaderSceneFontKey} from './page-header-scene.mjs';
-import {SWIPE_COUNTER_DEFAULTS,swipeValueStyle} from './native-swipe-style.mjs';
-import {statValueStyle,resolveNativeStats} from './native-stat-style.mjs';
 import {uniqueId} from './unique-id.mjs';
 import {createWorkshopEntries} from './workshop-entries.mjs';
 import {installWorkshopEventBoundary} from './workshop-events.mjs';
@@ -687,153 +688,63 @@ await (async () => {
     if(part==='button')container.append(make('p','hint','删除等按钮保留警示色。'));
     if(part==='field')container.append(make('p','hint','勾选与滑块颜色在“界面文字”中调整。'));
   }
-  function reasoningControl(container,target,f,onUpdate){editorControl(container,{...f,notice:'思维样式已更新，尚未保存'},target,onUpdate);}
-  function renderReasoningColor(container,target,key,label){
-    const mode=make('select'),row=make('label','field',label+'来源');mode.setAttribute('aria-label',label+'来源');for(const [v,t]of [['auto','沿用主题颜色'],['custom','自定义']]){const o=make('option','',t);o.value=v;mode.append(o);}mode.value=target[key]==='auto'?'auto':'custom';mode.addEventListener('change',()=>{remember();target[key]=mode.value==='auto'?'auto':config.accent;apply();renderFields();});row.append(mode);container.append(row);if(target[key]!=='auto')reasoningControl(container,target,field(label,key,'color'));
-  }
-  function renderReasoningFields(container,part){
-    const item=config.reasoningStyle[part],prefix=part==='entry'?'入口':'思维正文';
-    if(part==='entry'){propertyHeading(container,'入口内容');reasoningControl(container,item,field('入口文字','content'));reasoningControl(container,item,field('显示入口箭头','showArrow','select',{options:[['false','隐藏'],['true','显示']]}));propertyHeading(container,'入口文字位置');for(const [key,label]of [['x','入口文字水平位置'],['y','入口文字纵向位置']])reasoningControl(container,item.labelPosition,field(label,key,'range',{min:-500,max:500,unit:'px'}));}propertyHeading(container,'字体设计');
-    reasoningControl(container,item,field('字体来源','fontSource','select',{options:[['body','跟随聊天正文'],['interface','跟随界面'],['custom','自定义']]}),()=>renderFields());
-
-    const fontRow=pairedFields(container);if(item.fontSource==='custom')reasoningControl(fontRow,item,field(prefix+'字体','font','select',{options:fonts}));
-    const weightLabel=make('label','field',prefix+'字重'),weight=make('select');weight.setAttribute('aria-label',prefix+'字重');for(const [v,t]of [['auto','常规（沿用）'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]){const o=make('option','',t);o.value=v;weight.append(o);}weight.value=String(item.weight);weight.addEventListener('change',()=>{remember();item.weight=weight.value==='auto'?'auto':Number(weight.value);apply();});weightLabel.append(weight);fontRow.append(weightLabel);
-    reasoningControl(container,item,field(prefix+'字号','size','range',{min:10,max:part==='entry'?34:28,unit:'px'}));
-    renderReasoningColor(container,item,'color',prefix+'颜色');
-    if(item.fontSource==='custom'){propertyHeading(container,'外链字体');const linkRow=pairedFields(container);linkRow.classList.add('font-link-row');
-      const label=make('label','field','字体文件直链（留空用预设）'),link=make('input');link.type='url';link.maxLength=2048;link.value=item.fontLink?.url||'';link.setAttribute('aria-label',prefix+' 字体直链');label.append(link);
-      const faceLabel=make('label','field','链接文件类型'),face=make('select');face.setAttribute('aria-label',prefix+' 链接文件类型');for(const [v,t]of [['400','常规字体'],['700','粗体字体'],['100 900','可变字体'],['100','极细字体'],['200','纤细字体'],['300','细体字体'],['500','中等字体'],['600','半粗字体'],['800','特粗字体'],['900','重体字体']]){const o=make('option','',t);o.value=v;face.append(o);}face.value=item.fontLink?.faceWeight||'400';faceLabel.append(face);linkRow.append(faceLabel,label);
-      const commit=()=>{try{const value=validateCaptionStyle({fontLink:link.value.trim()?{url:link.value.trim(),faceWeight:face.value}:null});remember();item.fontLink=value.fontLink;link.removeAttribute('aria-invalid');apply();}catch(error){link.setAttribute('aria-invalid','true');notify(error.message);}};fontPickerButton(container,item,record=>{link.value=record.fontLink.url;face.value=record.fontLink.faceWeight;commit();});
-    link.addEventListener('change',commit);face.addEventListener('change',()=>{if(link.value.trim())commit();});const status=make('p','hint');status.dataset.fontStatus='reasoning:'+part;container.append(status);const retry=make('button','','重新加载链接字体');retry.addEventListener('click',()=>liveAdapter.retryFonts());container.append(retry,make('p','hint','字体链接须允许跨域；导出保留链接。'));updateFontStatuses();
-    }
-
-    if(part==='entry'){
-      propertyHeading(container,'入口背景');const bg=item.background,g=item.geometry;
-      reasoningControl(container,bg,field('入口背景','mode','select',{options:[['none','无背景'],['color','颜色'],['image','自选图片']]}),()=>renderFields());
-      if(bg.mode==='color')reasoningControl(container,bg,field('入口背景颜色','color','color'));
-      if(bg.mode==='image'){
-        const pick=make('button','','选择或替换背景图片');pick.id='reasoning-bg-pick';pick.addEventListener('click',()=>{openMaterialPicker('reasoning-background');});container.append(pick,make('p','hint',bg.source?(bg.source.kind==='asset'?ASSETS[bg.source.asset].name:'已选择上传图片'):'尚未选择图片'));
-        reasoningControl(container,bg,field('背景填充','fit','select',{options:[['cover','铺满（可能裁边）'],['contain','完整显示']]}));for(const [key,label]of [['x','背景横向取景'],['y','背景纵向取景']])reasoningControl(container,bg,field(label,key,'range',{min:0,max:100,unit:'%'}));
-      }
-      if(bg.mode!=='none')reasoningControl(container,bg,field('背景透明度','opacity','range',{min:0,max:1,step:.05}));
-      propertyHeading(container,'入口尺寸与留白');
-      const mode=make('select'),label=make('label','field','入口宽度');mode.setAttribute('aria-label','入口宽度模式');for(const [v,t]of [['auto','自动'],['custom','自定义']]){const o=make('option','',t);o.value=v;mode.append(o);}mode.value=g.width==='auto'?'auto':'custom';mode.addEventListener('change',()=>{remember();g.width=mode.value==='auto'?'auto':60;apply();renderFields();});label.append(mode);container.append(label);
-      if(g.width!=='auto')reasoningControl(container,g,field('入口宽度占比','width','range',{min:20,max:100,unit:'%'}));
-      for(const [key,label,max]of [['minHeight','入口最小高度',160],['radius','入口圆角',40],['paddingX','入口左右留白',40],['paddingY','入口上下留白',40]])reasoningControl(container,g,field(label,key,'range',{min:0,max,unit:'px'}));
-    }else{
-      propertyHeading(container,'容器底色与边框');const c=item.container;
-      reasoningControl(container,c,field('思维正文背景','background','select',{options:[['none','无背景'],['color','颜色']]}),()=>renderFields());if(c.background==='color')reasoningControl(container,c,field('思维正文背景颜色','color','color'));
-      for(const [key,label,max]of [['radius','正文容器圆角',40],['borderWidth','正文容器边框粗细',8]])reasoningControl(container,c,field(label,key,'range',{min:0,max,step:key==='borderWidth'?.25:1,unit:'px'}));
-      reasoningControl(container,c,field('正文容器边框颜色','borderColor','color'));reasoningControl(container,c,field('正文容器边框线型','borderStyle','select',{options:[['solid','实线'],['dashed','虚线'],['dotted','点线']]}));propertyHeading(container,'容器留白');for(const [key,label]of [['paddingX','思维正文左右留白'],['paddingY','思维正文上下留白']])reasoningControl(container,c,field(label,key,'range',{min:0,max:40,unit:'px'}));
-    }
-  }
-  function nativeControl(container,target,f,onUpdate){editorControl(container,{...f,notice:'原生功能样式已更新，尚未保存'},target,onUpdate);}
-  function nativePositionFields(container,v){
-    nativeControl(container,v,field('所在区域','position','select',{options:[['header','头像区'],['footer','尾部区']]}),()=>renderFields());
-    if(v.anchor&&v.position==='header')nativeControl(container,v,field('垂直定位','anchor','select',{options:[['top','顶部'],['center','居中'],['bottom','底部']]}));
-    nativeControl(container,v,field('左右移动','x','range',{min:-100,max:100,unit:'%'}));
-    nativeControl(container,v,field('上下移动','y','range',{min:-160,max:160,unit:'px'}));
-  }
-  function nativeAppearanceFields(container,v,isStats=false,minSize=10){
-    nativeControl(container,v,field('字号','size','range',{min:minSize,max:28,unit:'px'}));
-    const label=make('label','field','颜色来源'),mode=make('select');mode.setAttribute('aria-label','颜色来源');
-    for(const [id,text]of [['auto','沿用主题颜色'],['custom','自定义']]){const o=make('option','',text);o.value=id;mode.append(o);}mode.value=v.color==='auto'?'auto':'custom';
-    mode.addEventListener('change',()=>{remember();v.color=mode.value==='auto'?'auto':isStats?config.timeColor:config.accent;apply();renderFields();});label.append(mode);container.append(label);
-    if(v.color!=='auto')nativeControl(container,v,field('颜色','color','color'));
-  }
-  function renderNativeFields(container){
-    if(ui.kind==='actions'){
-      const rootActions=config.nativeStyle.actions;
-      const designRow=make('label','field','设计对象'),design=make('select');design.setAttribute('aria-label','设计对象');for(const [value,text]of [['unified','一起设置'],['separate','分开设置']]){const option=make('option','',text);option.value=value;design.append(option);}design.value=rootActions.design||'unified';designRow.append(design);container.append(designRow);
-      design.addEventListener('change',()=>{remember();rootActions.design=design.value;if(design.value==='separate'&&!rootActions.roles){const shared=Object.fromEntries(Object.entries(rootActions).filter(([key])=>!['design','roles'].includes(key)));rootActions.roles={ai:clone(shared),user:clone(shared)};}apply();renderFields();});
-      if(rootActions.design==='separate'){const scopeRow=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const option=make('option','',text);option.value=value;scope.append(option);}scope.value=actionScope;scopeRow.append(scope);container.append(scopeRow);scope.addEventListener('change',()=>{actionScope=scope.value;renderFields();});}
-      const actions=resolveNativeActions(rootActions,actionScope==='user'),edit=actions.edit;
-      propertyHeading(container,'编辑');nativePositionFields(container,edit);
-      renderMaterialControl(container,edit,{label:'显示方式',purpose:'native-edit-icon',id:'native-edit-pick',native:true});
-      if(edit.mode==='text')nativeControl(container,edit,field('文字','text','text',{maxLength:40}));
-      if(['image','icon'].includes(edit.mode))nativeControl(container,edit,field('图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
-      if(edit.mode==='icon')renderIconAppearance(container,edit,{native:true,prefix:'编辑图标'});
-      propertyHeading(container,'更多');nativePositionFields(container,actions.more);
-      renderMaterialControl(container,actions.more,{label:'更多显示方式',purpose:'native-more-icon',id:'native-more-pick',native:true});
-      if(actions.more.mode==='text')nativeControl(container,actions.more,field('更多文字','text','text',{maxLength:40}));
-      if(['image','icon'].includes(actions.more.mode))nativeControl(container,actions.more,field('更多图标大小','imageSize','range',{min:8,max:120,unit:'px'}));
-      if(actions.more.mode==='icon')renderIconAppearance(container,actions.more,{native:true,prefix:'更多图标'});
-      propertyHeading(container,'外观');nativeAppearanceFields(container,actions);
-    }else if(ui.kind==='info'){
-      const rootStats=config.nativeStyle.stats,key=ui.object;
-      const designRow=make('label','field','设计对象'),design=make('select');design.setAttribute('aria-label','设计对象');for(const [value,text]of [['unified','统一设计'],['separate','分别设计']]){const option=make('option','',text);option.value=value;design.append(option);}design.value=rootStats.design||'unified';designRow.append(design);container.append(designRow);
-      design.addEventListener('change',()=>{remember();rootStats.design=design.value;if(design.value==='separate'&&!rootStats.roles){const items=Object.fromEntries(['floor','time','tokens'].map(name=>[name,rootStats[name]]));rootStats.roles={ai:clone(items),user:clone(items)};}apply();renderFields();});
-      if(rootStats.design==='separate'){const scopeRow=make('label','field','正在设计'),scope=make('select');scope.setAttribute('aria-label','正在设计');for(const [value,text]of [['ai','AI'],['user','用户']]){const option=make('option','',text);option.value=value;scope.append(option);}scope.value=statScope;scopeRow.append(scope);container.append(scopeRow);scope.addEventListener('change',()=>{statScope=scope.value;renderFields();});}
-      const stats=resolveNativeStats(rootStats,statScope==='user'),item=stats[key],fontPrefix='native-'+(rootStats.design==='separate'?statScope+'-':'')+key;
-
-      const modeField=(label,current,change)=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [value,title]of [['inherit',label==='标签样式'?'跟随数值样式':'跟随公共样式'],['custom','单独设置']]){const option=make('option','',title);option.value=value;select.append(option);}select.value=current?'custom':'inherit';select.addEventListener('change',()=>{remember();change(select.value==='custom');apply();renderFields();});row.append(select);container.append(row);};
-      const appearance=(style,id)=>{nativeAppearanceFields(container,style,true,8);nativeControl(container,style,field('字体','font','select',{options:[['auto',id==='label'?'跟随数值字体':'沿用原生字体'],...fonts]}));nativeControl(container,{get weight(){return style.weight;},set weight(v){style.weight=v==='auto'?'auto':Number(v);}},field('字重','weight','select',{options:[['auto',id==='label'?'跟随数值字重':'沿用原生字重'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}));renderFontLinkFields(container,fontPrefix+'-'+id,style,'楼层信息');};
-      propertyHeading(container,'文字');
-      if(key==='floor'){nativeControl(container,item,field('前缀','prefix','text',{maxLength:40}));nativeControl(container,item,field('后缀','suffix','text',{maxLength:40}));}
-      const label=item.label||{text:'',style:null,gap:8};
-      nativeControl(container,{get text(){return label.text;},set text(v){label.text=v;item.label=label;}},field('标签文案','text','text',{maxLength:40}));const labelInput=container.querySelector('[aria-label="标签文案"]'),hadLabel=Boolean(label.text);const refreshLabelFields=()=>{if(labelInput.isConnected&&Boolean(label.text)!==hadLabel)renderFields();};labelInput.addEventListener('change',refreshLabelFields);labelInput.addEventListener('blur',refreshLabelFields);
-      propertyHeading(container,'数值外观');modeField('数值样式',item.valueStyle,custom=>{item.valueStyle=custom?statValueStyle(stats,key):null;});if(item.valueStyle)appearance(item.valueStyle,'value');
-      if(label.text){propertyHeading(container,'标签外观');modeField('标签样式',label.style,custom=>{label.style=custom?{...statValueStyle(stats,key)}:null;});if(label.style)appearance(label.style,'label');nativeControl(container,label,field('标签间距','gap','range',{min:0,max:40,unit:'px'}));}
-      propertyHeading(container,'位置');nativeControl(container,item,field('所在区域','position','select',{options:[['header','头像区'],['footer','尾部区']]}));nativeControl(container,{get anchor(){return item.anchor||'default';},set anchor(value){item.anchor=value;}},field('水平定位','anchor','select',{options:[['default','默认位置'],['left','左侧'],['center','居中'],['right','右侧']]}));nativeControl(container,item,field('左右移动','x','range',{min:-100,max:100,unit:'%'}));nativeControl(container,item,field('上下移动','y','range',{min:-160,max:160,unit:'px'}));
-    }else{
-      const swipe=config.nativeStyle.swipe,key=ui.object;
-      const modeField=(label,current,change,follow='跟随翻页样式')=>{const row=make('label','field',label),select=make('select');select.setAttribute('aria-label',label);for(const [value,title]of [['inherit',follow],['custom','单独设置']]){const option=make('option','',title);option.value=value;select.append(option);}select.value=current?'custom':'inherit';select.addEventListener('change',()=>{remember();change(select.value==='custom');apply();renderFields();});row.append(select);container.append(row);};
-      const valueStyle=()=>swipeValueStyle(swipe);
-      const appearance=(style,id,label=false)=>{nativeAppearanceFields(container,style,false,8);nativeControl(container,style,field('字体','font','select',{options:[['auto',label?'跟随数值字体':'沿用原生字体'],...fonts]}));nativeControl(container,{get weight(){return style.weight;},set weight(v){style.weight=v==='auto'?'auto':Number(v);}},field('字重','weight','select',{options:[['auto',label?'跟随数值字重':'沿用原生字重'],...Array.from({length:9},(_,i)=>[String((i+1)*100),String((i+1)*100)])]}));renderFontLinkFields(container,'native-swipe-'+id,style,'回复翻页');};
-      const flag=(target,name,label)=>nativeControl(container,{get value(){return target[name]??false;},set value(v){target[name]=v===true||v==='true';}},field(label,'value','select',{options:[['false','不额外隐藏'],['true','隐藏']]}));
-      if(key==='group'){
-        propertyHeading(container,'排列');nativeControl(container,swipe,field('箭头排列','layout','select',{options:[['compact','紧凑'],['ends','左右两端']]}),()=>renderFields());
-        if(swipe.layout==='compact')nativeControl(container,swipe,field('中间间距','gap','range',{min:0,max:40,unit:'px'}));
-        propertyHeading(container,'位置');nativePositionFields(container,swipe);
-        propertyHeading(container,'外观');nativeAppearanceFields(container,swipe);
-        propertyHeading(container,'显示');flag(swipe,'hideHistoryControls','隐藏历史翻页按钮与计数');
-      }else if(key==='left'||key==='right'){
-        const arrow=swipe[key],name=key==='left'?'左箭头':'右箭头';
-        propertyHeading(container,'文字');nativeControl(container,arrow,field(name+'显示','mode','select',{options:[['default','原生箭头'],['text','自定义文字']]}),()=>renderFields());if(arrow.mode==='text')nativeControl(container,arrow,field(name+'文字','text','text',{maxLength:40}));
-        propertyHeading(container,'外观');modeField('按钮样式',arrow.valueStyle,custom=>{arrow.valueStyle=custom?valueStyle():null;});if(arrow.valueStyle){if(arrow.mode==='text')appearance(arrow.valueStyle,key);else nativeAppearanceFields(container,arrow.valueStyle,false,8);}
-      }else{
-        const raw=swipe.counter||{...SWIPE_COUNTER_DEFAULTS},counter=new Proxy(raw,{set(target,name,value){target[name]=value;swipe.counter=target;return true;}});
-        propertyHeading(container,'显示');for(const [name,label]of [['hideHistory','隐藏历史版本页数'],['hideLatest','隐藏最新AI版本页数']])flag(swipe,name,label);flag(counter,'hideSingle','隐藏单候选计数');
-        propertyHeading(container,'数字');nativeControl(container,counter,field('计数显示','mode','select',{options:[['native','原生当前 / 总数'],['current','仅当前版本']]}),()=>renderFields());
-        if(counter.mode==='current')nativeControl(container,{get value(){return counter.pad;},set value(v){counter.pad=v===true||v==='true';}},field('两位补零','value','select',{options:[['false','不补零'],['true','补零']]}));
-        propertyHeading(container,'数值外观');modeField('数值样式',counter.valueStyle,custom=>{counter.valueStyle=custom?valueStyle():null;});if(counter.valueStyle)appearance(counter.valueStyle,'counter-value');
-        nativeControl(container,{get value(){return counter.italic;},set value(v){counter.italic=v===true||v==='true';}},field('斜体','value','select',{options:[['false','不使用'],['true','使用']]}));
-        propertyHeading(container,'标签');const label=counter.label||{text:'',style:null,gap:8};nativeControl(container,{get text(){return label.text;},set text(v){label.text=v;counter.label=label;}},field('标签文案','text','text',{maxLength:40}));const labelInput=container.querySelector('[aria-label="标签文案"]'),hadLabel=Boolean(label.text),refresh=()=>{if(labelInput.isConnected&&Boolean(label.text)!==hadLabel)renderFields();};labelInput.addEventListener('change',refresh);labelInput.addEventListener('blur',refresh);
-        if(label.text){modeField('标签样式',label.style,custom=>{label.style=custom?{...(counter.valueStyle||valueStyle())}:null;},'跟随数值样式');if(label.style)appearance(label.style,'counter-label',true);nativeControl(container,label,field('标签间距','gap','range',{min:0,max:40,unit:'px'}));}
-        propertyHeading(container,'位置');nativeControl(container,counter,field('计数位置','position','select',{options:[['group','跟随翻页按钮'],['header','头像区'],['footer','尾部区']]}),()=>renderFields());if(counter.position!=='group'){nativeControl(container,counter,field('水平定位','anchor','select',{options:[['left','左侧'],['center','居中'],['right','右侧']]}));nativeControl(container,counter,field('左右移动','x','range',{min:-100,max:100,unit:'%'}));nativeControl(container,counter,field('上下移动','y','range',{min:-160,max:160,unit:'px'}));}
-      }
-    }
-  }
+  const {renderReasoningFields} = createReasoningEditor({
+    getConfig: () => config,
+    editorControl,
+    make,
+    remember,
+    apply,
+    renderFields,
+    field,
+    propertyHeading,
+    pairedFields,
+    fonts,
+    fontPickerButton,
+    notify,
+    liveAdapter,
+    updateFontStatuses,
+    openMaterialPicker
+  });
+  const {renderNativeFields} = createNativeControlsEditor({
+    getConfig: () => config,
+    getUi: () => ui,
+    getActionScope: () => actionScope,
+    setActionScope: value => { actionScope = value; },
+    getStatScope: () => statScope,
+    setStatScope: value => { statScope = value; },
+    editorControl,
+    field,
+    make,
+    remember,
+    apply,
+    renderFields,
+    propertyHeading,
+    renderMaterialControl,
+    renderIconAppearance,
+    fonts,
+    renderFontLinkFields
+  });
   const {renderBodySettings, renderCardBorderSettings} = createBodyCardEditors({
     getConfig: () => config,
     make, field, propertyHeading, pairedFields, editorControl, renderConfigFields, renderFontLinkFields,
     remember, apply, renderFields,
   });
-  function renderChromeFields(container){
-    const zone=ui.region,v=config.chromeStyle[zone],isInput=zone==='input';
-    propertyHeading(container,'区域开关');editorControl(container,field(isInput?'启用输入区美化':'启用顶栏美化','enabled','select',{options:[['true','启用'],['false','关闭']],notice:'区域开关已更新，尚未保存'}),v,()=>renderFields());if(!v.enabled)container.append(make('p','hint','当前关闭；下方设置保存为草稿，启用后生效。'));
-    const controls=(target,fields)=>{for(const [label,key,type,opts={}]of fields)editorControl(container,field(label,key,type,{...opts,notice:'页面美化已更新，尚未保存'}),target,key==='fontMode'?()=>renderFields():undefined);};
-    const range=(label,key,min,max,unit='px',step=1)=>[label,key,'range',{min,max,unit,step}];
-    if(ui.kind==='surface'){
-      if(isInput){propertyHeading(container,'排版与宽度');controls(v,[['输入区排版','layout','select',{options:[['inline','原生横排'],['stacked','文字首行 · 功能第二行']]}],range('输入区宽度','width',50,100,'%'),range('左侧留白','leftGap',0,80),range('右侧留白','rightGap',0,80),range('左右内距','padX',0,32),range('上下内距','padY',0,32)]);}
-      propertyHeading(container,'底色与玻璃');controls(v,[['区域底色','color','color'],range('背景透明度','alpha',0,1,'',.05),range('玻璃模糊','blur',0,24)]);propertyHeading(container,'边框与圆角');controls(v,[['显示边框','borderEnabled','select',{options:[['true','显示'],['false','隐藏']]}],['区域边框颜色','borderColor','color'],range('区域边框粗细','borderWidth',0,6,'px',.25),range('区域圆角','radius',0,40)]);
-      if(!isInput){propertyHeading(container,'图形与点击槽');controls(v,[range('顶栏图标大小','iconSize',12,40),range('顶栏点击槽','slot',28,64),range('顶栏按钮间距','gap',0,16),range('顶栏上下内距','padY',0,16)]);}
-    }else if(ui.kind==='text'){
-      propertyHeading(container,'字体设计');controls(v,[['输入字体来源','fontMode','select',{options:[['interface','跟随界面字体'],['chat','跟随聊天正文'],['custom','自定义字体']]}]]);if(v.fontMode==='custom')controls(v,[['输入字体','font','select',{options:fonts}]]);controls(v,[range('输入字号','size',8,60),range('输入字重','weight',100,900,'',100),['输入文字颜色','textColor','color'],range('输入行高','lineHeight',1,3,'',.1)]);propertyHeading(container,'自动增高范围');controls(v,[range('输入最小高度','minHeight',32,160),range('输入最大高度','maxHeight',80,600)]);container.append(make('p','hint','最大高度需不小于最小高度，且不超过当前可视区域高度的60%。'));if(v.fontMode==='custom'){propertyHeading(container,'外链字体');renderFontLinkFields(container,'chrome-input',v,'输入文字');}
-      propertyHeading(container,'文字区域底色');editorControl(container,field('启用文字区域底色','enabled','select',{options:[['false','关闭'],['true','启用']]}),v.textSurface);controls(v.textSurface,[['文字区域底色','color','color'],range('文字区域透明度','alpha',0,1,'',.05),range('文字区域圆角','radius',0,40)]);
-    }else if(ui.kind==='placeholder'){
-      const empty=v.emptyText;propertyHeading(container,'空框文案');editorControl(container,field('启用空框文案','enabled','select',{options:[['false','关闭'],['true','启用']]}),empty);
-      for(const [key,title]of [['idle','待输入文案'],['generating','生成中文案']]){const row=make('label','field',title),input=make('textarea');input.rows=2;input.maxLength=300;input.value=empty[key];input.setAttribute('aria-label',title);let tracking=false;input.addEventListener('input',()=>{if(!tracking){remember();tracking=true;}empty[key]=input.value;apply();notify('空框文案已更新，尚未保存');});for(const event of ['change','blur'])input.addEventListener(event,()=>{tracking=false;});row.append(input);container.append(row);}
-      container.append(make('p','hint','生成中文案留空时沿用待输入文案；断开连接时保留原生提示，已有草稿时不覆盖输入内容。'));container.append(make('p','hint','文案超出输入区可见范围会裁切，可在输入文字中调整最小高度。'));
-      propertyHeading(container,'文案外观');controls(empty,[['空框文案颜色','color','color'],range('空框文案字号','size',8,60)]);
-    }else if(['tools','icons'].includes(ui.kind)){
-      if(isInput){propertyHeading(container,'工具共用尺寸');controls(v,[range('输入图标大小','iconSize',12,40),range('输入点击槽','slot',28,64),range('输入工具间距','gap',0,24)]);}
-      propertyHeading(container,'当前按钮图形');const item=v.icons[ui.object];
-      renderMaterialControl(container,item,{label:'按钮图形',purpose:'chrome:'+zone+':'+ui.object,id:'chrome-icon-pick'});
-      if(['image','icon'].includes(item.mode))container.append(make('p','hint',item.icon?ICONS[item.icon]?.name||'图标':item.image?'已选择上传图片':item.asset?ASSETS[item.asset].name:'尚未选择素材'));
-      if(item.mode==='icon')renderIconAppearance(container,item);
-    }
-  }
+  const {renderChromeFields} = createChromeEditor({
+    getConfig: () => config,
+    getUi: () => ui,
+    propertyHeading,
+    editorControl,
+    field,
+    renderFields,
+    make,
+    fonts,
+    renderFontLinkFields,
+    remember,
+    apply,
+    notify,
+    renderMaterialControl,
+    renderIconAppearance
+  });
   function renderChromeSourceLibrary(container){
     const [,zone,id]=libraryPurpose.split(':'),target=config.chromeStyle[zone]?.icons[id];if(!target){libraryPurpose='layer';return renderFields();}
     return renderSourceLibrary(container,target);
