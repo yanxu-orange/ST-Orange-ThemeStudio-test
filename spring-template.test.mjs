@@ -26,18 +26,18 @@ test('spring fonts resolve against its installed extension, without deployment-h
 });
 
 const imageHashes={
-  "spring-pageheaders-presets-scene-images-0": "e3f8dae01afaf3354e6c5cdc1369a0b4982504421ac747a15bcfa00c784147a5",
-  "spring-pageheaders-connection-scene-images-0": "fad18d4c9976f3ca66bfeca25aa840c3cdc38996ddcd598a481b18a9b36ff8ba",
-  "spring-pageheaders-worldbook-scene-images-0": "8906020a45bc79dcd1c362719e60a3205458b928b8da4a8b2ed6fadb1185e6a4",
-  "spring-pageheaders-settings-scene-images-0": "faca8b1f92187cb7a310f1e58158d99765adf702b03844d092157882df972b2f",
-  "spring-pageheaders-backgrounds-scene-images-0": "7fc91a7b7d2ff73a0e97587385625d8a8d8bb49a37969650b4251a8822e36c8a",
-  "spring-pageheaders-extensions-scene-images-0": "d4a0daa191a154ddec184b3e47cabae059950044ba5364d6d501370dbf5ebd28",
-  "spring-pageheaders-personas-scene-images-0": "34059cd24341a0abf8a953594992613a766730643a36af17f44ca776b4dae21f",
+  "spring-pageheaders-presets-scene-images-0": "ab19e9df02f27b188aaebb16c18a54a8e1633795a548c95ec5fa9d722e363762",
+  "spring-pageheaders-connection-scene-images-0": "d10a196e3645367a23d728cc62a1aa7356e722b35309d3b9060a91a9de2d33b0",
+  "spring-pageheaders-worldbook-scene-images-0": "b639dd05898c64e46834b23ced4e44a54c42c78e344552ab5a431a5fbfcd3b93",
+  "spring-pageheaders-settings-scene-images-0": "ba7476aea6b447ca08400bff73c53985c8bc33300125a349ad6e26fdf9173662",
+  "spring-pageheaders-backgrounds-scene-images-0": "68b268286d93f8b32eca502246e4588c9ad84ec65262d411a0dcf70e20c04503",
+  "spring-pageheaders-extensions-scene-images-0": "1125abc552d0500189ed47b09ef64dd482a0439d1556bb7decf0097ac7c03dd1",
+  "spring-pageheaders-personas-scene-images-0": "1035ab9fb300cbc87668172dfb6fbe406925515867c2dcae0c4ec84495caeacc",
   "spring-pageheaders-characters-scene-images-0": "1623d965bfd300e490f2d77c07cc02cd17bdae6ba481bfb11fbe6b2db8996156",
-  "spring-pageheaders-formatting-scene-images-0": "49fe40e54bee2e81ae6cc6e378d4e2312df292da0f7ae7bcf3cfa23b831f2ffa",
+  "spring-pageheaders-formatting-scene-images-0": "4db1cf1465027b6f14ad442e331ff002eb0c28ca33d93896ce40651029556095",
   "shared-spring-flower-stem": "9f5582165770560847f66ae0b991acc25fab065b62993ff7cacf0455e4c6728a",
   "shared-spring-pink-flowers": "d5ef4f0510a776510b18c38e4c7da1db79fbc930ee40a91846f063a8aa385a93",
-  "spring-layers-2": "5d380ed6e5bdb190727565479b35aed668d0ea894dc2e23d1cdd79f95e509be4",
+  "spring-layers-2": "549268c854dc24f826f5e353d3b44f766fefa5e6a731f76ca95576e71d868561",
   "spring-layers-3": "e842b1da5b28484716779d43eea4a98fd5e2ddccb6c828a3ca00eab45ab961c2",
   "spring-chromestyle-topbar-icons-ai-config-button": "ee5eb5308152ddf19d4f1b7b145477bc529a143d5305dae8f3e6c206786e2dbd",
   "spring-chromestyle-topbar-icons-sys-settings-button": "4379a401491958086bd0eb9823f90ab6adeba511fcdb08378d90e701763ad922",
@@ -53,7 +53,7 @@ const imageHashes={
   "spring-chromestyle-input-icons-send_but": "ec849c63d03a1b9fc0d6b5575e610e1e26fbea7c71e3bd2c0dbc3fb7cf62367c",
   "spring-chromestyle-input-icons-mes_stop": "e70c3bbb8262422b654e0fca05f317a6c97423c4c9aaa29e0b9ceb3ffd89a2f2"
 };
-test('spring assets preserve original bytes and stay outside the general library',()=>{
+test('spring assets match packaged artwork and stay outside the general library',()=>{
  const c=createSpringTemplate();let count=0;
  function visit(o){for(const [key,v]of Object.entries(o||{})){
   if(key==='image'&&typeof v==='string'){assert.ok(!v.startsWith('data:image/'));if(o.asset){count++;const id=o.asset;assert.ok(imageHashes[id]);const bytes=fs.readFileSync(new URL(assetUrl(id)));assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),imageHashes[id]);if(id.startsWith('spring-'))assert.equal(SHARED_ASSETS[id],undefined);}}
@@ -68,4 +68,13 @@ test('spring portrait and border keep the original ordinary-width composition',(
  const flower=c.layers.find(v=>v.id==='spring-ai-flower');
  assert.equal(flower.anchor,'message');assert.equal(flower.x,0);assert.equal(flower.y,50);
  assert.ok(c.regionOrder.overall.includes('image:spring-ai-flower'));
+});
+
+test('spring mobile illustrations remain compact transparent WebP assets',()=>{
+ const names=['presets','connection','worldbook','settings','backgrounds','extensions','personas','formatting'];
+ for(const name of [...names.map(x=>`pageheaders-${x}-scene-images-0`),'layers-2']){
+  const bytes=fs.readFileSync(new URL(`./materials/spring/${name}.webp`,import.meta.url));
+  assert.ok(bytes.length<100000);assert.equal(bytes.toString('ascii',12,16),'VP8L');
+  const bits=bytes.readUInt32LE(21);assert.equal(1+(bits&0x3fff),name==='layers-2'?152:480);assert.equal((bits>>>28)&1,1);
+ }
 });
