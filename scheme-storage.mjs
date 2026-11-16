@@ -1,6 +1,7 @@
 export const SCHEME_DB = 'orange.theme-lab.mobile-test.schemes.v1';
 export const SCHEME_STORE = 'schemes';
 export const SCHEME_KEY = 'current';
+export const APPLIED_SCHEME_KEY = 'applied';
 
 function storageError(error) {
   if (error?.name === 'QuotaExceededError') return error;
@@ -12,7 +13,7 @@ function storageError(error) {
 
 // One saved scheme, independent of reusable assets. Store the existing JSON
 // format directly; imports, exports and placed image copies stay self-contained.
-export function createSchemeStorage({indexedDB = globalThis.indexedDB, databaseName = SCHEME_DB} = {}) {
+export function createSchemeStorage({indexedDB = globalThis.indexedDB, databaseName = SCHEME_DB, key = SCHEME_KEY} = {}) {
   let database, opening;
   async function open() {
     if (database) return database;
@@ -55,14 +56,17 @@ export function createSchemeStorage({indexedDB = globalThis.indexedDB, databaseN
   }
   return {
     async load() {
-      const record = await transaction('readonly', store => store.get(SCHEME_KEY));
+      const record = await transaction('readonly', store => store.get(key));
       if (record === undefined) return null;
-      if (record?.id !== SCHEME_KEY || typeof record.json !== 'string') throw Error('保存的方案记录无效。');
+      if (record?.id !== key || typeof record.json !== 'string') throw Error('保存的方案记录无效。');
       return record.json;
+    },
+    async clear() {
+      await transaction('readwrite', store => store.delete(key));
     },
     async save(json) {
       if (typeof json !== 'string') throw TypeError('方案必须是 JSON 文本。');
-      await transaction('readwrite', store => store.put({id: SCHEME_KEY, json}));
+      await transaction('readwrite', store => store.put({id: key, json}));
     },
   };
 }

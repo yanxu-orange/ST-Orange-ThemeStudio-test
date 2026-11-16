@@ -1,3 +1,4 @@
+import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {clickEditor,navigateRegion} from './test-support/editor-navigation.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,8 +38,8 @@ test('independent scopes, supported material destinations and hidden entry prefe
   click('#undo');assert.deepEqual(await save(),initial);
   const choice=name=>sh.querySelector(`[data-workshop-entry-choice=${name}]`),toggle=(name,value)=>{choice(name).checked=value;choice(name).dispatchEvent(new window.Event('change',{bubbles:true}));};
   toggle('floating',false);assert.equal(JSON.parse(values.get(WORKSHOP_ENTRIES_KEY)).floating,false);toggle('wand',false);toggle('extensions',false);assert.equal(choice('extensions').checked,true);assert.match(sh.querySelector('#notice').textContent,/至少保留/);assert.deepEqual(await save(),initial);
-  click('#apply-live');assert.equal(sh.querySelector('.launcher').classList.contains('hidden'),true);assert.equal(sh.querySelector('.live-bar'),null);assert.equal(document.querySelector('[data-workshop-entry=extensions]').style.display,'');
-  const nativeOpen=document.querySelector('[data-workshop-entry=extensions] [data-workshop-action=open]');assert.equal(nativeOpen.textContent,'继续编辑主题工坊');nativeOpen.click();await idle();assert.equal(sh.querySelector('.panel').classList.contains('hidden'),false);assert.equal(sh.querySelector('.launcher').classList.contains('hidden'),true);click('#close');assert.equal(sh.querySelector('.launcher').classList.contains('hidden'),true);assert.equal(sh.querySelector('.live-bar'),null);
+  click('#apply-live');await settleSchemeApplication();assert.equal(sh.querySelector('.launcher').classList.contains('hidden'),true);assert.equal(sh.querySelector('.live-bar'),null);assert.equal(document.querySelector('[data-workshop-entry=extensions]').style.display,'');
+  const nativeOpen=document.querySelector('[data-workshop-entry=extensions] [data-workshop-action=open]');assert.equal(nativeOpen.textContent,'继续编辑主题工坊');nativeOpen.click();await idle();assert.equal(sh.querySelector('.panel').classList.contains('hidden'),false);assert.equal(sh.querySelector('.launcher').classList.contains('hidden'),true);click('#close');await settleSchemeApplication();assert.equal(sh.querySelector('.launcher').classList.contains('hidden'),true);assert.equal(sh.querySelector('.live-bar'),null);
   nativeOpen.click();await idle();assert.deepEqual(await save(),initial);assert.equal(document.querySelector('#send_textarea').value,'真实草稿');
  }finally{sh.querySelector('#close')?.click();}
 });

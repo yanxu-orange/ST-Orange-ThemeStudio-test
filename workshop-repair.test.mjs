@@ -1,3 +1,4 @@
+import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
@@ -16,6 +17,6 @@ test('shape dimensions precede appearance and position; import survives retarget
  set('宽度 数值',137);set('高度 数值',42);set('旋转 数值',15);let config=(await save()),shape=config.layers.at(-1);assert.equal(shape.width,137);assert.equal(shape.height,42);assert.equal(shape.rotation,15);
  const input=sh.querySelector('#import-file');let resolve;Object.defineProperty(input,'files',{value:[{size:1024,text:()=>new Promise(r=>resolve=r)}]});
  const event=new window.Event('change');input.dispatchEvent(event);Object.defineProperty(event,'target',{value:null});resolve(JSON.stringify(config));await new Promise(r=>setImmediate(r));assert.equal(input.value,'');assert.match(sh.querySelector('#notice').textContent,/已导入预览/);assert.deepEqual((await save()),config);
- sh.querySelector('#apply-live').click();assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
- sh.querySelector('.launcher').click();assert.deepEqual((await save()),config);sh.querySelector('#close').click();window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
+ sh.querySelector('#apply-live').click();await settleSchemeApplication();assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
+ sh.querySelector('.launcher').click();assert.deepEqual((await save()),config);sh.querySelector('#close').click();await settleSchemeApplication();window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
 });

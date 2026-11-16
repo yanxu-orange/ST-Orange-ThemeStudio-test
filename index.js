@@ -19,7 +19,7 @@ import { normalizeCommonConfig } from './common-style.mjs';
 import { normalizePageConfig, PAGE_ROOTS } from './page-style.mjs';
 import { normalizePageHeaders, PAGE_HEADER_PAGES } from './page-headers.mjs';
 import { createImageDisplay } from './image-display.mjs';
-import { createSchemeStorage } from './scheme-storage.mjs';
+import { createSchemeStorage, APPLIED_SCHEME_KEY } from './scheme-storage.mjs';
 import { createFontLibrary, renderFontLibrary } from './font-library.mjs';
 import { createAssetLibrary } from './asset-library.mjs';
 import {
@@ -82,6 +82,10 @@ await (async () => {
   'use strict';
   if (document.getElementById('orange-theme-lab')) return;
   const schemeStorage = createSchemeStorage();
+  const appliedStorage = createSchemeStorage({ key: APPLIED_SCHEME_KEY });
+  let appliedSnapshot = null,
+    applying = false,
+    applicationLoadError = null;
   let loadError = null;
   const { fonts, base, templates, field, groups, validate } =
     createSchemeModel();
@@ -162,6 +166,13 @@ await (async () => {
   } catch (error) {
     loadError = error;
     console.warn('[主题编辑实验] 保存方案未载入', error.message);
+  }
+  try {
+    const raw = await appliedStorage.load();
+    if (raw !== null) appliedSnapshot = validate(JSON.parse(raw));
+  } catch (error) {
+    applicationLoadError = error;
+    console.warn('[主题工坊] 已应用方案未载入', error.message);
   }
   const decorations = {
     flower:
@@ -541,20 +552,38 @@ await (async () => {
   applyButton.type = 'button';
   applyButton.id = 'apply-live';
   shadow.querySelector('#save').after(applyButton);
-  applyButton.addEventListener('click', () => {
+  applyButton.addEventListener('click', async () => {
+    if (applying) return;
+    applying = true;
+    applyButton.disabled = true;
     try {
       const snapshot = validate(config);
+      await appliedStorage.save(JSON.stringify(snapshot));
+      appliedSnapshot = snapshot;
       liveAdapter.update(snapshot);
       close({ keepApplied: true });
       entries.setApplied(true);
       entries.sync();
     } catch (error) {
-      liveAdapter.stop();
-      open();
       notify('应用失败：' + error.message);
+    } finally {
+      applying = false;
+      applyButton.disabled = false;
     }
   });
-  function stopApplied() {
+  async function clearApplied() {
+    if (appliedSnapshot === null) return true;
+    try {
+      await appliedStorage.clear();
+      appliedSnapshot = null;
+      return true;
+    } catch (error) {
+      notify('退出应用失败：' + error.message);
+      return false;
+    }
+  }
+  async function stopApplied() {
+    if (!(await clearApplied())) return;
     liveAdapter.stop();
     entries.setApplied(false);
   }
@@ -599,7 +628,7 @@ await (async () => {
     },
   });
   window.addEventListener('pagehide', () => {
-    close();
+    close({ keepApplied: true });
     invalidateEditing();
     scrollbarVisibility.stop();
     liveAdapter.stop();
@@ -607,6 +636,9 @@ await (async () => {
   const kittyOption = make('option', '', '小猫咪 · 照片与窗景');
   kittyOption.value = 'kitty';
   shadow.querySelector('[aria-label="基础模板"]').append(kittyOption);
+  const jinghaiOption = make('option', '', '京海日报 · 纸色报刊');
+  jinghaiOption.value = 'jinghai';
+  shadow.querySelector('[aria-label="基础模板"]').append(jinghaiOption);
   const blankOption = make('option', '', '无装饰起稿 · 工具基础布局');
   blankOption.value = 'blank';
   shadow.querySelector('[aria-label="基础模板"]').append(blankOption);
@@ -968,6 +1000,7 @@ await (async () => {
     if (!chromeTarget && libraryPurpose.startsWith('chrome:'))
       return renderChromeSourceLibrary(container);
     const isPageBackground = [
+        'canvas-wallpaper',
         'page-background',
         'page-header',
         'page-scene',
@@ -2111,7 +2144,19 @@ await (async () => {
           config,
         );
         renderConfigFields(container, ['radius']);
-        container.append(make('p', 'muted', '更换背景请前往酒馆背景设置。'));
+        const wallpaperButton=make('button','','选择方案壁纸');
+        wallpaperButton.type='button';
+        wallpaperButton.addEventListener('click',()=>openMaterialPicker('canvas-wallpaper','images','',source=>{
+          config.canvasWallpaper=source.image || '';
+          config.canvasWallpaperAsset=source.asset || '';
+          config.canvasBackground='image';
+        }));
+        container.append(wallpaperButton);
+        if(config.canvasBackground==='image'){
+          const preview=make('img','page-art-preview');preview.src=config.canvasWallpaper || assetUrl(config.canvasWallpaperAsset);preview.alt='方案壁纸';container.append(preview);
+          const follow=make('button','','恢复跟随酒馆背景');follow.type='button';
+          follow.addEventListener('click',()=>{remember();config.canvasBackground='tavern';delete config.canvasWallpaper;delete config.canvasWallpaperAsset;apply();renderFields();});container.append(follow);
+        }
         if (config.canvasBackground === 'legacy-solid') {
           const notice = make('p', 'muted', '此旧方案保留原纯色背景。'),
             migrate = make('button', '', '改为跟随酒馆背景');
@@ -2261,6 +2306,7 @@ await (async () => {
     shadow
       .querySelector('#narrow')
       .setAttribute('aria-pressed', String(ui.narrow));
+    shadow.querySelector('[aria-label="基础模板"]').value = config.template;
     renderFields();
     if (loadError)
       notify(
@@ -2268,8 +2314,10 @@ await (async () => {
         0,
       );
   }
-  function close({ keepApplied = false } = {}) {
-    if (!active) return;
+  async function close({ keepApplied = false } = {}) {
+    if (!active || (applying && !keepApplied)) return;
+    if (!keepApplied && appliedSnapshot !== null && !(await clearApplied()))
+      return;
     if (materialSession || managerReturn) returnFromMaterials();
     invalidateEditing();
     layerDrag.reset();
@@ -2583,4 +2631,17 @@ await (async () => {
         input.value = '';
       }
     });
+  if (applicationLoadError)
+    notify('已应用方案未载入：' + applicationLoadError.message, 0);
+  if (appliedSnapshot !== null) {
+    try {
+      config = clone(appliedSnapshot);
+      selectedLayerId = config.layers[0]?.id;
+      liveAdapter.start(appliedSnapshot);
+      entries.setApplied(true);
+    } catch (error) {
+      liveAdapter.stop();
+      notify('恢复已应用方案失败：' + error.message, 0);
+    }
+  }
 })();

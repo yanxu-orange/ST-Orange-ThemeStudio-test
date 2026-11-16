@@ -15,7 +15,7 @@ import {layerSizeStyle} from './shape-assets.mjs';
 import {captionMatchesScope} from './captions.mjs';
 import {headerArtworkClipLayout} from './header-art-clip.mjs';
 import {avatarDesignRules} from './avatar-design.mjs';
-import {canvasBackgroundRules} from './canvas-background.mjs';
+import {canvasBackgroundRules,createCanvasWallpaper} from './canvas-background.mjs';
 import {createScrollbarVisibility,normalizeScrollbars} from './scrollbars.mjs';
 import {normalizeAvatarFill,avatarFillRules} from './avatar-fill.mjs';
 import {normalizeChromeConfig,chromeFontEntries} from './chrome.mjs';
@@ -105,7 +105,7 @@ function normalizeLiveConfig(config){
   Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
   if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
 }
-const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground']);
+const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','glass','hideScrollbars','canvasBackground','canvasWallpaper','canvasWallpaperAsset']);
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
 const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
 const nativeRoles = new Set(['ai', 'user']);
@@ -186,6 +186,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   const Observer=Observe||win?.MutationObserver;
   const ResizeObs=Resize||win?.ResizeObserver;
   const scrollbarVisibility=createScrollbarVisibility({document});
+  const wallpaper=createCanvasWallpaper(document);
   let pendingConfig=null,snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
   const observedSizes=new Map(),dirtyMessages=new Set();
@@ -326,7 +327,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       const next=pendingConfig;pendingConfig=null;
       const needsLayout=!sameLayout(snapshot,next);
       const skipUnchangedLayout = !needsLayout && !fullPending && onlyHeaderIndependentColors(snapshot, next);
-      snapshot=next;scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
+      snapshot=next;wallpaper.update(snapshot);scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
       const families = fontSession?.families() || {};
       const css=styleText(snapshot,families,currentInterface);if(style.textContent!==css)style.textContent=css;
       pageHeaders.update(snapshot,{validated:true,skipUnchangedLayout});
@@ -391,7 +392,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function stop(){
     if(!snapshot)return;
-    pageHeaders.stop();pageDropdowns.stop();metadata.stop();
+    wallpaper.stop();pageHeaders.stop();pageDropdowns.stop();metadata.stop();
     imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
@@ -403,7 +404,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const next=normalizeLiveConfig(config);stop();snapshot=next;hostModes=readHostModes();
     rootOriginal=document.documentElement.getAttribute('data-orange-live');theme=document.querySelector('#custom-style');themeDisabled=theme?.disabled||false;
     try{
-      pageDropdowns.start();
+      pageDropdowns.start();wallpaper.update(snapshot);
       scrollbarVisibility.set(snapshot.hideScrollbars);
       if(theme)theme.disabled=true;document.documentElement.setAttribute('data-orange-live','');
       style=document.createElement('style');style.id='orange-theme-live-style';style.setAttribute(OWN,'');currentInterface=interfaceFont(document);style.textContent=styleText(snapshot,{},currentInterface);document.head.append(style);

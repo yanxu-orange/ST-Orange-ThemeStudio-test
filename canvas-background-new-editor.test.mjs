@@ -11,5 +11,9 @@ test('fresh draft follows tavern and restores previously disabled style on previ
  sh.querySelector('.launcher').click();sh.querySelector('[data-flow=continue]').click();
  assert.equal((await save()).canvasBackground,'tavern');go('overall');assert.equal(sh.querySelector('[aria-label="整体背景"]'),null);
  assert.ok(![...sh.querySelectorAll('button')].some(b=>b.textContent==='改为跟随酒馆背景'));
+ button('选择方案壁纸');sh.querySelector('[data-builtin-asset]').click();
+ const imageScheme=await save();assert.equal(imageScheme.canvasBackground,'image');assert.ok(imageScheme.canvasWallpaperAsset);
+ assert.ok(document.querySelector('#orange-theme-wallpaper'));
+ button('恢复跟随酒馆背景');assert.equal((await save()).canvasBackground,'tavern');assert.equal(document.querySelector('#orange-theme-wallpaper'),null);
  sh.querySelector('#close').click();assert.equal(theme.disabled,true);assert.equal(bg.getAttribute('style'),bgStyle);
 });

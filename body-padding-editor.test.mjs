@@ -1,3 +1,4 @@
+import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
@@ -6,7 +7,7 @@ import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 
-test('new schemes and every template show, save and apply 10px body gutters',async()=>{
+test('new schemes use 10px gutters and templates preserve their configured gutters',async()=>{
   for(const settings of [BODY_CARD_DEFAULTS,bodyCardSettings()]){
     assert.equal(settings.bodyPaddingLeft,10);
     assert.equal(settings.bodyPaddingRight,10);
@@ -52,13 +53,14 @@ test('new schemes and every template show, save and apply 10px body gutters',asy
     template.value=option.value;
     template.dispatchEvent(new window.Event('change'));
     await settleNativeCanvas();
-    assertGutters();
+    const gutter=option.value==='jinghai'?16:10;
+    assertGutters(gutter,gutter);
     saved=await saveEditorScheme(shadow,scheme);
     assert.equal(saved.template,option.value);
-    assert.equal(saved.bodyPaddingLeft,10);
-    assert.equal(saved.bodyPaddingRight,10);
+    assert.equal(saved.bodyPaddingLeft,gutter);
+    assert.equal(saved.bodyPaddingRight,gutter);
   }
-  shadow.querySelector('#apply-live').click();
+  shadow.querySelector('#apply-live').click();await settleSchemeApplication();
   await settleNativeCanvas();
   assert.equal(shadow.querySelector('.panel').classList.contains('hidden'),true,'apply closes the workbench');
   assertGutters();
@@ -74,6 +76,6 @@ test('new schemes and every template show, save and apply 10px body gutters',asy
   shadow.querySelector('#restore').click();
   await settleNativeCanvas();
   assertGutters();
-  shadow.querySelector('#close').click();
+  shadow.querySelector('#close').click();await settleSchemeApplication();
   assert.equal(document.querySelector('#orange-theme-live-style'),null);
 });

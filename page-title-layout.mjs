@@ -5,7 +5,7 @@ export const PAGE_TITLE_LAYOUT_CSS=`
 [${ROW}]{position:relative;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;min-height:87px;padding:9px 10px;margin:0 0 8px;gap:5px;border:0;border-bottom:1px solid var(--SmartThemeBorderColor,rgba(0,0,0,.15));border-radius:0}
 [${ROW}="compact"]{min-height:36px}
 [${ROW}="short"]{min-height:61px}
-[${TEXT}="show"]{font-size:24px!important;line-height:1.35!important;letter-spacing:1px}
+html:is([data-orange-live],[data-orange-lab]) :is(#left-nav-panel,#rm_api_block,#WorldInfo,#Backgrounds,#rm_extensions_block,#PersonaManagement,#AdvancedFormatting,#chat) [${TEXT}="show"][${TEXT}="show"]{font-size:24px!important;line-height:1.35!important;letter-spacing:1px}
 [${TEXT}="hide"]{display:none!important}
 [${ROW}]>h3,[${ROW}]>strong,[${ROW}]>.flex1{flex:0 0 100%;width:100%;min-width:0;margin:0;padding:0}
 [${ROW}="compact"]>strong,[${ROW}="compact"]>h3,[${ROW}="compact"]>.flex1{flex:0 1 auto;width:auto}

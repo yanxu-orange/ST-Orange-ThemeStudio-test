@@ -21,6 +21,7 @@ import { normalizeTextScene } from './text-scene.mjs';
 import { validateRegionOrder, syncRegionOrder } from './region-layers.mjs';
 import { normalizeAvatarFill } from './avatar-fill.mjs';
 import { normalizeChromeConfig } from './chrome.mjs';
+import { createJinghaiTemplate } from './jinghai-template.mjs';
 
 export function createSchemeModel() {
   const fonts = [
@@ -157,6 +158,7 @@ export function createSchemeModel() {
     decoration: 'none',
     layers: [],
   };
+  templates.jinghai = createJinghaiTemplate();
   for (const theme of Object.values(templates))
     if (!theme.photos)
       theme.photos = {

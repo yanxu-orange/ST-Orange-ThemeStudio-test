@@ -1,3 +1,4 @@
+import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {selectRegion} from './test-support/workbench-shell.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
@@ -10,7 +11,7 @@ test('mobile editing preserves config, close/reopen and live application hide ed
  // Full-view library visits restore the exact full-view state and selected property.
  for(let i=0;i<2;i++){sh.querySelector('#mode-library').click();assert.equal(sh.host.dataset.fullView,'false');assert.ok(sh.querySelector('#material-back'));sh.querySelector('#material-back').click();assert.equal(sh.host.dataset.fullView,'true');assert.equal(sh.querySelector('.panel').dataset.mobileView,'preview');}
  for(const action of ['back','continue']){sh.querySelector('.mobile-work').click();assert.equal(sh.querySelector('.flow-overlay').classList.contains('hidden'),false);sh.querySelector('[data-flow='+action+']').click();assert.equal(sh.querySelector('.flow-overlay').classList.contains('hidden'),true);assert.equal(sh.host.dataset.fullView,'true');assert.deepEqual((await save()),before);}
- sh.querySelector('#close').click();assert.ok(sh.querySelector('.bar').classList.contains('hidden'));assert.equal(document.getElementById('orange-workbench-layout'),null);
+ sh.querySelector('#close').click();await settleSchemeApplication();assert.ok(sh.querySelector('.bar').classList.contains('hidden'));assert.equal(document.getElementById('orange-workbench-layout'),null);
  sh.querySelector('.launcher').click();sh.querySelector('[data-flow=continue]').click();sh.querySelector('#mode-edit').click();assert.equal(sh.querySelector('.panel').dataset.mobileView,'adjust');assert.deepEqual((await save()),before);
- sh.querySelector('#apply-live').click();assert.ok(sh.querySelector('.bar').classList.contains('hidden'));assert.equal(document.querySelector('#send_textarea').value,'真实当前草稿');
+ sh.querySelector('#apply-live').click();await settleSchemeApplication();assert.ok(sh.querySelector('.bar').classList.contains('hidden'));assert.equal(document.querySelector('#send_textarea').value,'真实当前草稿');
 });

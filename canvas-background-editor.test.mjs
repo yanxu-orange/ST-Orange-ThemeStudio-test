@@ -18,5 +18,5 @@ test('old solid plan migrates explicitly, undo works, preview and live share wal
  button('改为跟随酒馆背景');sh.querySelector('#apply-live').click();await settleNativeCanvas();
  assert.ok([...document.querySelectorAll('style')].some(s=>s.textContent.includes('html[data-orange-live] #sheld,html[data-orange-live] #chat{background:transparent')));
  assert.equal(theme.disabled,true);assert.equal(bg.getAttribute('style'),bgStyle);
- document.querySelector('[data-workshop-entry=extensions] [data-workshop-action=stop]').click();assert.equal(theme.disabled,false);assert.equal(bg.getAttribute('style'),bgStyle);assert.equal(bg.className,'cover');assert.ok(![...document.querySelectorAll('style')].some(s=>s.textContent.includes('html[data-orange-live] #sheld,html[data-orange-live] #chat{background:transparent')));
+ document.querySelector('[data-workshop-entry=extensions] [data-workshop-action=stop]').click();await settleNativeCanvas();assert.equal(theme.disabled,false);assert.equal(bg.getAttribute('style'),bgStyle);assert.equal(bg.className,'cover');assert.ok(![...document.querySelectorAll('style')].some(s=>s.textContent.includes('html[data-orange-live] #sheld,html[data-orange-live] #chat{background:transparent')));
 });

@@ -25,3 +25,7 @@ export async function saveEditorScheme(shadow, storage) {
   assert.notEqual(json, null, 'scheme was committed to IndexedDB');
   return JSON.parse(json);
 }
+
+export async function settleSchemeApplication() {
+  for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve));
+}
