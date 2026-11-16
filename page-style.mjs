@@ -1,3 +1,4 @@
+import {normalizeWorldEntry,worldEntryRules} from './world-entry-style.mjs';
 import {staticPresetManager,baiPresetRules,guardPresetRules} from './bai-preset-style.mjs';
 import {normalizeCommonConfig,commonStyleRules,COMMON_STYLE_DEFAULTS} from './common-style.mjs';
 import {ASSETS,assetUrl} from './catalog.mjs';
@@ -25,10 +26,11 @@ export function normalizePageConfig(raw={}){
  const pageStyle={};
  for(const page of Object.keys(PAGE_ROOTS)){
   const source=supplied[page]===undefined?{}:supplied[page],groups=PAGE_GROUPS[page];
-  if(!object(source)||Object.keys(source).some(k=>!groups.includes(k)&&k!=='art'&&!(page==='presets'&&['promptList','sliderTip'].includes(k))))throw Error('页面外观分组无效');
+  if(!object(source)||Object.keys(source).some(k=>!groups.includes(k)&&k!=='art'&&!(page==='worldbook'&&k==='entryDetails')&&!(page==='presets'&&['promptList','sliderTip'].includes(k))))throw Error('页面外观分组无效');
   const result={};
   for(const group of groups){const v=source[group];result[group]=v===null||v===undefined?null:normalizeCommonConfig({commonStyle:{[baseGroup(group)]:v}}).commonStyle[baseGroup(group)];}
   if(page==='presets'){result.promptList=source.promptList??false;result.sliderTip=source.sliderTip??'native';if(typeof result.promptList!=='boolean'||!['native','flow'].includes(result.sliderTip))throw Error('预设内容设置无效');}
+  if(page==='worldbook')result.entryDetails=normalizeWorldEntry(source.entryDetails);
   const surfaces=['page',...({settings:['section'],worldbook:['entry']}[page]||[])],art=source.art===undefined?{}:source.art;
   if(!object(art)||Object.keys(art).some(k=>!surfaces.includes(k)))throw Error('页面素材区域无效');
   result.art=Object.fromEntries(surfaces.map(k=>[k,normalizeArt(art[k]===undefined?null:art[k])]));pageStyle[page]=result;
@@ -66,6 +68,7 @@ export function pageStyleRules(config,{preview=false,page=null,families={},resol
    rules.push(`@media(max-width:700px){${title}{font-size:${Math.max(16,h.size)}px!important}}`);
    if(preview)rules.push(`@container(max-width:700px){${title}{font-size:${Math.max(16,h.size)}px!important}}`);
   }
+  if(key==='worldbook')rules.push(worldEntryRules(root,v,global));
   if(key==='presets')rules.push(presetContentRules(root,v,global));
   for(const [surface,art]of Object.entries(v.art)){
    if(!art)continue;

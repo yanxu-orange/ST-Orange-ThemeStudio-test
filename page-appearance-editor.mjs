@@ -1,3 +1,4 @@
+import { WORLD_ENTRY_DEFAULTS } from './world-entry-style.mjs';
 import { assetUrl } from './catalog.mjs';
 import { clone } from './layers.mjs';
 import { COMMON_PARTS, PAGE_NAMES } from './workbench-ui.mjs';
@@ -283,6 +284,27 @@ export function createPageAppearanceEditor({
         });
     }
   }
+  function renderWorldEntryFields(container, page) {
+    propertyHeading(container, '条目排版');
+    const label=make('label','field','排版来源'), select=make('select');
+    for(const [value,text] of [['native','保持现有排版'],['custom','单独设置']]){const option=make('option','',text);option.value=value;select.append(option);}
+    select.setAttribute('aria-label','条目排版来源');
+    select.value=page.entryDetails?'custom':'native';
+    select.addEventListener('change',()=>{remember();page.entryDetails=select.value==='custom'?clone(WORLD_ENTRY_DEFAULTS):null;apply();renderFields();});
+    label.append(select);container.append(label);
+    const details=page.entryDetails;if(!details)return;
+    const control=f=>editorControl(container,f,details);
+    control(field('条目边框','borderMode','select',{options:[['all','四边边框'],['bottom','仅底部分隔线'],['none','无边框']]}));
+    for(const [key,label] of [['paddingTop','条目上留白'],['paddingX','条目左右留白'],['paddingBottom','条目下留白'],['gap','条目间距'],['contentPaddingY','标题与内容上下留白'],['contentPaddingX','标题与内容左右留白']])control(field(label,key,'range',{min:0,max:48,unit:'px'}));
+    const choice=(label,key,options)=>{const state={enabled:details[key]};editorControl(container,field(label,'enabled','select',{options,beforeApply:()=>{details[key]=state.enabled;}}),state,renderFields);};
+    choice('标题底色','headerGradient',[['false','纯色'],['true','左右渐变']]);
+    if(details.headerGradient)control(field('渐变右侧颜色','headerEnd','color'));
+    choice('操作图标边框','plainIcons',[['false','跟随按钮'],['true','无边框']]);
+    choice('停用条目文字','mutedDisabled',[['false','保持现有样式'],['true','使用辅助文字色']]);
+    control(field('展开箭头大小','arrowScale','range',{min:0,max:3,step:.1}));
+    control(field('输入框字体与字号','fieldTypography','select',{options:[['theme','跟随美化'],['native','沿用酒馆设置']]}));
+    for(const [key,label] of [['deleteColor','删除图标颜色'],['deleteBackground','删除按钮底色'],['deleteBorder','删除按钮边框']])control(field(label,key,'color'));
+  }
   function renderPageFields(container) {
     const bai = getUi().page === 'presets' && getUi().region === 'page-bai';
     if (bai)
@@ -373,6 +395,7 @@ export function createPageAppearanceEditor({
       );
     else if (part === 'section' && !pageConfig.panel)
       container.append(make('p', 'hint', '单独设置会从当前面板外观开始调整。'));
+    if(page==='worldbook'&&specific&&part==='entry')renderWorldEntryFields(container,pageConfig);
     if (basePart === 'panel' && !(page === 'presets' && specific))
       renderPageArtwork(container, page, specific ? part : 'page');
     if (part === 'button')

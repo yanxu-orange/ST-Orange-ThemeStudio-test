@@ -1,3 +1,5 @@
+import {createSchemeModel} from './scheme-model.mjs';
+import {createCustomWorkStorage} from './custom-work-storage.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
@@ -5,12 +7,10 @@ test('Jinghai template selection saves, exports and reselects without shared mut
  const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div><div id="user-settings-block"><input id="native-setting" value="keep"></div><div id="WorldInfo"></div></body></html>');
  const descriptor=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:descriptor.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});window.innerWidth=390;window.innerHeight=844;window.confirm=()=>true;
- seedNativeChat(document);const storage=await editorStorage();await import('./index.js?jinghai-template-editor');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ seedNativeChat(document);const storage=await editorStorage(JSON.stringify(createSchemeModel().templates.jinghai));await import('./index.js?jinghai-template-editor');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const click=selector=>{const el=sh.querySelector(selector);assert.ok(el,selector);el.click();};const set=(label,value)=>{const el=sh.querySelector(`[aria-label="${label}"]`);assert.ok(el,label);el.value=String(value);el.dispatchEvent(new window.Event('input'));el.dispatchEvent(new window.Event('change'));};const change=(selector,value)=>{const el=sh.querySelector(selector);el.value=value;el.dispatchEvent(new window.Event('change'));};const save=()=>saveEditorScheme(sh,storage),object=key=>click(`[data-object="${key}"]`);
  click('.launcher');sh.querySelector('[data-flow=continue]')?.click();
- const picker=sh.querySelector('[aria-label="基础模板"]');
- assert.ok(picker.querySelector('option[value="jinghai"]'));
- change('[aria-label="基础模板"]','jinghai');
+ assert.equal(sh.querySelector('[aria-label="基础模板"]'),null);
  const selected=await save();assert.equal(selected.template,'jinghai');
  assert.equal(selected.captions[0].content,'京海日报');
  assert.equal(selected.canvasBackground,'image');
@@ -20,9 +20,12 @@ test('Jinghai template selection saves, exports and reselects without shared mut
  click('#export');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()),selected);
  URL.createObjectURL=create;URL.revokeObjectURL=revoke;
  click('[aria-label="打开工坊首页"]');click('[data-flow="blank"]');assert.equal((await save()).template,'blank');
- click('[aria-label="打开工坊首页"]');
- change('[aria-label="起点模板"]','jinghai');
- click('[data-flow="template"]');
+ const works=createCustomWorkStorage();
+ const work=await works.save({name:'另存的京海',json:JSON.stringify(selected)});
+ click('#open-work-library');await new Promise(resolve=>setImmediate(resolve));
+ const workId=(await works.list())[0].id;
+ click(`[data-work-id="${workId}"] [data-work-action="open"]`);
+ for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
  assert.deepEqual(await save(),selected);
  click('[aria-label="打开工坊首页"]');click('[data-flow="blank"]');
  click('#restore');

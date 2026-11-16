@@ -258,5 +258,15 @@ export function createAvatarEditor({
       editorControl(container, f, fill);
   }
 
-  return { renderPhotoFields };
+  function renderHeaderHeightFields(container) {
+    const c=getConfig(), separate=c.userHeaderHeight!=null;
+    const label=make('label','field','AI 与用户头像区高度'), select=make('select');
+    select.setAttribute('aria-label','AI 与用户头像区高度');
+    for(const [value,text]of [['unified','相同高度'],['separate','分开设置']]){const option=make('option','',text);option.value=value;select.append(option);}
+    select.value=separate?'separate':'unified';label.append(select);container.append(label);
+    select.addEventListener('change',()=>{remember();if(select.value==='separate')getConfig().userHeaderHeight=getConfig().headerHeight;else delete getConfig().userHeaderHeight;apply();renderFields();});
+    for(const [label,key]of separate?[['AI 头像区高度','headerHeight'],['用户头像区高度','userHeaderHeight']]:[['头像区总高度','headerHeight']])editorControl(container,field(label,key,'range',{min:60,max:1000,unit:'px'}),c);
+  }
+
+  return { renderPhotoFields, renderHeaderHeightFields };
 }

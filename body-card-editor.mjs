@@ -50,6 +50,7 @@ export function createBodyCardEditors({
     editorControl(container, field('正文左边框颜色', 'bodyLeftBorderColor', 'color', {notice}), config);
 
     propertyHeading(container, '左右留白');
+    editorControl(container, field('正文整体缩进', 'bodyInset', 'range', {min:0, max:80, unit:'px', notice}), config);
     for (const [label, key] of [['正文左侧留白', 'bodyPaddingLeft'], ['正文右侧留白', 'bodyPaddingRight']]) {
       editorControl(container, field(label, key, 'range', {min:0, max:100, unit:'px', notice}), config);
     }

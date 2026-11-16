@@ -19,7 +19,7 @@ test('More uses paired short actions, full-width controls and aligned touch-size
  assert.equal(shadow.querySelector('.mobile-layout-toolbar span').textContent,'调整工作台高度');
  assert.equal(shadow.querySelector('#wb-mobile-splitter').getAttribute('aria-label'),'调整工作台高度');
  assert.ok(shadow.querySelector('#layout-adjust').classList.contains('menu-wide'));
- assert.match(css,/\.bar \.menu\{[^}]*overflow:auto;overscroll-behavior:contain;[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(css,/\.bar \.menu\{[^}]*overflow:auto;overscroll-behavior:contain;[^}]*grid-template-columns:minmax\(0,1fr\)/);
  assert.match(css,/\.bar \.menu>label,\.bar \.menu>section,\.bar \.menu>\.menu-wide\{grid-column:1\/-1\}/);
  assert.match(css,/\.bar \.menu label:has\(>input\[type=checkbox\]\)\{display:flex;flex-direction:row;align-items:center;gap:8px;min-height:44px\}/);
  assert.match(css,/input\[type=checkbox\]\{width:20px;height:20px;min-height:20px/);

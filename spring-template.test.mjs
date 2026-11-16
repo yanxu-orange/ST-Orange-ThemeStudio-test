@@ -58,5 +58,14 @@ test('spring assets preserve original bytes and stay outside the general library
  function visit(o){for(const [key,v]of Object.entries(o||{})){
   if(key==='image'&&typeof v==='string'){assert.ok(!v.startsWith('data:image/'));if(o.asset){count++;const id=o.asset;assert.ok(imageHashes[id]);const bytes=fs.readFileSync(new URL(assetUrl(id)));assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),imageHashes[id]);if(id.startsWith('spring-'))assert.equal(SHARED_ASSETS[id],undefined);}}
   else if(v&&typeof v==='object')visit(v);
- }}visit(c);assert.equal(count,26);assert.ok(fs.statSync(new URL('./spring-template.mjs',import.meta.url)).size<100000);
+ }}visit(c);assert.equal(count,27);assert.ok(fs.statSync(new URL('./spring-template.mjs',import.meta.url)).size<100000);
+});
+
+test('spring portrait and border keep the original ordinary-width composition',()=>{
+ const c=createSchemeModel().validate(createSpringTemplate());
+ assert.equal(c.headerHeight,280);assert.equal(c.bodyInset,14);
+ assert.ok(Math.abs((390-c.cardPadding*2)*c.photos.ai.size/100-390*.42)<.02);
+ const flower=c.layers.find(v=>v.id==='spring-ai-flower');
+ assert.equal(flower.anchor,'message');assert.equal(flower.x,0);assert.equal(flower.y,50);
+ assert.ok(c.regionOrder.overall.includes('image:spring-ai-flower'));
 });

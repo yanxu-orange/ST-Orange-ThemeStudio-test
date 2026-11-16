@@ -1,7 +1,6 @@
 export const BUILTIN_TEMPLATE_KEY = 'orange.theme-lab.hidden-builtins.v1';
 export const BUILTIN_TEMPLATE_NOTICE = '内置作品可删除，请勿二传，禁止商业化。';
 export const BUILTIN_TEMPLATES = Object.freeze([
-  { id: 'jinghai', name: '移动-京海日报' },
   { id: 'spring', name: '移动-春日来信' },
 ]);
 

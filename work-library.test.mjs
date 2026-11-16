@@ -23,15 +23,14 @@ async function setup() {
   return { library, shadow, builtins, store, storage, notices, click, saveNew, get opened() { return opened; }, get loads() { return loads; }, set draft(value) { draft = value; }, set confirmed(value) { confirmed = value; } };
 }
 
-test('works library separates built-ins and custom names; only opening loads image-bearing content', async () => {
+test('works library combines built-ins and custom names; only opening loads image-bearing content', async () => {
   const ui = await setup(); await ui.library.show();
-  assert.deepEqual([...ui.shadow.querySelectorAll('.work-library-name')].map(node => node.textContent), ['移动-京海日报', '移动-春日来信']);
+  assert.deepEqual([...ui.shadow.querySelectorAll('.work-library-name')].map(node => node.textContent), ['移动-春日来信 内置']);
   assert.equal(ui.shadow.querySelectorAll('img').length, 0);
   assert.equal(ui.shadow.querySelector('.work-library').textContent.includes('恢复内置作品'), false);
   assert.ok(ui.shadow.querySelector('.work-library').textContent.includes('内置作品可删除，请勿二传，禁止商业化。'));
-  ui.click('[data-work-tab="custom"]'); await settle();
   assert.equal(ui.shadow.querySelector('.work-library').textContent.includes('每份作品独立保存在当前浏览器'), false);
-  assert.equal(ui.shadow.querySelector('.work-library').textContent.includes('内置作品可删除'), false);
+  assert.equal(ui.shadow.querySelectorAll('[data-work-tab]').length, 0);
   await ui.saveNew('第一份'); ui.draft = '{"image":"second"}'; await ui.saveNew('第二份');
   let items = await ui.store.list(); assert.equal(items.length, 2); assert.equal(ui.loads, 0);
   const first = items.find(item => item.name === '第一份');
@@ -48,15 +47,14 @@ test('works library separates built-ins and custom names; only opening loads ima
   assert.equal((await ui.store.list()).length, 2, 'overwrite does not add a new work');
   ui.click(`[data-work-id="${first.id}"] [data-work-action="delete"]`); await settle();
   assert.equal(await ui.store.load(first.id), null); assert.equal((await ui.store.list()).length, 1);
-  ui.click('[data-work-tab="builtin"]'); await settle();
-  ui.click('[data-work-id="jinghai"] [data-work-action="delete"]'); await settle();
-  assert.deepEqual(ui.builtins.list().map(item => item.id), ['spring']);
+  ui.click('[data-work-id="spring"] [data-work-action="delete"]'); await settle();
+  assert.deepEqual(ui.builtins.list(), []);
   assert.match(ui.notices.at(-1), /本机内置列表/);
   assert.equal((await ui.store.list()).length, 1, 'builtin removal leaves custom works alone');
 });
 
 test('invalid names and failed storage writes are visible without discarding existing works', async () => {
-  const ui = await setup(); await ui.library.show(); ui.click('[data-work-tab="custom"]'); await settle();
+  const ui = await setup(); await ui.library.show();
   await ui.saveNew(' '); assert.equal((await ui.store.list()).length, 0); assert.match(ui.notices.at(-1), /填写作品名称/);
   await ui.saveNew('保留');
   ui.storage.save = async () => { throw new Error('quota'); };
@@ -66,8 +64,8 @@ test('invalid names and failed storage writes are visible without discarding exi
 });
 
 test('closing while a named work loads does not later replace the draft', async () => {
-  const ui = await setup(); await ui.library.show(); ui.click('[data-work-tab="custom"]'); await settle(); await ui.saveNew('大图');
+  const ui = await setup(); await ui.library.show(); await ui.saveNew('大图');
   let resolve; ui.storage.load = () => new Promise(done => { resolve = done; });
-  ui.click('[data-work-action="open"]'); ui.click('[data-work-library="close"]');
+  ui.click('.work-library-item:last-child [data-work-action="open"]'); ui.click('[data-work-library="close"]');
   resolve('{"image":"late"}'); await settle(); assert.equal(ui.opened, undefined);
 });

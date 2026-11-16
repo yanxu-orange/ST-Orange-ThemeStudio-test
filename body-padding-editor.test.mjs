@@ -49,18 +49,16 @@ test('new schemes use 16px gutters and templates preserve their configured gutte
   assert.equal(saved.bodyPaddingLeft,16);
   assert.equal(saved.bodyPaddingRight,16);
 
-  const template=shadow.querySelector('[aria-label="基础模板"]');
-  for(const option of [...template.options].filter(option=>option.value)){
-    template.value=option.value;
-    template.dispatchEvent(new window.Event('change'));
-    await settleNativeCanvas();
-    const expected=createSchemeModel().validate(createSchemeModel().templates[option.value]);
-    assertGutters(expected.bodyPaddingLeft,expected.bodyPaddingRight);
-    saved=await saveEditorScheme(shadow,scheme);
-    assert.equal(saved.template,option.value);
-    assert.equal(saved.bodyPaddingLeft,expected.bodyPaddingLeft);
-    assert.equal(saved.bodyPaddingRight,expected.bodyPaddingRight);
-  }
+  shadow.querySelector('#open-work-library').click();
+  await settleNativeCanvas();
+  shadow.querySelector('[data-work-id="spring"] [data-work-action="open"]').click();
+  await settleNativeCanvas();
+  const expected=createSchemeModel().validate(createSchemeModel().templates.spring);
+  assertGutters(expected.bodyPaddingLeft,expected.bodyPaddingRight);
+  saved=await saveEditorScheme(shadow,scheme);
+  assert.equal(saved.template,'spring');
+  assert.equal(saved.bodyPaddingLeft,expected.bodyPaddingLeft);
+  assert.equal(saved.bodyPaddingRight,expected.bodyPaddingRight);
   shadow.querySelector('#apply-live').click();await settleSchemeApplication();
   await settleNativeCanvas();
   assert.equal(shadow.querySelector('.panel').classList.contains('hidden'),true,'apply closes the workbench');

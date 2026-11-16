@@ -27,7 +27,7 @@ test('apply survives reload independently of saved draft; explicit exit clears a
   let ui = await boot();
   assert.equal(ui.document.querySelector('#orange-theme-live-style'), null, 'saving alone does not activate');
   ui.shadow.querySelector('.launcher').click();
-  assert.equal(ui.shadow.querySelector('[aria-label="基础模板"]').value, 'jinghai', 'opening a saved draft synchronizes its template selector');
+  assert.equal(ui.shadow.querySelector('[aria-label="基础模板"]'), null);
   controls.failNext = 'QuotaExceededError';
   ui.shadow.querySelector('#apply-live').click();
   await tick(); await tick();
@@ -48,7 +48,7 @@ test('apply survives reload independently of saved draft; explicit exit clears a
   assert.equal(JSON.parse(await applied.load()).bodyWeight, 400, 'later saves do not change applied snapshot');
   assert.equal(JSON.parse(await draft.load()).bodyWeight, 700);
   ui.shadow.querySelector('.launcher').click();
-  assert.equal(ui.shadow.querySelector('[aria-label="基础模板"]').value, 'jinghai', 'opening the restored application synchronizes its template selector');
+  assert.equal(ui.shadow.querySelector('[aria-label="基础模板"]'), null);
   ui.shadow.querySelector('#apply-live').click();
   await tick(); await tick();
   controls.failNext = 'QuotaExceededError';

@@ -73,11 +73,11 @@ export function createPageHeaderAdapter({document,MutationObserver:Observe,reque
    appliedLayouts.set(node,values);
   }
  }
- function refreshLayout(){
-  const entries=[];for(const [host,node]of mounted){const v=effectiveLayouts.get(node)||config?.[node.getAttribute(OWN)];if(v)entries.push([host,node,v]);}
+ function refreshLayout(changedHosts){
+  const entries=[];for(const [host,node]of mounted){if(changedHosts instanceof Set&&!changedHosts.has(host))continue;const v=effectiveLayouts.get(node)||config?.[node.getAttribute(OWN)];if(v)entries.push([host,node,v]);}
   applyLayouts(entries);onRender({nodes:[...mounted.values()].map(n=>n.querySelector('[data-otl-header-scene]')).filter(Boolean)});
  }
- function watchLayout(){if(resize)return;const Resize=win?.ResizeObserver;if(Resize){resize=new Resize(refreshLayout);for(const host of mounted.keys())resize.observe(host);}win?.addEventListener?.('resize',refreshLayout);}
+ function watchLayout(){if(resize)return;const Resize=win?.ResizeObserver;if(Resize){resize=new Resize(entries=>refreshLayout(new Set(entries.map(entry=>entry.target))));for(const host of mounted.keys())resize.observe(host);}win?.addEventListener?.('resize',refreshLayout);}
  function remove(host){const node=mounted.get(host);if(node){resize?.unobserve(host);const surface=node.querySelector('[data-otl-header-scene]');if(surface)scene.remove(surface);node.remove();mounted.delete(host);}}
  function reconcile(){
   if(!config)return;

@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.24.3-mobile-works",
+  "version": "0.24.4-spring-polish",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }

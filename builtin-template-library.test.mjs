@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
 import { createBuiltinTemplateLibrary, BUILTIN_TEMPLATE_KEY, BUILTIN_TEMPLATE_NOTICE } from './builtin-template-library.mjs';
 
-test('only the two works are offered; browser-local removal never changes saved schemes or materials', () => {
+test('only Spring is offered; browser-local removal never changes saved schemes or materials', () => {
   const { document, window } = parseHTML('<html><body><label><select id="current"></select></label><select id="mobile"></select></body></html>');
   const descriptor = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
   Object.defineProperty(window.HTMLSelectElement.prototype, 'value', { get: descriptor.get, set(value) { for (const option of this.options) option.toggleAttribute('selected', option.value === String(value)); }, configurable: true });
@@ -17,21 +17,21 @@ test('only the two works are offered; browser-local removal never changes saved 
   library.attach(desktop, { current: true });
   library.attach(mobile, { onAvailability: value => { available = value; } });
   const names = select => [...select.options].filter(option => option.value).map(option => option.textContent);
-  assert.deepEqual(names(desktop), ['移动-京海日报', '移动-春日来信']);
+  assert.deepEqual(names(desktop), ['移动-春日来信']);
   assert.deepEqual(names(mobile), names(desktop));
   assert.equal(current, 'letter', 'a legacy scheme is not replaced');
   assert.equal(document.querySelector('[data-builtin-action=delete]'), null, 'deletion is managed only in the works library');
-  current = 'jinghai'; library.syncCurrent();
-  assert.equal(desktop.value, 'jinghai');
+  current = 'spring'; library.syncCurrent();
+  assert.equal(desktop.value, 'spring');
   const unchangedOption = desktop.firstElementChild; library.syncCurrent();
   assert.equal(desktop.firstElementChild, unchangedOption, 'ordinary edits do not rebuild the template selector');
-  library.remove('jinghai');
-  assert.deepEqual(names(desktop), ['移动-春日来信']);
-  assert.deepEqual(names(mobile), ['移动-春日来信']);
-  assert.equal(current, 'jinghai', 'removing the builtin leaves the current scheme unchanged');
-  assert.deepEqual(JSON.parse(values.get(BUILTIN_TEMPLATE_KEY)), ['jinghai']);
+  library.remove('spring');
+  assert.deepEqual(names(desktop), []);
+  assert.deepEqual(names(mobile), []);
+  assert.equal(current, 'spring', 'removing the builtin leaves the current scheme unchanged');
+  assert.deepEqual(JSON.parse(values.get(BUILTIN_TEMPLATE_KEY)), ['spring']);
   const reloaded = createBuiltinTemplateLibrary(options), another = document.createElement('select'); document.body.append(another); reloaded.attach(another);
-  assert.deepEqual(names(another), ['移动-春日来信'], 'removal persists');
+  assert.deepEqual(names(another), [], 'removal persists');
   mobile.value = 'spring'; mobile.dispatchEvent(new window.Event('change'));
   library.remove('spring');
   assert.deepEqual(names(mobile), []); assert.equal(available, false);
@@ -40,6 +40,6 @@ test('only the two works are offered; browser-local removal never changes saved 
   assert.deepEqual(library.list(), []);
   storage.setItem = () => { throw new Error('denied'); };
   assert.equal(reloaded.remove('spring'), false);
-  assert.deepEqual(names(another), ['移动-春日来信']);
+  assert.deepEqual(names(another), []);
   assert.match(errors.at(-1), /未保存/);
 });

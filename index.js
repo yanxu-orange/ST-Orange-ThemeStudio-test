@@ -479,7 +479,7 @@ await (async () => {
             node,
             item,
             sceneWidth(node.closest('.mes[data-otl-live]'), config),
-            Math.max(0, config.headerHeight - (config.cardPadding ?? 24)),
+            Math.max(0, (node.closest('.mes')?.getAttribute('is_user')==='true' ? config.userHeaderHeight ?? config.headerHeight : config.headerHeight) - (config.cardPadding ?? 24)),
             config.cardPadding ?? 24,
           ),
       };
@@ -635,7 +635,6 @@ await (async () => {
     getCurrent: () => config.template,
     onMessage: notify,
   });
-  builtinLibrary.attach(shadow.querySelector('[aria-label="基础模板"]'), { current: true });
   function updateWorkbenchLayout() {
     layerDrag.cancel();
     headerDrag.cancel();
@@ -836,7 +835,7 @@ await (async () => {
     liveAdapter,
     groups,
   });
-  const { renderPhotoFields } = createAvatarEditor({
+  const { renderPhotoFields, renderHeaderHeightFields } = createAvatarEditor({
     make,
     getConfig: () => config,
     remember,
@@ -2180,7 +2179,7 @@ await (async () => {
         ]);
       }
       if (ui.region === 'header' && ui.kind === 'region') {
-        renderConfigFields(container, ['headerHeight']);
+        renderHeaderHeightFields(container);
         container.append(make('p', 'hint', '超出区域高度的内容会被裁切。'));
       }
       if (['input', 'topbar'].includes(ui.region) && ui.kind !== 'image')
@@ -2478,7 +2477,12 @@ await (async () => {
     onStopApplied: stopApplied,
     onMessage: notify,
   });
-  shadow.querySelector('.bar .menu').append(entries.renderSettings());
+  const entrySettings = make('details', 'entry-settings');
+  entrySettings.append(make('summary', '', '工坊入口'));
+  const entryControls = entries.renderSettings();
+  entryControls.querySelector('h4')?.remove();
+  entrySettings.append(entryControls);
+  shadow.querySelector('.menu-session-divider').before(entrySettings);
   const entryStyle = make('style');
   entryStyle.textContent =
     '[data-workshop-entry-settings] h4{margin:10px 0 4px}[data-workshop-entry-settings] p{font-size:12px}[data-workshop-entry-settings] .checkbox_label{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:13px}[data-workshop-entry-settings] input{width:20px;height:20px;flex:none}';
@@ -2550,12 +2554,6 @@ await (async () => {
       renderFields('photo');
     }
   });
-  shadow
-    .querySelector('[aria-label="基础模板"]')
-    .addEventListener('change', (event) => {
-      const id = event.target.value;
-      if (!replaceStart(id)) event.target.value = config.template;
-    });
   shadow.querySelector('#narrow').addEventListener('click', (event) => {
     const narrow = event.target.getAttribute('aria-pressed') !== 'true';
     ui.narrow = narrow;

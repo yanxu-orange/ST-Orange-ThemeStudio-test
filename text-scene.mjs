@@ -22,21 +22,23 @@ export function normalizeTextScene(c){
 export function newSceneCaption(c,overrides={}){const v=newCaption({font:c.font,color:c.accent,...overrides});delete v.position;const last=Math.max(0,c.textItems.name.y,c.textItems.time.y,...c.captions.map(v=>v.y));return {...v,x:c.layout==='collage'?49:c.layout==='left'?25:0,y:Math.min(HEAD_Y_MAX,last+32),...overrides};}
 export function resetSceneLayout(c,layout){return seedTextPositions({...clone(c),layout,timePosition:'below'},{offsets:false});}
 export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-cardPadding(c)*2);}
+export const headerHeightFor=(c,user=false)=>user&&(c.userHeaderHeight!=null)?c.userHeaderHeight:c.headerHeight;
 export function sceneGeometry(c,width,p,hidden=false,user=false){
+ const height=headerHeightFor(c,user);
  const fill=fillSettings(c,user),areaWidth=width+cardPadding(c)*2;
- if(fill.enabled&&!hidden)return {width,baseHeight:c.headerHeight,photoWidth:areaWidth,photoHeight:c.headerHeight,photoTop:-cardPadding(c)};
+ if(fill.enabled&&!hidden)return {width,baseHeight:height,photoWidth:areaWidth,photoHeight:height,photoTop:-cardPadding(c)};
  const dimensions=photoDimensions(p,width),photoWidth=hidden?0:dimensions.width,photoHeight=hidden?0:dimensions.height;
- return {width,baseHeight:c.headerHeight,photoWidth,photoHeight,photoTop:0};
+ return {width,baseHeight:height,photoWidth,photoHeight,photoTop:0};
 }
 export function itemPoint(c,item,width){return {x:width*(item.x+(c.textInset??0))/100,y:item.y+(c.textTop??0)};}
 export function itemWidth(item,width){return item.width==='auto'?width:width*item.width/100;}
 // Region height is the user's total height. Content never reserves extra space.
-export function sceneBounds(c,g){return {reserveTop:0,height:c.headerHeight};}
+export function sceneBounds(c,g){return {reserveTop:0,height:g.baseHeight};}
 /** Clip a transformed avatar to the fixed header without moving native DOM nodes. */
 export function avatarClipPolygon(c,g,p,user=false){
  const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
  const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:cardPadding(c)+p.x,y=fill?0:cardPadding(c)-p.y;
- return [[0,0],[g.width+cardPadding(c)*2,0],[g.width+cardPadding(c)*2,c.headerHeight],[0,c.headerHeight]].map(([px,py])=>{
+ return [[0,0],[g.width+cardPadding(c)*2,0],[g.width+cardPadding(c)*2,g.baseHeight],[0,g.baseHeight]].map(([px,py])=>{
   const dx=px-x-ox,dy=py-y-oy;
   return `${Number((ox+(cos*dx+sin*dy)).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)).toFixed(4))}px`;
  }).join(',');

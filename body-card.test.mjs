@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
-import {BODY_CARD_DEFAULTS,bodyCardSettings,borderWidths,borderColor,ordinaryParagraphSelector} from './body-card.mjs';
+import {bodyCardRules,BODY_CARD_DEFAULTS,bodyCardSettings,borderWidths,borderColor,ordinaryParagraphSelector} from './body-card.mjs';
 import {normalizeCaptionConfig} from './captions.mjs';
 test('body/card defaults and explicit fields survive schema migration without changing captions or images',()=>{
  for(const version of [1,2,3,4]){
@@ -36,4 +36,13 @@ test('body padding starts at card interior and wraps independently without movin
   assert.equal(bodyWidth-left-right,interior-left-right);
   assert.equal(body.getPropertyValue('transform'),'');assert.equal(body.getPropertyValue('position'),'');
  }
+});
+
+test('body inset moves the border and preserves inner text padding on both surfaces',()=>{
+ for(const surface of ['live','preview']){
+  const css=bodyCardRules('.body','.card',{cardPadding:14,bodyInset:14,bodyPaddingLeft:13,bodyPaddingRight:0,bodyLeftBorderWidth:2,bodyLeftBorderColor:'#f49fb3'},surface);
+  assert.match(css,/width:calc\(100% \+ 0px\)/);assert.match(css,/margin-left:0px/);assert.match(css,/padding-left:13px/);assert.match(css,/border-left:2px solid #f49fb3/);
+ }
+ assert.equal(bodyCardSettings({}).bodyInset,0);
+ assert.throws(()=>bodyCardSettings({bodyInset:-1}));
 });

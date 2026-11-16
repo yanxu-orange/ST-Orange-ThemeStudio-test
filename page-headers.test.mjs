@@ -121,3 +121,19 @@ test('unchanged header layout avoids writes, reads all hosts first, and detects 
  adapter.stop();
 });
 
+
+test('host resize measures only changed headers while viewport refresh still measures all',()=>{
+ const {document}=parseHTML('<html><head></head><body><div id="user-settings-block"></div><div id="left-nav-panel"></div></body></html>');
+ let resized;const reads=[];
+ document.defaultView.ResizeObserver=class{constructor(fn){resized=fn;}observe(){}unobserve(){}disconnect(){}};
+ let padding='10px';document.defaultView.getComputedStyle=host=>{reads.push(host.id);return {paddingLeft:padding,paddingRight:padding,paddingTop:padding};};
+ const adapter=createPageHeaderAdapter({document,MutationObserver:class{observe(){}disconnect(){}}});
+ adapter.update({pageHeaders:{settings:art,presets:art}});
+ reads.length=0;const host=document.querySelector('#left-nav-panel');padding='14px';
+ resized([{target:host,contentRect:{width:390,height:600}}]);
+ assert.deepEqual(reads,['left-nav-panel']);assert.equal(host.firstElementChild.style.marginLeft,'-14px');
+ reads.length=0;document.defaultView.dispatchEvent(new document.defaultView.Event('resize'));
+ assert.deepEqual(new Set(reads),new Set(['left-nav-panel','user-settings-block']));
+ reads.length=0;padding='16px';adapter.update({pageHeaders:{settings:art,presets:art}});
+ assert.equal(reads.length,2);assert.equal(host.firstElementChild.style.marginLeft,'-16px');adapter.stop();
+});

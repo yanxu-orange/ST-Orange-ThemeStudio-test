@@ -36,6 +36,9 @@ export function normalizeCommonConfig(raw={}){
 }
 export function commonFontEntries(config){return {common:{fontLink:normalizeCommonConfig(config).commonStyle.text.fontLink}};}
 
+export const COMMON_FIELD_SELECTOR=':is(input:not([type]),input[type=text],input[type=number],input[type=password],input[type=search],input[type=url],input[type=email],select,textarea,.text_pole):not([type=checkbox]):not([type=range]):not([type=color]):not([type=button]):not([type=submit]):not([type=hidden])';
+export const COMMON_BUTTON_SELECTOR=':is(button,.menu_button,input[type=button],input[type=submit]):not(.red_button):not(.redWarningBG):not(.delete_entry_button):not(.select2-results__option)';
+
 // The host owns geometry, visibility, events, and icon fonts. Only appearance is shared.
 // Source: SillyTavern 1.18.0 style.css, world-info.css, select2-overrides.css.
 export function commonStyleRules(config,{preview=false,family='',rootScope='',dropdownScope=''}={}){
@@ -50,8 +53,7 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  const font=family?JSON.stringify(family):t.font==='auto'?'var(--mainFontFamily, sans-serif)':t.font;
  const fontVariables=`--mainFontSize:${t.size}px;${family||t.font!=='auto'?'--mainFontFamily:'+font+';':''}`;
  const bg=`rgba(${[1,3,5].map(i=>parseInt(p.background.slice(i,i+2),16)).join(',')},${p.opacity})`;
- const input=':is(input:not([type]),input[type=text],input[type=number],input[type=password],input[type=search],input[type=url],input[type=email],select,textarea,.text_pole):not([type=checkbox]):not([type=range]):not([type=color]):not([type=button]):not([type=submit]):not([type=hidden])';
- const button=':is(button,.menu_button,input[type=button],input[type=submit]):not(.red_button):not(.redWarningBG):not(.delete_entry_button):not(.select2-results__option)';
+ const input=COMMON_FIELD_SELECTOR,button=COMMON_BUTTON_SELECTOR;
  const disabled=':is(:disabled,[disabled],.disabled,[aria-disabled=true])';
  const headings=preview?':is(h3,.standoutHeader,.inline-drawer-header,.title_restorable)':':is(h3,:where(#user-settings-block) h4,:where(#rm_button_selected_ch) h2,.standoutHeader,.inline-drawer-header,.title_restorable)';
  const roots=[page,home].filter(Boolean).join(',');

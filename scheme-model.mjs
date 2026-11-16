@@ -437,6 +437,8 @@ export function createSchemeModel() {
     result.pageStyle = normalizePageConfig(raw).pageStyle;
     result.commonStyle = normalizeCommonConfig(raw).commonStyle;
     result.avatarDesign = raw.avatarDesign || 'separate';
+    if(raw.userHeaderHeight!=null&&(!Number.isFinite(raw.userHeaderHeight)||raw.userHeaderHeight<60||raw.userHeaderHeight>1000))throw Error('用户头像区高度超出范围');
+    if(raw.userHeaderHeight!=null)result.userHeaderHeight=raw.userHeaderHeight;
     Object.assign(result, normalizeCanvasBackground(raw));
     result.hideScrollbars = hideScrollbars;
     result.textItems = canonical.textItems;
