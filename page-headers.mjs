@@ -121,7 +121,16 @@ export function createPageHeaderAdapter({document,MutationObserver:Observe,reque
   if(frame!==null||!config)return;
   // Ignore streaming text, control state, and our own insertions. A removed owned
   // banner is relevant only when its host still exists (native innerHTML rebuild).
-  if(records.some(r=>!r.target.closest?.(`[${OWN}]`)&&([...r.addedNodes,...r.removedNodes].some(relevant)||(mounted.has(r.target)||r.target.closest?.(candidates))&&([...r.removedNodes].includes(mounted.get(r.target))||[...r.addedNodes].some(node=>node.nodeType===1&&!node.hasAttribute(OWN))))))frame=raf(()=>{frame=null;reconcile();});
+  const needsReconcile=records.some(r=>{
+   if(r.target.closest?.(`[${OWN}]`))return false;
+   const added=[...r.addedNodes],removed=[...r.removedNodes],banner=mounted.get(r.target);
+   if(added.some(relevant)||removed.some(relevant)||removed.includes(banner))return true;
+   const host=banner?r.target:r.target.closest?.(candidates);
+   // Native and BaiBai entry editors mount below the world title, inside the list.
+   if(host?.id==='WorldInfo'&&r.target.closest?.('#world_popup_entries_list .world_entry .inline-drawer-outlet'))return false;
+   return host&&added.some(node=>node.nodeType===1&&!node.hasAttribute(OWN));
+  });
+  if(needsReconcile)frame=raf(()=>{frame=null;reconcile();});
  }
  function unwatch(){observer?.disconnect();observer=null;resize?.disconnect();resize=null;win?.removeEventListener?.('resize',refreshLayout);if(frame!==null)caf(frame);frame=null;}
  function update(raw,{validated=false,skipUnchangedLayout=false}={}){

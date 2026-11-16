@@ -69,6 +69,44 @@ test('unchanged headers skip all mount scans while observer rebuilds and actual 
  document.querySelector('#WorldInfo').innerHTML='<input>';adapter.update(c,{validated:true});assert.equal(scans,2);await settle();assert.equal(scans,3);assert.equal(query('[data-otl-page-header]').length,1);adapter.stop();
 });
 
+test('world entry editors do not rebuild page headers, but the world title and drawer still do',async()=>{
+ const title='<h3><span data-i18n="Worlds/Lorebooks">World info</span></h3>';
+ const entries='<div id="world_popup_entries_list"><div class="world_entry"><div class="inline-drawer-outlet"></div></div></div>';
+ const {document,adapter,settle,queue}=env(`<div id="WorldInfo">${title}${entries}</div>`);
+ const world=document.querySelector('#WorldInfo'),outlet=world.querySelector('.inline-drawer-outlet');
+ adapter.update({pageHeaders:{worldbook:{...art,layout:'standard'},settings:art}});
+ await settle();
+ const banner=world.querySelector(field);
+ const editor=document.createElement('div');editor.className='world_entry_edit';
+ outlet.append(editor);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(queue.size,0);
+ editor.append(document.createElement('input'));
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(queue.size,0);
+ assert.equal(world.firstElementChild,banner);
+
+ const nestedHost=document.createElement('div');nestedHost.id='user-settings-block';
+ editor.append(nestedHost);
+ await settle();
+ assert.ok(nestedHost.querySelector(field),'an actual new mount is still reconciled even from an editor');
+ const nestedBanner=nestedHost.firstElementChild;
+ nestedHost.prepend(document.createElement('input'));
+ await settle();
+ assert.equal(nestedHost.firstElementChild,nestedBanner,'an existing nested mount still follows native rebuilds');
+
+ world.querySelector('h3').outerHTML=title;
+ await settle();
+ assert.equal(world.querySelector('h3 > span').getAttribute('data-otl-title-text'),'show');
+ assert.equal(world.querySelector(field),banner);
+ world.outerHTML=`<div id="WorldInfo">${title}${entries}</div>`;
+ await settle();
+ assert.equal(document.querySelectorAll(field).length,1);
+ assert.notEqual(document.querySelector('#WorldInfo '+field),banner);
+ assert.equal(document.querySelector('#WorldInfo h3 > span').getAttribute('data-otl-title-text'),'show');
+ adapter.stop();
+});
+
 test('page header gaps compensate native padding without changing content or other pages',()=>{
  const {document,adapter}=env('<div id="user-settings-block"><p>native hint</p><button>native</button></div><div id="WorldInfo"><input value="keep"></div>');
  document.defaultView.getComputedStyle=()=>({paddingLeft:'5px',paddingRight:'7px',paddingTop:'9px'});

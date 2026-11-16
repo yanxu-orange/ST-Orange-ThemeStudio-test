@@ -281,6 +281,83 @@ test('resize entries target one message, ignore chat-height-only changes and app
  resize.fn([entry(chat,600,900)]);await settle();assert.equal(measured.size,2);adapter.stop();
 });
 
+test('native body edit growth refreshes footer control positions without preparing card art again',async()=>{
+ const {normalizeNativeConfig}=await import('./native.mjs'),{normalizeFooterConfig}=await import('./footer.mjs'),{normalizeReasoningConfig}=await import('./reasoning.mjs');
+ const instances=[],observed=new Set(),renders=[];
+ class Resize{
+  constructor(fn){this.fn=fn;instances.push(this);}
+  observe(node){observed.add(node);}
+  unobserve(node){observed.delete(node);}
+  disconnect(){observed.clear();}
+ }
+ let artworkReads=0;
+ const {document,adapter,settle}=environment({ResizeObserver:Resize,resolveArtwork:()=>{artworkReads++;return '/art.webp';},onRender:result=>renders.push(result)});
+ const msg=document.querySelector('.mes'),body=msg.querySelector('.mes_text'),header=msg.querySelector('.ch_name'),editing=msg.querySelector('.mes_edit_buttons'),reasoning=msg.querySelector('.mes_reasoning');
+ const bias=document.createElement('div');bias.className='mes_bias';body.after(bias);
+ const c=normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(config()))));
+ c.nativeStyle.actions.edit.position='footer';
+ const rect=(top=0,width=360,height=30)=>({left:0,top,width,height,bottom:top+height});
+ header.getBoundingClientRect=()=>rect();editing.getBoundingClientRect=()=>rect(0,80);
+ adapter.start(c);await settle();
+ const entry=(target,width,height)=>({target,contentRect:{width,height}}),resize=instances[0];
+ let height=90;
+ const footer=msg.querySelector('.otl-native-footer');
+ assert.ok(footer);
+ footer.getBoundingClientRect=()=>rect(200+height);
+ resize.fn([entry(msg,360,290),entry(body,320,height),entry(reasoning,320,35)]);
+ await settle();
+ const editor=document.createElement('textarea');editor.id='curEditTextarea';
+ // A browser's textarea.value does not replace child nodes while the user types.
+ Object.defineProperty(editor,'value',{value:'草稿',writable:true});
+ body.replaceChildren(editor);
+ artworkReads=0;
+ await settle();
+ assert.ok(artworkReads>0,'entering edit still updates the full card');
+ resize.fn([entry(editor,320,height)]);await settle();
+ const position=()=>parseFloat(msg.style.getPropertyValue('--on-editing-y'));
+ const previous=position();
+ artworkReads=0;renders.length=0;
+ editor.value='草稿\n新一行';height+=40;
+ resize.fn([entry(body,320,height),entry(msg,360,200+height),entry(editor,320,height)]);
+ await settle();
+ assert.equal(artworkReads,0);
+ assert.ok(observed.has(editor));
+ assert.equal(position(),previous+40);
+ assert.deepEqual(renders.flatMap(result=>result.nodes),[msg]);
+ assert.equal(editor.value,'草稿\n新一行');
+
+ height+=10;
+ resize.fn([entry(body,320,height),entry(editor,320,height)]);
+ await settle();
+ assert.equal(artworkReads,0,'matched editor and body also qualify without a card entry');
+ assert.equal(position(),previous+50);
+ resize.fn([entry(msg,360,200+height)]);
+ await settle();
+ artworkReads=0;
+
+ height+=20;
+ resize.fn([entry(editor,320,height),entry(body,320,height),entry(msg,360,200+height),entry(reasoning,320,45)]);
+ await settle();assert.ok(artworkReads>0,'other geometry in the same delivery still prepares the full card');
+ artworkReads=0;height+=15;
+ resize.fn([entry(editor,320,height),entry(body,320,height),entry(msg,360,210+height)]);
+ await settle();assert.ok(artworkReads>0,'unexplained card height remains a full update');
+ artworkReads=0;height+=15;
+ resize.fn([entry(editor,320,height),entry(msg,360,210+height)]);
+ await settle();assert.ok(artworkReads>0,'matching card height without body growth is not attributable to the editor');
+ artworkReads=0;
+ resize.fn([entry(editor,340,height),entry(body,340,height),entry(msg,380,210+height)]);
+ await settle();assert.ok(artworkReads>0,'width changes remain a full update');
+
+ artworkReads=0;bias.textContent='自动保存更新的原生附加内容';
+ await settle();assert.ok(artworkReads>0,'auto-save DOM changes are still observed');
+ assert.equal(body.firstElementChild,editor);
+ artworkReads=0;const saved=document.createElement('p');saved.textContent='保存或取消后显示的消息';body.replaceChildren(saved);
+ await settle();assert.ok(artworkReads>0,'leaving edit mode still updates the full card');
+ assert.equal(observed.has(editor),false);
+ assert.equal(body.firstElementChild,saved);
+ adapter.stop();
+});
+
 test('streaming ignored system/fixture messages stays ignored and nested host markup targets its real message',async()=>{
  const {document,adapter,settle}=environment(),chat=document.querySelector('#chat');chat.insertAdjacentHTML('beforeend',markup(2)+markup(3));chat.children[2].setAttribute('is_system','true');chat.children[3].setAttribute('data-orange-lab-fixture','message');
  adapter.start(config());await settle();chat.children[2].querySelector('.mes_text').textContent='系统更新';chat.children[3].querySelector('.mes_text').textContent='预览更新';await settle();assert.equal(adapter.messageCount,2);assert.equal(chat.children[2].hasAttribute('data-otl-live'),false);assert.equal(chat.children[3].hasAttribute('data-otl-live'),false);

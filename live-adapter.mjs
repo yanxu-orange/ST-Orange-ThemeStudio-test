@@ -190,7 +190,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   const wallpaper=createCanvasWallpaper(document);
   let pendingConfig=null,snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
-  const observedSizes=new Map(),dirtyMessages=new Set();
+  const observedSizes=new Map(),dirtyMessages=new Set(),nativeDirtyMessages=new Set();
   let chat=null,messages=[],latest=null,fullPending=false,structurePending=false,hostModes='';
   const readHostModes=()=>['documentstyle','hideChatAvatars'].map(name=>document.body.classList.contains(name)).join(',');
   function hostLayoutChanged(){
@@ -204,10 +204,11 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function observeMessage(msg){
     if(!resizer)return;
-    const state=states.get(msg),wanted=new Set([msg,msg.querySelector('[data-otl-live-meta]'),...msg.querySelectorAll('[data-otl-live-meta] .name_text,[data-otl-live-meta] .timestamp,[data-otl-live-meta] .otl-live-caption'),msg.querySelector('.mes_reasoning_header'),msg.querySelector('.mes_reasoning'),msg.querySelector('.otl-footer'),msg.querySelector('.otl-footer-flow'),msg.querySelector('.mes_text'),msg.querySelector('[data-otl-metadata-slot]'),msg.querySelector('.timestamp-icon'),...nativeControlNodes(msg)].filter(Boolean));
+    const state=states.get(msg),editor=msg.querySelector(':scope > .mes_block > .mes_text > textarea#curEditTextarea');
+    const wanted=new Set([msg,msg.querySelector('[data-otl-live-meta]'),...msg.querySelectorAll('[data-otl-live-meta] .name_text,[data-otl-live-meta] .timestamp,[data-otl-live-meta] .otl-live-caption'),msg.querySelector('.mes_reasoning_header'),msg.querySelector('.mes_reasoning'),msg.querySelector('.otl-footer'),msg.querySelector('.otl-footer-flow'),msg.querySelector('.mes_text'),editor,msg.querySelector('[data-otl-metadata-slot]'),msg.querySelector('.timestamp-icon'),...nativeControlNodes(msg)].filter(Boolean));
     for(const node of state.observed||[])if(!wanted.has(node)){resizer.unobserve(node);observedSizes.delete(node);}
     for(const node of wanted)if(!observedSizes.has(node)){observedSizes.set(node,{message:msg,size:null});resizer.observe(node);}
-    state.observed=wanted;
+    state.observed=wanted;state.editor=editor;
   }
   function attribute(state,node,key,value){
     let record=state.attributes.find(r=>r.node===node&&r.key===key);
@@ -344,16 +345,18 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       chrome.update(snapshot,fontSession?.families()||{});chromeChanged=true;
       for(const msg of messages)dirtyMessages.add(msg);
     }
+    const nativeOnly=[...nativeDirtyMessages].filter(msg=>isMessage(msg)&&states.has(msg)&&!dirtyMessages.has(msg));nativeDirtyMessages.clear();
     const pending=[...dirtyMessages].filter(isMessage);dirtyMessages.clear();
     const prepared=runLayoutPass(pending.map(prepareMessage)).filter(Boolean);
     runLayoutPass(prepared.flatMap(({headerArtwork,scene})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-cardPadding(snapshot)),cardPadding(snapshot)))));
     runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
     runLayoutPass(prepared.map(({msg,header,sceneNodes})=>metadata.layout(msg,snapshot,{header,name:sceneNodes.name,time:sceneNodes.time})));
     runLayoutPass(prepared.map(({msg})=>footerLayout(msg,snapshot)));
-    runLayoutPass(prepared.map(({msg,state})=>nativeLayout(msg,snapshot,nativeOptions(msg,state,msg===latest))));
+    const updated=[...prepared.map(({msg})=>msg),...nativeOnly];
+    runLayoutPass(updated.map(msg=>nativeLayout(msg,snapshot,nativeOptions(msg,states.get(msg),msg===latest))));
     for(const {msg}of prepared)observeMessage(msg);
-    onRender?.({messages:states.size,updated:prepared.length,nodes:prepared.map(({msg})=>msg),chromeChanged});
-    return prepared.length;
+    onRender?.({messages:states.size,updated:updated.length,nodes:updated,chromeChanged});
+    return updated.length;
   }
   function reconcile(){fullPending=true;return flush();}
   function requestFlush(){if(!snapshot||frame!==null)return;frame=raf(()=>{frame=null;flush();});}
@@ -383,18 +386,39 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     }
   }
   function resized(entries){
+    const changes=new Map(),editorDeltas=new Map();
     for(const entry of entries){
       const observed=observedSizes.get(entry.target);if(!observed)continue;
       const size=entry.contentRect,previous=observed.size;observed.size={width:size.width,height:size.height};
       // Initial delivery can include media loaded after renderMessage; reconcile it too.
-      if(!observed.message){if(!previous||size.width!==previous.width)schedule();}
-      else if(!previous||size.width!==previous.width||size.height!==previous.height)scheduleMessage(observed.message);
+      const {message:msg}=observed;
+      if(!msg){if(!previous||size.width!==previous.width)schedule();continue;}
+      if(previous?.width===size.width&&previous.height===size.height)continue;
+      const editor=states.get(msg)?.editor;
+      const heightDelta=previous?.width===size.width?size.height-previous.height:null;
+      if(entry.target===editor){
+        if(!previous)continue;
+        if(heightDelta!==null&&msg.contains(editor)){editorDeltas.set(msg,heightDelta);continue;}
+      }
+      if(heightDelta!==null&&editor&&(entry.target===msg||entry.target===editor.parentElement)){
+        let change=changes.get(msg);
+        if(!change){change={};changes.set(msg,change);}
+        change[entry.target===msg?'card':'body']=heightDelta;
+      }else scheduleMessage(msg);
+    }
+    // Matching textarea and body growth only moves flow content and absolute native footer controls.
+    // Width changes, independent resize entries and host DOM mutations still take the full path.
+    for(const [msg,{body,card}]of changes){
+      const editorDelta=editorDeltas.get(msg);
+      if(editorDelta!==undefined&&body!==undefined&&Math.abs(body-editorDelta)<.1&&(card===undefined||Math.abs(card-editorDelta)<.1)){
+        nativeDirtyMessages.add(msg);requestFlush();
+      }else scheduleMessage(msg);
     }
   }
   function stop(){
     if(!snapshot)return;
     wallpaper.stop();pageHeaders.stop();pageDropdowns.stop();metadata.stop();
-    imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
+    imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();nativeDirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;
     if(rootOriginal===null)document.documentElement.removeAttribute('data-orange-live');else document.documentElement.setAttribute('data-orange-live',rootOriginal);

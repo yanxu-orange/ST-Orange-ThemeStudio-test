@@ -108,14 +108,18 @@ export function createPageDropdownBridge({document,MutationObserver:Observe}={})
  const attr='data-otl-page-owner',originals=new Map();let observer=null;
  function restore(node,record){if(node.getAttribute(attr)===record.last){if(record.old===null)node.removeAttribute(attr);else node.setAttribute(attr,record.old);}}
  function sync(){
-  const owners=new Map();
-  for(const [page,selector]of Object.entries(PAGE_ROOTS))for(const node of document.querySelectorAll(`${selector} .select2-container--open [aria-controls],${selector} .select2-container--open [aria-owns]`)){
-   for(const id of `${node.getAttribute('aria-controls')||''} ${node.getAttribute('aria-owns')||''}`.split(/\s+/).filter(Boolean))owners.set(id,page);
-  }
+  const containers=document.querySelectorAll('body>.select2-container--open');
+  if(!containers.length&&!originals.size)return;
   const active=new Map();
-  for(const container of document.querySelectorAll('body>.select2-container--open')){
-   const pages=new Set([...container.querySelectorAll('[id]')].map(node=>owners.get(node.id)).filter(Boolean));
-   if(pages.size===1)active.set(container,[...pages][0]);
+  if(containers.length){
+   const owners=new Map();
+   for(const [page,selector]of Object.entries(PAGE_ROOTS))for(const node of document.querySelectorAll(`${selector} .select2-container--open [aria-controls],${selector} .select2-container--open [aria-owns]`)){
+    for(const id of `${node.getAttribute('aria-controls')||''} ${node.getAttribute('aria-owns')||''}`.split(/\s+/).filter(Boolean))owners.set(id,page);
+   }
+   for(const container of containers){
+    const pages=new Set([...container.querySelectorAll('[id]')].map(node=>owners.get(node.id)).filter(Boolean));
+    if(pages.size===1)active.set(container,[...pages][0]);
+   }
   }
   for(const [node,record]of originals)if(!active.has(node)){restore(node,record);originals.delete(node);}
   for(const [node,page]of active){if(!originals.has(node))originals.set(node,{old:node.getAttribute(attr),last:page});const record=originals.get(node);record.last=page;if(node.getAttribute(attr)!==page)node.setAttribute(attr,page);}

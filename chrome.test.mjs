@@ -1,6 +1,7 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 import {CHROME_DEFAULTS,DRAWERS,INPUT_ICONS,normalizeChromeConfig,validateChromeStyle,chromeTopMetrics,chromeRules} from './chrome.mjs';
 import {createChromeAdapter,createInputFitBridge} from './chrome-adapter.mjs';import {newLayer,validateLayers} from './layers.mjs';
+import {mutationObserverFor} from './test-support/mutation-observer.mjs';
 const data='data:image/png;base64,AAAA',source=()=>({mode:'image',asset:'',image:data}),config=()=>({version:9,font:'serif',layers:[newLayer('custom',{anchor:'input',image:data})],chromeStyle:structuredClone(CHROME_DEFAULTS)});
 function dom(){return parseHTML(`<html><head></head><body><div id="top-bar"></div><div id="top-settings-holder">${DRAWERS.map(([id])=>`<div class="drawer" id="${id}"><div class="drawer-toggle" title="原提示"><div class="drawer-icon closedIcon${id==='sys-settings-button'?' redOverlayGlow':''}"></div></div><div class="drawer-content"></div></div>`).join('')}</div><div id="sheld"><div id="chat"></div><div id="form_sheld"><div id="send_form"><form id="file_form"></form><div id="nonQRFormItems"><div id="leftSendForm"><div id="options_button"></div></div><textarea id="send_textarea" style="height:73px">当前草稿</textarea><div id="rightSendForm"><div id="send_but" class="displayNone" style="width:0px;height:0px;visibility:hidden"></div><div id="mes_stop" style="display:none"><i>■</i></div></div></div><div class="qr--bar">原QR</div></div></div></div></body></html>`);}
 test('schema9 regions default independently off, old source remains untouched, page layers and malformed values reject',()=>{
@@ -77,4 +78,132 @@ test('icon wrapper changes never rewrite unchanged input artwork image sources',
  const art=document.querySelector('.otl-input-art>img');let writes=0;Object.defineProperty(art,'src',{configurable:true,get:()=>art.getAttribute('src'),set:value=>{writes++;art.setAttribute('src',value);}});
  adapter.update(c);adapter.render();assert.equal(writes,0);assert.equal(document.querySelector('.otl-input-art>img'),art);
  c.layers[0].image='data:image/png;base64,BBBB';adapter.update(c);assert.equal(writes,1);assert.equal(art.getAttribute('src'),c.layers[0].image);adapter.render();assert.equal(writes,1);adapter.stop();
+});
+
+test('input artwork changes only the children needed for membership and order',()=>{
+ const {document,window}=dom(),c=config(),adapter=createChromeAdapter({document,resolveArtwork:l=>l.image});
+ c.chromeStyle.input.enabled=true;
+ c.layers.push(newLayer('custom',{anchor:'input',image:data}),newLayer('custom',{anchor:'input',image:data}));
+ const [a,b,d]=c.layers;
+ adapter.update(c);
+ const root=document.querySelector('.otl-input-art'),[first,second,last]=root.children;
+ const observer=new window.MutationObserver(()=>{});
+ observer.observe(root,{childList:true});
+ const mutations=()=>observer.takeRecords().flatMap(record=>[
+  ...[...record.removedNodes].map(node=>['remove',node.dataset.layerId]),
+  ...[...record.addedNodes].map(node=>['add',node.dataset.layerId]),
+ ]);
+ const order=()=>[...root.children].map(node=>node.dataset.layerId);
+
+ adapter.update(c);
+ adapter.render();
+ assert.deepEqual(mutations(),[]);
+ a.x=14;
+ a.image='data:image/png;base64,BBBB';
+ c.regionOrder={input:[d,b,a].map(layer=>'image:'+layer.id)};
+ adapter.update(c);
+ assert.equal(root.children[0],first);
+ assert.equal(first.getAttribute('src'),a.image);
+ assert.equal(first.style[a.side],'14px');
+ assert.equal(Number(first.style.zIndex),3);
+ assert.equal(Number(last.style.zIndex),1);
+ assert.deepEqual(mutations(),[]);
+
+ c.layers=[d,a,b];
+ adapter.update(c);
+ assert.deepEqual(order(),[d.id,a.id,b.id]);
+ assert.equal(root.children[0],last);
+ assert.deepEqual(mutations(),[['remove',d.id],['add',d.id]]);
+
+ const added=newLayer('custom',{anchor:'input',image:data});
+ c.layers=[d,added,a,b];
+ adapter.update(c);
+ assert.deepEqual(order(),[d.id,added.id,a.id,b.id]);
+ assert.equal(root.children[2],first);
+ assert.deepEqual(mutations(),[['add',added.id]]);
+
+ d.visible=false;
+ b.image='';
+ adapter.update(c);
+ assert.deepEqual(order(),[added.id,a.id]);
+ assert.equal(last.isConnected,false);
+ assert.equal(second.isConnected,false);
+ assert.deepEqual(mutations(),[['remove',d.id],['remove',b.id]]);
+
+ c.chromeStyle.input.enabled=false;
+ adapter.update(c);
+ assert.equal(root.isConnected,false);
+ c.chromeStyle.input.enabled=true;
+ adapter.update(c);
+ const restored=document.querySelector('.otl-input-art');
+ assert.notEqual(restored,root);
+ assert.deepEqual([...restored.children].map(node=>node.dataset.layerId),[added.id,a.id]);
+ observer.disconnect();
+ adapter.stop();
+ assert.equal(restored.isConnected,false);
+});
+
+for(const [name,drawerId,panelId,listId]of [
+ ['preset panel','ai-config-button','left-nav-panel','completion_prompt_manager'],
+ ['world info panel','WI-SP-button','WorldInfo','world_popup_entries_list'],
+])test(`${name} interiors do not refresh chrome, while replacing native chrome still does`,async()=>{
+ const {document}=dom(),c=config(),form=document.querySelector('#send_form');
+ const adapter=createChromeAdapter({document,MutationObserver:mutationObserverFor(document)});
+ const drawer=document.getElementById(drawerId),panel=drawer.querySelector('.drawer-content');
+ panel.id=panelId;
+ panel.innerHTML=`<div id="${listId}"></div>`;
+ const list=panel.firstElementChild,group=document.createElement('ul');
+ group.innerHTML='<li><button>测试条目</button></li>';
+ c.chromeStyle.topbar.enabled=c.chromeStyle.input.enabled=true;
+ c.chromeStyle.topbar.icons[drawer.id]=source();
+ c.chromeStyle.input.icons.extensionsMenuButton=source();
+ let measurements=0;
+ const countMeasurements=element=>Object.defineProperty(element,'getBoundingClientRect',{value:()=>{
+  measurements++;
+  return {width:390};
+ }});
+ const settle=()=>new Promise(resolve=>setImmediate(resolve));
+ countMeasurements(form);
+ adapter.update(c);
+ await settle();
+ const before=measurements;
+ list.append(group);
+ await settle();
+ group.remove();
+ await settle();
+ assert.equal(measurements,before);
+
+ const replacementIcon=document.createElement('div');
+ replacementIcon.className='drawer-icon';
+ drawer.querySelector('.drawer-icon').replaceWith(replacementIcon);
+ await settle();
+ assert.ok(replacementIcon.querySelector('img'));
+ const newPanel=document.createElement('div');
+ newPanel.id=panel.id;
+ const beforePanel=measurements;
+ panel.replaceWith(newPanel);
+ await settle();
+ assert.ok(measurements>beforePanel);
+
+ const replacementDrawer=document.createElement('div');
+ replacementDrawer.id=drawer.id;
+ replacementDrawer.innerHTML=`<div class="drawer-toggle"><div class="drawer-icon"></div></div><div id="${panelId}"></div>`;
+ drawer.replaceWith(replacementDrawer);
+ await settle();
+ assert.ok(replacementDrawer.querySelector('.drawer-icon img'));
+
+ const newTool=document.createElement('div');
+ newTool.id='extensionsMenuButton';
+ form.querySelector('#leftSendForm').append(newTool);
+ await settle();
+ assert.ok(newTool.querySelector('img'));
+ const replacementForm=document.createElement('div');
+ replacementForm.id=form.id;
+ replacementForm.innerHTML='<textarea id="send_textarea">当前草稿</textarea><div id="extensionsMenuButton"></div>';
+ countMeasurements(replacementForm);
+ form.replaceWith(replacementForm);
+ await settle();
+ assert.ok(replacementForm.querySelector('#extensionsMenuButton img'));
+ assert.equal(replacementForm.querySelector('textarea').value,'当前草稿');
+ adapter.stop();
 });

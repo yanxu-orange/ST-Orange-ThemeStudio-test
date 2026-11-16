@@ -109,6 +109,57 @@ test('Select2 ownership covers every native page, concurrent dropdowns, dynamic 
  bridge.stop();for(const [page]of pages)assert.equal(document.getElementById(page+'-dropdown').getAttribute('data-otl-page-owner'),null);
 });
 
+test('closed Select2 controls skip page scans while popup ownership remains reversible',async()=>{
+ const {document}=parseHTML('<html><body><div id="WorldInfo"></div></body></html>');
+ const bridge=createPageDropdownBridge({document,MutationObserver:mutationObserverFor(document)});
+ const settle=()=>new Promise(resolve=>setImmediate(resolve));
+ const marker='data-otl-page-owner';
+ bridge.start();
+ const query=document.querySelectorAll.bind(document);
+ let pageScans=0,popupScans=0;
+ document.querySelectorAll=selector=>{
+  if(selector.includes('[aria-controls]'))pageScans++;
+  if(selector==='body>.select2-container--open')popupScans++;
+  return query(selector);
+ };
+
+ const control=document.createElement('span');
+ control.className='select2-container';
+ control.innerHTML='<span class="select2-selection" aria-controls="world-results"></span>';
+ document.getElementById('WorldInfo').append(control);
+ await settle();
+ assert.ok(popupScans>0,'the observer processed the Select2 insertion');
+ assert.equal(pageScans,0);
+
+ const popup=document.createElement('span');
+ popup.className='select2-container select2-container--open';
+ popup.setAttribute(marker,'original');
+ popup.innerHTML='<ul id="world-results"></ul>';
+ control.classList.add('select2-container--open');
+ document.body.append(popup);
+ await settle();
+ assert.ok(pageScans>0);
+ assert.equal(popup.getAttribute(marker),'worldbook');
+
+ pageScans=0;
+ popup.remove();
+ await settle();
+ assert.equal(popup.getAttribute(marker),'original');
+ assert.equal(pageScans,0,'the last closing popup is restored without scanning page roots');
+
+ document.body.append(popup);
+ await settle();
+ assert.equal(popup.getAttribute(marker),'worldbook');
+ popup.classList.remove('select2-container--open');
+ await settle();
+ assert.equal(popup.getAttribute(marker),'original');
+ popup.classList.add('select2-container--open');
+ await settle();
+ assert.equal(popup.getAttribute(marker),'worldbook');
+ bridge.stop();
+ assert.equal(popup.getAttribute(marker),'original');
+});
+
 
 test('spring mobile drawers retain the original display transition without height animation',()=>{
  const css=pageStyleRules({template:'spring'});

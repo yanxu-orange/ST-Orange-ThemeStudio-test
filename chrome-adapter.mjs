@@ -6,7 +6,7 @@ import {interfaceFont} from './reasoning.mjs';
 /** Owns only added pictures, private markers and a stylesheet. Never moves host controls or snapshots drafts. */
 export function createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize}={}){
  const owned=new Set(),attrs=new Map(),variables=new Map(),failed=new Map();let style=null,observer=null,stateObserver=null,config=null,families={},epoch=0,lastFit='',pending=false,resizer=null,observed=new Set(),lastWidth=0;
- const make=(tag,cls,parent)=>{const n=document.createElement(tag);n.className=cls;n.setAttribute('data-oc-owned','');owned.add(n);parent.append(n);return n;};
+ const make=(tag,cls,parent,before=null)=>{const n=document.createElement(tag);n.className=cls;n.setAttribute('data-oc-owned','');owned.add(n);parent.insertBefore(n,before);return n;};
  function mark(node,key,value){let map=attrs.get(node);if(!map){map=new Map();attrs.set(node,map);}if(!map.has(key))map.set(key,{old:node.getAttribute(key),last:null});const r=map.get(key);r.last=value;if(value===null)node.removeAttribute(key);else if(node.getAttribute(key)!==value)node.setAttribute(key,value);}
  function restore(node,map){for(const [key,r]of map)if(node.getAttribute(key)===r.last){if(r.old===null)node.removeAttribute(key);else node.setAttribute(key,r.old);}}
  function fit(){if(typeof fitInput!=='function')return;try{const result=fitInput();result?.catch?.(error=>console.warn('[主题输入增高]',error.message));}catch(error){console.warn('[主题输入增高]',error.message);}}
@@ -30,8 +30,20 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
   if(!layers.length){if(root){for(const n of [...owned])if(root===n||root.contains(n))owned.delete(n);root.remove();}return;}
   if(!root){root=make('div','otl-input-art',form);root.setAttribute('aria-hidden','true');root.dataset.ocZone='input';}
   const existing=new Map([...root.children].map(n=>[n.dataset.layerId,n]));
-  for(const [l,src]of layers){let image=existing.get(l.id);if(!image){image=make('img','',root);image.dataset.layerId=l.id;image.dataset.ocZone='input';image.alt='';}existing.delete(l.id);if(image.getAttribute('src')!==src)image.src=src;Object.assign(image.style,{...layerSizeStyle(l),left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:regionZ(config,'input',imageKey(l.id))});root.append(image);}
-  for(const image of existing.values()){image.remove();owned.delete(image);}
+  const visibleIds=new Set(layers.map(([layer])=>layer.id));
+  for(const [id,image]of existing)if(!visibleIds.has(id)){image.remove();owned.delete(image);}
+  // Moving an existing child emits child-list changes even if the final order matches.
+  let next=root.firstElementChild;
+  for(const [l,src]of layers){
+   let image=existing.get(l.id);
+   if(!image){
+    image=make('img','',root,next);
+    image.dataset.layerId=l.id;image.dataset.ocZone='input';image.alt='';
+   }else if(image!==next)root.insertBefore(image,next);
+   next=image.nextElementSibling;
+   if(image.getAttribute('src')!==src)image.src=src;
+   Object.assign(image.style,{...layerSizeStyle(l),left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:regionZ(config,'input',imageKey(l.id))});
+  }
  }
  function emptyText(){
   const form=document.querySelector('#send_form'),area=document.querySelector('#send_textarea'),v=config.chromeStyle.input.emptyText;
@@ -62,7 +74,23 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
  function update(next,nextFamilies={}){
   config=next;families=nextFamilies;if(!style){style=make('style','',document.head);style.id='orange-theme-chrome-style';}const text=chromeRules(config,LIVE_CHROME_SELECTORS,families,interfaceFont(document));if(style.textContent!==text)style.textContent=text;
   render();const key=config.chromeStyle.input.enabled?JSON.stringify([config.chromeStyle.input,families['chrome-input'],interfaceFont(document),config.font]):'';if(key!==lastFit){const was=lastFit;lastFit=key;if(key||was)fit();}
-  if(!observer){const Observer=Observe||document.defaultView?.MutationObserver;if(Observer){observer=new Observer(records=>{if(!config||pending)return;const relevant=records.some(r=>{if(r.target.closest?.('[data-oc-owned]'))return false;const changed=[...r.addedNodes,...r.removedNodes];if(changed.length&&changed.every(n=>n.nodeType===1&&n.hasAttribute('data-oc-owned')))return false;if(r.type==='attributes'&&r.attributeName==='data-oc-empty-text')return false;return r.target.closest?.('#top-settings-holder,#send_form,#form_sheld')||changed.some(n=>n.nodeType===1&&(n.id==='send_form'||n.id==='top-settings-holder'||n.querySelector?.('#send_form,#top-settings-holder')));});if(relevant){pending=true;const token=epoch;queueMicrotask(()=>{pending=false;if(config&&token===epoch)render();});}});observer.observe(document.body,{subtree:true,childList:true});stateObserver=new Observer(records=>{if(!config||pending||!records.some(r=>!r.target.closest?.('[data-oc-owned]')&&r.target.matches?.('#send_form,#send_textarea,#mes_stop,#form_sheld')))return;pending=true;const token=epoch;queueMicrotask(()=>{pending=false;if(config&&token===epoch)render();});});stateObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','style','placeholder','connected_text','disabled','readonly','hidden']});}}
+  if(!observer){const Observer=Observe||document.defaultView?.MutationObserver;if(Observer){
+   observer=new Observer(records=>{
+    if(!config||pending)return;
+    const relevant=records.some(r=>{
+     if(r.target.closest?.('[data-oc-owned]'))return false;
+     const changed=[...r.addedNodes,...r.removedNodes];
+     if(changed.length&&changed.every(n=>n.nodeType===1&&n.hasAttribute('data-oc-owned')))return false;
+     if(r.type==='attributes'&&r.attributeName==='data-oc-empty-text')return false;
+     // Preset and world info panels sit inside the top bar container beside their drawer toggles.
+     const topbar=r.target.closest?.('#top-settings-holder')&&!r.target.closest?.('#left-nav-panel,#WorldInfo');
+     return topbar||r.target.closest?.('#send_form,#form_sheld')||changed.some(n=>n.nodeType===1&&(n.id==='send_form'||n.id==='top-settings-holder'||n.querySelector?.('#send_form,#top-settings-holder')));
+    });
+    if(relevant){pending=true;const token=epoch;queueMicrotask(()=>{pending=false;if(config&&token===epoch)render();});}
+   });
+   observer.observe(document.body,{subtree:true,childList:true});
+   stateObserver=new Observer(records=>{if(!config||pending||!records.some(r=>!r.target.closest?.('[data-oc-owned]')&&r.target.matches?.('#send_form,#send_textarea,#mes_stop,#form_sheld')))return;pending=true;const token=epoch;queueMicrotask(()=>{pending=false;if(config&&token===epoch)render();});});stateObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','style','placeholder','connected_text','disabled','readonly','hidden']});
+  }}
  }
  function stop(){const hadInput=config?.chromeStyle.input.enabled;config=null;epoch++;observer?.disconnect();observer=null;stateObserver?.disconnect();stateObserver=null;resizer?.disconnect();resizer=null;observed.clear();pending=false;clearZone('topbar');clearZone('input');failed.clear();for(const [node,map]of attrs)restore(node,map);attrs.clear();for(const node of owned)node.remove();owned.clear();style=null;lastFit='';if(hadInput)fit();}
  return {update,stop,render,refreshInput:()=>{if(config?.chromeStyle.input.enabled)fit();}};
