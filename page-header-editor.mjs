@@ -1,3 +1,4 @@
+import {newPageTitleDecoration} from './page-title-decoration.mjs';
 import { newPageHeaderNative } from './page-header-native.mjs';
 import { TIME_FONTS } from './text-layout.mjs';
 import { LAYER_LIMIT, clone } from './layers.mjs';
@@ -712,6 +713,30 @@ export function createPageHeaderEditor({
       commit,
     );
   }
+  function renderPageDecorationFields(container, page, head) {
+    editorControl(container, field('显示页面头部', 'enabled', 'select', {
+      options: [['false', '关闭'], ['true', '开启']],
+    }), head);
+    editorControl(container, field('页面头部排版', 'layout', 'select', {
+      options: [['native', '原生排版'], ['standard', '标准排版']],
+    }), head);
+    container.append(make('p', 'hint', '装饰绑定本页原生文字标题；头图隐藏标题时，装饰一并隐藏。'));
+    const decoration = head.titleDecoration || newPageTitleDecoration();
+    const state = { enabled: !!head.titleDecoration };
+    editorControl(container, field('显示标题装饰', 'enabled', 'select', {
+      options: [['false', '关闭'], ['true', '开启']],
+      beforeApply: () => { head.titleDecoration = state.enabled ? decoration : null; },
+      beforePreview: () => { const previous = head.titleDecoration; head.titleDecoration = state.enabled ? decoration : null; return () => { head.titleDecoration = previous; }; },
+    }), state, renderFields);
+    if (!head.titleDecoration) return;
+    for (const f of [
+      field('装饰形状', 'shape', 'select', { options: [['square', '方块'], ['dot', '圆点'], ['line', '线条']] }),
+      field('装饰颜色', 'color', 'color'),
+      field('装饰大小', 'size', 'range', { min: 2, max: 40, unit: 'px' }),
+      field('装饰水平位置', 'x', 'range', { min: -80, max: 80, unit: 'px' }),
+      field('装饰纵向位置', 'y', 'range', { min: -80, max: 80, unit: 'px' }),
+    ]) editorControl(container, f, decoration);
+  }
   function renderPageHeaderFields(container) {
     if (getUi().page === 'home' && getUi().kind === 'native-home')
       return renderPageNativeFields(container);
@@ -721,6 +746,8 @@ export function createPageHeaderEditor({
     const page = getUi().page,
       item = getConfig().pageHeaders[page],
       hasImage = !!(item.asset || item.image);
+    if (getUi().object === 'decoration' && PAGE_TITLE_SUBTITLE_TARGETS[page])
+      return renderPageDecorationFields(container, page, item);
     if (getUi().object === 'subtitle' && PAGE_TITLE_SUBTITLE_TARGETS[page])
       return renderPageSubtitleFields(container, page, item);
     container.append(

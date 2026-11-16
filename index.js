@@ -1684,7 +1684,7 @@ await (async () => {
               ['title', '标题'],
               ['layout', '排版'],
               ...(PAGE_TITLE_SUBTITLE_TARGETS[ui.page]
-                ? [['subtitle', '原生标题副题']]
+                ? [['subtitle', '原生标题副题'], ['decoration', '标题角标装饰']]
                 : []),
             ]
           : ui.kind === 'native-home'

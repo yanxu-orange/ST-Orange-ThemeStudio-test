@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.24.0-page-basics",
+  "version": "0.24.1-title-decoration",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }

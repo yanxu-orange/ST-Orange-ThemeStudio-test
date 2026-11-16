@@ -1,3 +1,4 @@
+import {createPageTitleDecorationAdapter} from './page-title-decoration.mjs';
 import {PAGE_TITLE_SUBTITLE_SELECTORS,createPageTitleSubtitleAdapter} from './page-title-subtitle.mjs';
 const ROW='data-otl-title-row',TEXT='data-otl-title-text',SETTINGS='data-otl-settings-layout';
 export const PAGE_TITLE_LAYOUT_CSS=`
@@ -28,7 +29,7 @@ export const PAGE_TITLE_LAYOUT_CSS=`
 `;
 const selectors=Object.fromEntries(Object.entries(PAGE_TITLE_SUBTITLE_SELECTORS).map(([page,targets])=>[page,Object.values(targets)]));
 export function createPageTitleLayoutAdapter({document}={}){
- const owned=new Map(),subtitles=createPageTitleSubtitleAdapter({document});let style=null;
+ const owned=new Map(),subtitles=createPageTitleSubtitleAdapter({document}),decorations=createPageTitleDecorationAdapter({document});let style=null;
  function set(node,key,value,wanted){if(!node)return;let values=owned.get(node);if(!values){values=new Map();owned.set(node,values);}if(!values.has(key))values.set(key,{old:node.getAttribute(key),last:value});values.get(key).last=value;if(node.getAttribute(key)!==value)node.setAttribute(key,value);if(!wanted.has(node))wanted.set(node,new Set());wanted.get(node).add(key);}
  function restore(node,key,r){if(node.getAttribute(key)!==r.last)return;if(r.old===null)node.removeAttribute(key);else node.setAttribute(key,r.old);}
  function sync(entries){const wanted=new Map();for(const {page,host,header,config}of entries){if(!config.enabled||config.layout!=='standard')continue;
@@ -42,8 +43,8 @@ export function createPageTitleLayoutAdapter({document}={}){
   }
  }
  for(const [node,values]of owned){for(const [key,r]of values)if(!wanted.get(node)?.has(key)){restore(node,key,r);values.delete(key);}if(!values.size)owned.delete(node);}
- subtitles.sync(entries);
+ subtitles.sync(entries);decorations.sync(entries);
  if(owned.size&&!style){style=document.createElement('style');style.setAttribute('data-otl-title-style','');style.textContent=PAGE_TITLE_LAYOUT_CSS;document.head.append(style);}else if(!owned.size){style?.remove();style=null;}}
- function stop(){subtitles.stop();for(const [node,values]of owned)for(const [key,r]of values)restore(node,key,r);owned.clear();style?.remove();style=null;}
+ function stop(){subtitles.stop();decorations.stop();for(const [node,values]of owned)for(const [key,r]of values)restore(node,key,r);owned.clear();style?.remove();style=null;}
  return {sync,stop,updateFonts:subtitles.updateFonts};
 }
