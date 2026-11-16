@@ -26,3 +26,20 @@ test('More uses paired short actions, full-width controls and aligned touch-size
  assert.equal(shadow.querySelector('#restore').nextElementSibling.id,'close');
  assert.equal(shadow.querySelector('#import').nextElementSibling.id,'export');
 });
+
+
+test('phone hides only the desktop narrow-canvas preview command',()=>{
+ const {shadow}=fixture();
+ const rules=[...shadow.querySelector('style').sheet.cssRules];
+ const phone=rules.find(rule=>rule.conditionText==='(max-width:700px)'||rule.media?.mediaText==='(max-width:700px)');
+ assert.ok(phone);
+ const hidden=[...phone.cssRules].filter(rule=>rule.style?.getPropertyValue('display')==='none'&&!rule.selectorText.includes(':host')&&!rule.selectorText.includes('::'));
+ const narrow=shadow.querySelector('#narrow');
+ assert.ok(hidden.some(rule=>narrow.matches(rule.selectorText)));
+ for(const id of ['full-view','undo','mode-library','save','apply-live','layout-adjust','restore','close','import','export']){
+  assert.ok(!hidden.some(rule=>shadow.querySelector('#'+id).matches(rule.selectorText)),id);
+ }
+ assert.ok(!rules.some(rule=>rule.style?.getPropertyValue('display')==='none'&&!rule.selectorText.includes(':host')&&!rule.selectorText.includes('::')&&narrow.matches(rule.selectorText)));
+ assert.ok(hidden.some(rule=>shadow.querySelector('.wb-bottom').matches(rule.selectorText)));
+ assert.ok(hidden.some(rule=>shadow.querySelector('#wb-splitter').matches(rule.selectorText)));
+});
