@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {parseHTML} from 'linkedom';
-import {createWorkshopEntries,WORKSHOP_ENTRIES_KEY,WORKSHOP_ICON_URL} from './workshop-entries.mjs';
+import {createWorkshopEntries,WORKSHOP_ENTRIES_KEY,WORKSHOP_ICON_URL,WORKSHOP_STOP_ICON_URL} from './workshop-entries.mjs';
 function setup({native=true,stored=null,storageError=false}={}){
  const {document,window}=parseHTML('<html><body>'+(native?'<button id="extensionsMenuButton"></button><div id="extensionsMenu"><div id="native-item">Native</div></div><div id="extensions_settings"><div id="native-setting">Native</div></div>':'')+'<div id="host"></div></body></html>');
  const shadow=document.querySelector('#host').attachShadow({mode:'open'}),launcher=document.createElement('button');shadow.append(launcher);
@@ -137,4 +137,20 @@ test('entry uses the original black-pink-purple send butterfly without recolorin
  const f=setup();
  for(const icon of f.document.querySelectorAll('[data-workshop-action="open"] img')) assert.ok(!icon.style.filter);
  f.entries.destroy();
+});
+
+test('stop uses an outline of the same butterfly and preserves applied visibility',()=>{
+ const solid=readFileSync(new URL('./materials/shared/workshop-butterfly.svg',import.meta.url),'utf8');
+ const outline=readFileSync(new URL('./materials/shared/workshop-butterfly-outline.svg',import.meta.url),'utf8');
+ assert.equal(outline,solid.replace('fill="currentColor"','fill="none"'));
+ const f=setup();
+ for(const root of f.document.querySelectorAll('[data-workshop-entry]')){
+  const stop=root.querySelector('[data-workshop-action="stop"]');
+  assert.equal(stop.querySelector('img').src,WORKSHOP_STOP_ICON_URL);
+  assert.equal(stop.textContent,'退出工坊应用');
+  assert.equal(stop.hidden,true);assert.equal(stop.style.display,'none');
+  f.entries.setApplied(true);assert.equal(stop.hidden,false);assert.equal(stop.style.display,'');
+  stop.click();f.entries.setApplied(false);assert.equal(stop.hidden,true);
+ }
+ assert.equal(f.stops,2);f.entries.destroy();
 });

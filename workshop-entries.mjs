@@ -2,6 +2,7 @@
 export const WORKSHOP_ENTRIES_KEY='orange.theme-lab.entries.v1';
 export const DEFAULT_WORKSHOP_ENTRIES=Object.freeze({wand:true,extensions:true,floating:true});
 export const WORKSHOP_ICON_URL=new URL('./materials/shared/workshop-butterfly.svg',import.meta.url).href;
+export const WORKSHOP_STOP_ICON_URL=new URL('./materials/shared/workshop-butterfly-outline.svg',import.meta.url).href;
 const labels={wand:'魔棒',extensions:'扩展',floating:'悬浮入口'};
 const targets={wand:'#extensionsMenu',extensions:'#extensions_settings'};
 
@@ -21,16 +22,14 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
   }
  }catch(error){report('入口设置未能读取，已使用默认入口：'+error.message);}
  const make=(tag,text)=>{const node=document.createElement(tag);if(text)node.textContent=text;return node;};
- const actionRow=(name,text,action,{butterfly=false}={})=>{
+ const actionRow=(name,text,action,{iconUrl=WORKSHOP_ICON_URL}={})=>{
   // Match native Tavern/Lantai rows, rather than nesting a large menu_button.
   const node=make('div');node.setAttribute('role','button');node.tabIndex=0;
   node.className=name==='wand'?'list-group-item flex-container flexGap5':'inline-drawer-header standoutHeader flex-container flexGap5';
   Object.assign(node.style,{flex:'0 0 auto',minWidth:'0',cursor:'pointer',justifyContent:'flex-start'});
-  const icon=make(butterfly?'img':'i');icon.setAttribute('aria-hidden','true');
-  if(butterfly){
-   icon.src=WORKSHOP_ICON_URL;icon.alt='';icon.draggable=false;
-   Object.assign(icon.style,{width:'1.25em',height:'1.25em',flex:'0 0 1.25em',objectFit:'contain',alignSelf:'center',pointerEvents:'none'});
-  }else icon.className='fa-solid fa-arrow-right-from-bracket';
+  const icon=make('img');icon.setAttribute('aria-hidden','true');
+  icon.src=iconUrl;icon.alt='';icon.draggable=false;
+  Object.assign(icon.style,{width:'1.25em',height:'1.25em',flex:'0 0 1.25em',objectFit:'contain',alignSelf:'center',pointerEvents:'none'});
   const label=make('span',text);if(name==='extensions')label.style.fontWeight='bold';node.append(icon,label);
   node.addEventListener('click',action);
   node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!event.repeat)node.click();}});
@@ -44,8 +43,8 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    if(!target)continue;
    const root=make('div');root.dataset.workshopEntry=name;
    root.className='extension_container';
-   const {node:open,label:openLabel}=actionRow(name,'主题工坊',()=>onOpen(),{butterfly:true});
-   const {node:stop}=actionRow(name,'退出工坊应用',()=>onStopApplied());
+   const {node:open,label:openLabel}=actionRow(name,'主题工坊',()=>onOpen());
+   const {node:stop}=actionRow(name,'退出工坊应用',()=>onStopApplied(),{iconUrl:WORKSHOP_STOP_ICON_URL});
    open.dataset.workshopAction='open';stop.dataset.workshopAction='stop';
    root.append(open,stop);target.append(root);entries.set(name,{root,open,openLabel,stop});
   }
