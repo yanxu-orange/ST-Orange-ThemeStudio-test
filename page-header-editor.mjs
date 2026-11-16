@@ -1,3 +1,4 @@
+import {pageTitleFontKey} from './page-title-style.mjs';
 import {newPageTitleDecoration} from './page-title-decoration.mjs';
 import { newPageHeaderNative } from './page-header-native.mjs';
 import { TIME_FONTS } from './text-layout.mjs';
@@ -20,11 +21,11 @@ import { assetUrl } from './catalog.mjs';
 export function createPageHeaderEditor({
   getConfig,
   getUi,
-  editorControl,
+  editorControl: renderControl,
   field,
   make,
   remember,
-  apply,
+  apply: applyPreview,
   renderFields,
   renderFontLinkFields,
   openMaterialPicker,
@@ -34,23 +35,42 @@ export function createPageHeaderEditor({
   notify,
   pairedFields,
 }) {
+  const editorControl = renderControl, apply = applyPreview;
   function renderPageNativeFields(container) {
     const head = getConfig().pageHeaders.home,
       native = head.native,
       key = getUi().object;
-    editorControl(
+    const item = native[key] || newPageHeaderNative(key);
+    const commit = () => {
+      native[key] = item; head.enabled = true; head.placement = 'native';
+      const placement = container.querySelector('[aria-label="首页内容放置"]');
+      if (placement) placement.value = 'native';
+    };
+    const apply = () => { commit(); applyPreview(); };
+    const editorControl = (container, f, target, onUpdate) => renderControl(container, {
+      ...f,
+      beforeApply: () => { f.beforeApply?.(); commit(); },
+      beforePreview: () => {
+        const previous = native[key], placement = head.placement;
+        const rollback = f.beforePreview?.();
+        native[key] = item;
+        head.placement = 'native';
+        return () => { native[key] = previous; head.placement = placement; rollback?.(); };
+      },
+    }, target, onUpdate);
+    renderControl(
       container,
       field('首页内容放置', 'placement', 'select', {
         options: [
           ['banner', '独立头图'],
-          ['native', '与原生内容共处'],
+          ['native', '与首页文字、按钮叠放'],
         ],
       }),
       head,
     );
-    const logo = make('label', 'field', '隐藏原生标志'),
+    const logo = make('label', 'field', '酒馆标志'),
       select = make('select');
-    select.setAttribute('aria-label', '隐藏原生标志');
+    select.setAttribute('aria-label', '酒馆标志');
     for (const [v, t] of [
       ['false', '保留'],
       ['true', '隐藏'],
@@ -63,32 +83,16 @@ export function createPageHeaderEditor({
     select.addEventListener('change', () => {
       remember();
       native.hideLogo = select.value === 'true';
-      if (native.hideLogo) head.enabled = true;
-      apply();
+      head.enabled = true;
+      applyPreview();
     });
     logo.append(select);
     container.append(logo);
-    const toggle = make('label', 'field', '设计此原生对象'),
-      enabled = make('input');
-    enabled.type = 'checkbox';
-    enabled.checked = !!native[key];
-    enabled.setAttribute('aria-label', '设计此原生对象');
-    enabled.addEventListener('change', () => {
-      remember();
-      native[key] = enabled.checked ? newPageHeaderNative(key) : null;
-      if (enabled.checked) head.enabled = true;
-      apply();
-      renderFields();
-    });
-    toggle.append(enabled);
-    container.append(toggle);
-    const item = native[key];
-    if (!item) return;
     for (const f of [
       field('横向位置', 'x', 'range', { min: -100, max: 200, unit: '%' }),
       field('纵向位置', 'y', 'range', { min: -400, max: 1600, unit: 'px' }),
-      field('对象字号', 'size', 'range', { min: 8, max: 200 }),
-      field('对象颜色', 'color', 'color'),
+      field(key === 'version' ? '版本字号' : '图标大小', 'size', 'range', { min: 8, max: 200 }),
+      field(key === 'version' ? '版本颜色' : '图标颜色', 'color', 'color'),
     ])
       editorControl(container, f, item);
     if (key === 'version') {
@@ -123,11 +127,12 @@ export function createPageHeaderEditor({
         'page-header-home-native-version',
         item,
         '版本文字',
+        commit,
       );
       const b = make(
         'button',
         '',
-        item.width === 'auto' ? '指定版本宽度' : '恢复自动宽度',
+        item.width === 'auto' ? '自定义版本文字宽度' : '恢复自动宽度',
       );
       b.type = 'button';
       b.addEventListener('click', () => {
@@ -211,9 +216,6 @@ export function createPageHeaderEditor({
         field('按钮宽度', 'width', 'range', { min: 16, max: 200, unit: 'px' }),
         item,
       );
-    container.append(
-      make('p', 'hint', '仅在与原生内容共处时生效；保留原生内容和按钮功能。'),
-    );
   }
   function pageSceneEntries() {
     const scene = getConfig().pageHeaders[getUi().page].scene;
@@ -426,31 +428,31 @@ export function createPageHeaderEditor({
             ['right', '右侧'],
           ],
         }),
-        field('垂直锚点', 'vertical', 'select', {
+        field('垂直定位基准', 'vertical', 'select', {
           options: [
             ['top', '顶部'],
             ['bottom', '底部'],
           ],
         }),
-        field('大小单位', 'widthUnit', 'select', {
+        field('宽度单位', 'widthUnit', 'select', {
           options: [
             ['px', '像素'],
             ['percent', '相对区域百分比'],
           ],
         }),
-        field('素材大小', 'width', 'range', { min: 1, max: 500 }),
-        field('偏移单位', 'offsetUnit', 'select', {
+        field('素材宽度', 'width', 'range', { min: 1, max: 500 }),
+        field('距离单位', 'offsetUnit', 'select', {
           options: [
             ['px', '像素'],
             ['percent', '相对区域百分比'],
           ],
         }),
-        field('侧边偏移', 'x', 'range', { min: -300, max: 600 }),
-        field('垂直偏移', 'y', 'range', { min: -300, max: 600 }),
+        field(item.side === 'right' ? '距右边距离' : '距左边距离', 'x', 'range', { min: -300, max: 600 }),
+        field(item.vertical === 'bottom' ? '距底部距离' : '距顶部距离', 'y', 'range', { min: -300, max: 600 }),
         field('旋转角度', 'rotation', 'range', { min: -180, max: 180 }),
-        field('透明度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
+        field('不透明度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
       ])
-        editorControl(container, f, item);
+        editorControl(container, f, item, ['side', 'vertical'].includes(f.key) ? renderFields : undefined);
       if (item.kind === 'shape') {
         for (const f of [
           field('形状', 'shape', 'select', {
@@ -495,12 +497,19 @@ export function createPageHeaderEditor({
               ? () => renderFields()
               : undefined,
           );
-      } else
-        editorControl(
+      } else {
+        editorControl(container, field('高度', 'mode', 'select', {
+          options: [['original', '原比例'], ['custom', '自定义']],
+        }), {
+          get mode() { return item.heightPercent > 0 ? 'custom' : 'original'; },
+          set mode(value) { item.heightPercent = value === 'original' ? 0 : (item.heightPercent || 100); },
+        }, () => renderFields());
+        if (item.heightPercent > 0) editorControl(
           container,
-          field('素材区域高度', 'heightPercent', 'range', { min: 0, max: 100 }),
+          field('素材高度', 'heightPercent', 'range', { min: 1, max: 100, unit: '%' }),
           item,
         );
+      }
     } else {
       const row = make('label', 'field', '文字内容'),
         text = make('textarea');
@@ -601,20 +610,10 @@ export function createPageHeaderEditor({
       };
     editorControl(
       container,
-      field('显示页面头部', 'enabled', 'select', {
-        options: [
-          ['false', '关闭'],
-          ['true', '开启'],
-        ],
-      }),
-      head,
-    );
-    editorControl(
-      container,
       field('页面头部排版', 'layout', 'select', {
         options: [
-          ['native', '原生排版'],
-          ['standard', '标准排版'],
+          ['native', '酒馆原有排版'],
+          ['standard', '工坊标题排版'],
         ],
       }),
       head,
@@ -623,16 +622,16 @@ export function createPageHeaderEditor({
       make(
         'p',
         'hint',
-        '只在标准排版且原生标题保留时显示；有头图或自定义标题替代原生标题时不显示。清空文案即可关闭对应副题。',
+        '只在工坊标题排版且酒馆原标题保留时显示；有头图或自定义标题替代酒馆原标题时不显示。清空文案即可关闭对应文字。',
       ),
     );
     const keys = Object.keys(targets);
     let target = pageSubtitleTargets.get(page);
     if (!keys.includes(target)) target = keys[0];
     if (keys.length > 1) {
-      const row = make('label', 'field', '原生标题'),
+      const row = make('label', 'field', '酒馆原标题'),
         select = make('select');
-      select.setAttribute('aria-label', '原生标题');
+      select.setAttribute('aria-label', '酒馆原标题');
       for (const [key, label] of Object.entries(targets)) {
         const option = make('option', '', label);
         option.value = key;
@@ -663,24 +662,24 @@ export function createPageHeaderEditor({
         value,
       );
     control(
-      field('副题文案', target, 'text', { maxLength: 160 }),
+      field('标题下方文字', target, 'text', { maxLength: 160 }),
       new Proxy(subtitle.texts, { get: (value, key) => value[key] ?? '' }),
     );
-    propertyHeading(container, '本页副题外观');
-    container.append(make('p', 'hint', '本页各个原生标题的副题共用这组外观。'));
+    propertyHeading(container, '标题下方文字外观');
+    container.append(make('p', 'hint', '本页各个酒馆原标题的下方文字共用这组外观。'));
     for (const f of [
-      field('副题字体', 'font', 'select', {
+      field('标题下方文字字体', 'font', 'select', {
         options: TIME_FONTS.map((font) => [font, font]),
       }),
-      field('副题字号', 'size', 'range', { min: 8, max: 60, unit: 'px' }),
-      field('副题颜色', 'color', 'color'),
-      field('副题行高', 'lineHeight', 'range', {
+      field('标题下方文字字号', 'size', 'range', { min: 8, max: 60, unit: 'px' }),
+      field('标题下方文字颜色', 'color', 'color'),
+      field('标题下方文字行高', 'lineHeight', 'range', {
         min: 1,
         max: 3,
         step: 0.05,
         unit: '倍',
       }),
-      field('副题字距', 'letterSpacing', 'range', {
+      field('标题下方文字字距', 'letterSpacing', 'range', {
         min: -2,
         max: 10,
         step: 0.1,
@@ -689,7 +688,7 @@ export function createPageHeaderEditor({
     ])
       control(f);
     control(
-      field('副题字重', 'weight', 'select', {
+      field('标题下方文字字重', 'weight', 'select', {
         options: [
           ['auto', '沿用字体'],
           ...Array.from({ length: 9 }, (_, i) => [
@@ -709,18 +708,15 @@ export function createPageHeaderEditor({
       container,
       pageTitleSubtitleFontKey(page),
       subtitle.style,
-      '原生标题副题',
+      '标题下方文字',
       commit,
     );
   }
   function renderPageDecorationFields(container, page, head) {
-    editorControl(container, field('显示页面头部', 'enabled', 'select', {
-      options: [['false', '关闭'], ['true', '开启']],
-    }), head);
     editorControl(container, field('页面头部排版', 'layout', 'select', {
-      options: [['native', '原生排版'], ['standard', '标准排版']],
+      options: [['native', '酒馆原有排版'], ['standard', '工坊标题排版']],
     }), head);
-    container.append(make('p', 'hint', '装饰绑定本页原生文字标题；头图隐藏标题时，装饰一并隐藏。'));
+    container.append(make('p', 'hint', '装饰绑定本页酒馆原标题；头图隐藏标题时，装饰一并隐藏。'));
     const decoration = head.titleDecoration || newPageTitleDecoration();
     const state = { enabled: !!head.titleDecoration };
     editorControl(container, field('显示标题装饰', 'enabled', 'select', {
@@ -758,20 +754,6 @@ export function createPageHeaderEditor({
           ? '在近期聊天首页上方显示图片或标题。'
           : '在本页内容上方显示图片或标题。',
       ),
-    );
-    editorControl(
-      container,
-      field('显示页面头部', 'enabled', 'select', {
-        options: [
-          ['false', '关闭'],
-          ['true', '开启'],
-        ],
-        notice: '页面头部已更新，尚未保存',
-      }),
-      item,
-    );
-    container.append(
-      make('p', 'hint', '开启后，有图片或非空标题时才显示页面头部。'),
     );
     if (getUi().object === 'title') {
       propertyHeading(container, '标题内容');
@@ -828,6 +810,14 @@ export function createPageHeaderEditor({
         }),
         item,
       );
+      if (item.titleStyle && PAGE_TITLE_SUBTITLE_TARGETS[page]) {
+        for (const f of [
+          field('标题字体', 'font', 'select', {options:[['auto','沿用界面字体'],...TIME_FONTS.map(font=>[font,font])]}),
+          field('标题行高', 'lineHeight', 'range', {min:1,max:3,step:0.05}),
+          field('标题字间距', 'letterSpacing', 'range', {min:-2,max:10,step:0.1,unit:'px'}),
+        ]) editorControl(container,f,item.titleStyle);
+        renderFontLinkFields(container,pageTitleFontKey(page),item.titleStyle,'标题');
+      }
       return;
     }
     if (getUi().object === 'layout') {
@@ -836,8 +826,8 @@ export function createPageHeaderEditor({
         container,
         field('页面头部排版', 'layout', 'select', {
           options: [
-            ['native', '原生排版'],
-            ['standard', '标准排版'],
+            ['native', '酒馆原有排版'],
+            ['standard', '工坊标题排版'],
           ],
         }),
         item,
@@ -846,7 +836,7 @@ export function createPageHeaderEditor({
         make(
           'p',
           'hint',
-          '原生排版保留原生标题。标准排版在页面头部实际显示时隐藏对应原生标题；没有头部内容时整理原生标题，角色名称始终保留。',
+          '酒馆原有排版保留酒馆原标题。工坊标题排版在页面头部实际显示时隐藏对应酒馆原标题；没有头部内容时整理酒馆原标题，角色名称始终保留。',
         ),
       );
       if (page === 'settings')
@@ -854,7 +844,7 @@ export function createPageHeaderEditor({
           make(
             'p',
             'hint',
-            '设置页使用标准排版且实际显示头部时才启用固定排版；否则保留原生排版。',
+            '设置页使用工坊标题排版且实际显示头部时才启用固定排版；否则保留酒馆原有排版。',
           ),
         );
       propertyHeading(container, '头部尺寸');

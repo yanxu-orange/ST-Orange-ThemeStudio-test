@@ -16,15 +16,15 @@ test('inline material control commits only selected sources and keeps cancelled,
  for(const region of ['topbar','input']){
   go(region);sh.querySelector(`[data-kind=${region==='topbar'?'icons':'tools'}]`).click();
   const target=sh.querySelector('.object-list [aria-pressed=true]').dataset.object;
-  assert.deepEqual([...sh.querySelector('[aria-label="按钮图形"]').options].map(o=>o.textContent),['原生','自定义']);
-  const picker=()=>sh.querySelector('#chrome-icon-pick');assert.equal(picker().textContent,'选择素材');assert.equal(picker().parentElement.querySelector('select').getAttribute('aria-label'),'按钮图形');
+  assert.deepEqual([...sh.querySelector('[aria-label="按钮图标"]').options].map(o=>o.textContent),['酒馆默认','自定义']);
+  const picker=()=>sh.querySelector('#chrome-icon-pick');assert.equal(picker().textContent,'选择素材');assert.equal(picker().parentElement.querySelector('select').getAttribute('aria-label'),'按钮图标');
   const before=await save();sh.querySelector('.fields').scrollTop=36;sh.querySelector('.inspector').scrollTop=240;picker().click();assert.equal(sh.querySelector('.fields').scrollTop,0);assert.equal(sh.querySelector('.inspector').scrollTop,0);assert.equal(sh.querySelectorAll('[data-material-category]').length,2);sh.querySelector('#material-back').click();assert.equal(sh.querySelector('.fields').scrollTop,36);assert.equal(sh.querySelector('.inspector').scrollTop,240);assert.deepEqual(await save(),before);
-  select('按钮图形','custom');assert.equal(sh.querySelector('.material-categories')!==null,true);const escape=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(escape,'key',{value:'Escape'});sh.dispatchEvent(escape);
-  assert.deepEqual(await save(),before,'choosing custom and then cancelling is not an edit');assert.equal(sh.querySelector('[aria-label="按钮图形"]').value,'native');
-  picker().click();sh.querySelector('[data-material-category=icons]').click();sh.querySelector('.icon-library-use').click();let chosen=await save();assert.equal(chosen.chromeStyle[region].icons[target].mode,'icon');assert.ok(chosen.chromeStyle[region].icons[target].icon);assert.equal(sh.querySelector('[aria-label="按钮图形"]').value,'custom');assert.equal(picker().textContent,'更换');
+  select('按钮图标','custom');assert.equal(sh.querySelector('.material-categories')!==null,true);const escape=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(escape,'key',{value:'Escape'});sh.dispatchEvent(escape);
+  assert.deepEqual(await save(),before,'choosing custom and then cancelling is not an edit');assert.equal(sh.querySelector('[aria-label="按钮图标"]').value,'native');
+  picker().click();sh.querySelector('[data-material-category=icons]').click();sh.querySelector('.icon-library-use').click();let chosen=await save();assert.equal(chosen.chromeStyle[region].icons[target].mode,'icon');assert.ok(chosen.chromeStyle[region].icons[target].icon);assert.equal(sh.querySelector('[aria-label="按钮图标"]').value,'custom');assert.equal(picker().textContent,'更换');
   picker().click();sh.querySelector('[data-material-category=images]').click();sh.querySelector('#material-back').click();assert.deepEqual(await save(),chosen,'category browsing and cancel preserve icon source');
   picker().click();sh.querySelector('[data-material-category=images]').click();sh.querySelector('[data-builtin-asset]').click();chosen=await save();assert.equal(chosen.chromeStyle[region].icons[target].mode,'image');assert.ok(chosen.chromeStyle[region].icons[target].asset);assert.equal(chosen.chromeStyle[region].icons[target].icon,'','replacing an icon with an image removes the stale icon');
-  sh.querySelector('#undo').click();assert.equal((await save()).chromeStyle[region].icons[target].mode,'icon');select('按钮图形','native');assert.equal((await save()).chromeStyle[region].icons[target].mode,'native');assert.equal(picker().textContent,'选择素材');
+  sh.querySelector('#undo').click();assert.equal((await save()).chromeStyle[region].icons[target].mode,'icon');select('按钮图标','native');assert.equal((await save()).chromeStyle[region].icons[target].mode,'native');assert.equal(picker().textContent,'选择素材');
  }
  go('native');
  for(const [label,id,key]of [['显示方式','native-edit-pick','edit'],['更多显示方式','native-more-pick','more']]){

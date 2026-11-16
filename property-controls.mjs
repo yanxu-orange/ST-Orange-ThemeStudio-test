@@ -1,3 +1,4 @@
+import { activateEditedRegion } from './edit-activation.mjs';
 import { addNumericStepper } from './numeric-stepper.mjs';
 import { clone } from './layers.mjs';
 
@@ -263,9 +264,11 @@ export function createPropertyControls({
             target[f.key] = value;
             if (other) other[f.key] = value;
             const rollback = f.beforePreview?.();
+            const restoreActivation = activateEditedRegion(getConfig(), getUi());
             try {
               liveAdapter.update(getConfig(), { validated: true });
             } finally {
+              restoreActivation();
               rollback?.();
               target[f.key] = old;
               if (other) other[f.key] = otherOld;

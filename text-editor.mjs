@@ -86,13 +86,13 @@ export function createTextEditor({
   function renderMetadataFields(container, key) {
     const m = getConfig().metadata || newMetadata(),
       labelName = key === 'name' ? '名字' : '时间';
-    propertyHeading(container, '设计对象');
-    const modeLabel = make('label', 'field', '姓名时间设计'),
+    propertyHeading(container, 'AI 与用户');
+    const modeLabel = make('label', 'field', 'AI 与用户'),
       mode = make('select');
-    mode.setAttribute('aria-label', '姓名时间设计');
+    mode.setAttribute('aria-label', 'AI 与用户');
     for (const [v, t] of [
-      ['unified', '统一设计'],
-      ['separate', '分别设计'],
+      ['unified', '一起设置'],
+      ['separate', '分开设置'],
     ]) {
       const o = make('option', '', t);
       o.value = v;
@@ -184,7 +184,7 @@ export function createTextEditor({
           commit();
         };
         const prefixSource = (label, key, fallback) => {
-          const row = make('label', 'field', label),
+          const row = make('label', 'field', key === 'size' ? '前缀字号' : '前缀颜色'),
             select = make('select');
           select.setAttribute('aria-label', label);
           for (const [value, title] of [
@@ -247,7 +247,7 @@ export function createTextEditor({
         }),
       );
     control(
-      field('对齐锚点', 'anchor', 'select', {
+      field('水平对齐', 'anchor', 'select', {
         options: [
           ['left', '左侧'],
           ['center', '居中'],

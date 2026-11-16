@@ -14,16 +14,16 @@ export function createFontFieldsEditor({
   function renderFontLinkFields(container, key, item, labelName, beforeApply) {
     const linkRow = pairedFields(container);
     linkRow.classList.add('font-link-row');
-    const linkLabel = make('label', 'field', '字体文件直链（留空用预设）'),
+    const linkLabel = make('label', 'field', '字体文件链接'),
       link = make('input');
     link.type = 'url';
     link.maxLength = 2048;
     link.value = item.fontLink?.url || '';
     link.setAttribute('aria-label', labelName + ' 字体直链');
     linkLabel.append(link);
-    const faceLabel = make('label', 'field', '链接文件类型'),
+    const faceLabel = make('label', 'field', '字体文件字重'),
       face = make('select');
-    face.setAttribute('aria-label', labelName + ' 链接文件类型');
+    face.setAttribute('aria-label', labelName + ' 字体文件字重');
     for (const [value, title] of [
       ['100', '极细字体'],
       ['200', '纤细字体'],
@@ -42,7 +42,10 @@ export function createFontFieldsEditor({
     }
     face.value = item.fontLink?.faceWeight || '400';
     faceLabel.append(face);
-    linkRow.append(faceLabel, linkLabel);
+    linkRow.append(linkLabel);
+    const advanced = make('details', 'font-link-advanced');
+    advanced.append(make('summary', '', '高级设置'), faceLabel);
+    container.append(advanced);
     const commit = () => {
       try {
         const next = validateCaptionStyle(

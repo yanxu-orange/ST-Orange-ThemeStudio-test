@@ -10,7 +10,7 @@ test('preset entry and slider tip editors preserve independent values, restore a
  click('.launcher');sh.querySelector('[data-flow=continue]')?.click();change('#workspace-page','presets');change('#region-select','page-content');
  assert.deepEqual([...sh.querySelectorAll('.kind-tabs [data-kind]')].map(n=>n.dataset.kind),['surface','tip']);
  const initial=await save();assert.equal(initial.pageStyle.presets.sliderTip,'native');assert.equal(initial.pageStyle.presets.entry,null);
- set('启用提示词条目外观','true');set('样式来源','custom');set('面板底色 HEX','#f4eee4');set('面板不透明度 数值',.6);set('面板圆角 数值',3);
+ set('样式来源','custom');set('面板底色 HEX','#f4eee4');set('面板不透明度 数值',.6);set('面板圆角 数值',3);
  click('[data-kind=tip]');set('提示位置','flow');assert.equal(sh.querySelector('[aria-label="面板底色 HEX"]'),null);
  const saved=await save();assert.equal(saved.pageStyle.presets.promptList,true);assert.equal(saved.pageStyle.presets.sliderTip,'flow');assert.equal(saved.pageStyle.presets.entry.background,'#f4eee4');assert.equal(saved.pageStyle.presets.entry.opacity,.6);assert.equal(saved.pageStyle.presets.entry.radius,3);
  for(const page of Object.keys(initial.pageStyle).filter(k=>k!=='presets'))assert.deepEqual(saved.pageStyle[page],initial.pageStyle[page]);

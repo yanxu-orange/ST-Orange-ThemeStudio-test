@@ -16,12 +16,12 @@ export function createAvatarEditor({
   field,
 }) {
   function renderPhotoFields(container) {
-    const mode = make('label', 'field', '设计对象'),
+    const mode = make('label', 'field', 'AI 与用户'),
       select = make('select');
-    select.setAttribute('aria-label', '设计对象');
+    select.setAttribute('aria-label', 'AI 与用户');
     for (const [value, label] of [
-      ['unified', '统一设计'],
-      ['separate', '分别设计'],
+      ['unified', '一起设置'],
+      ['separate', '分开设置'],
     ]) {
       const o = make('option', '', label);
       o.value = value;

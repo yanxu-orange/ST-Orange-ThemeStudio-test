@@ -222,7 +222,7 @@ export function createLayerEditor({
         );
       editorControl(
         container,
-        field('透明度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
+        field('不透明度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
         layer,
       );
     }
@@ -258,29 +258,29 @@ export function createLayerEditor({
           ['left', '左侧'],
         ],
       }),
-      field('垂直锚点', 'vertical', 'select', {
+      field('垂直定位基准', 'vertical', 'select', {
         options: [
           ['top', '顶部'],
           ['bottom', '底部'],
         ],
       }),
-      field('大小单位', 'widthUnit', 'select', {
+      field('宽度单位', 'widthUnit', 'select', {
         options: [
           ['px', '像素'],
           ['percent', '相对区域百分比'],
         ],
       }),
-      field('素材大小', 'width', 'range', {
+      field('素材宽度', 'width', 'range', {
         min: 1,
         max: 500,
         unit: layer.widthUnit === 'percent' ? '%' : 'px',
       }),
-      field('素材区域高度', 'heightPercent', 'range', {
-        min: 0,
+      field('素材高度', 'heightPercent', 'range', {
+        min: 1,
         max: 100,
-        unit: '%（0 为原比例）',
+        unit: '%',
       }),
-      field('偏移单位', 'offsetUnit', 'select', {
+      field('距离单位', 'offsetUnit', 'select', {
         options: [
           ['px', '像素'],
           ['percent', '相对区域百分比'],
@@ -301,8 +301,8 @@ export function createLayerEditor({
         max: 180,
         unit: '°',
       }),
-      field('透明度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
-      field('叠放层级', 'z', 'range', { min: 0, max: 20 }),
+      field('不透明度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
+      field('前后层级', 'z', 'range', { min: 0, max: 20 }),
     ];
     const order = [
       'name',
@@ -336,6 +336,15 @@ export function createLayerEditor({
           ].includes(f.key))
       )
         continue;
+      if (f.key === 'heightPercent') {
+        editorControl(container, field('高度', 'mode', 'select', {
+          options: [['original', '原比例'], ['custom', '自定义']],
+        }), {
+          get mode() { return layer.heightPercent > 0 ? 'custom' : 'original'; },
+          set mode(value) { layer.heightPercent = value === 'original' ? 0 : (layer.heightPercent || 100); },
+        }, () => renderFields());
+        if (!(layer.heightPercent > 0)) continue;
+      }
       if (f.key === 'scope' && layer.anchor === 'input') continue;
       if (f.key === 'anchor') propertyHeading(container, '位置与叠放');
       if (f.key === 'widthUnit') propertyHeading(container, '尺寸与外观');

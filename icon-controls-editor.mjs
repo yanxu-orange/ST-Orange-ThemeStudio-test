@@ -37,7 +37,7 @@ export function createIconControlsEditor({
       pick = make('button', '', hasMaterial ? '更换' : '选择素材');
     mode.setAttribute('aria-label', label);
     for (const [value, name] of [
-      [nativeMode, '原生'],
+      [nativeMode, '酒馆默认'],
       ...(native ? [['text', '文字']] : []),
       ['custom', '自定义'],
     ]) {
@@ -104,7 +104,7 @@ export function createIconControlsEditor({
         rerender ? () => renderFields() : undefined,
       );
     control(
-      prefix + '整体染色',
+      prefix + '配色',
       'tint',
       'select',
       {

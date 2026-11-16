@@ -12,9 +12,9 @@ test('metadata editing activates only on change and preserves per-role designs',
  const save=()=>saveEditorScheme(sh,scheme);
  sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="name"]').click();assert.equal((await save()).metadata.unified.name,null);
  edit('名字 水平位置 数值',12);let c=await save();assert.equal(c.metadata.unified.name.x,12);assert.equal(c.textItems.name.x,0);
- edit('姓名时间设计','separate');edit('姓名时间对象','user');edit('名字 纵向位置 数值',129);c=await save();assert.equal(c.metadata.roles.user.name.y,129);assert.equal(c.metadata.roles.ai.name.x,12);
- edit('姓名时间对象','ai');edit('定位区域','body-top');edit('正文上沿排布','overlay');edit('名字 纵向位置 数值',3);edit('对齐锚点','right');c=await save();assert.equal(c.metadata.roles.ai.name.region,'body-top');assert.equal(c.metadata.roles.ai.name.flow,'overlay');assert.equal(c.metadata.roles.ai.name.anchor,'right');
- edit('姓名时间设计','unified');assert.equal((await save()).metadata.unified.name.x,12);edit('姓名时间设计','separate');assert.equal((await save()).metadata.roles.user.name.y,129);
+ edit('AI 与用户','separate');edit('姓名时间对象','user');edit('名字 纵向位置 数值',129);c=await save();assert.equal(c.metadata.roles.user.name.y,129);assert.equal(c.metadata.roles.ai.name.x,12);
+ edit('姓名时间对象','ai');edit('定位区域','body-top');edit('正文上沿排布','overlay');edit('名字 纵向位置 数值',3);edit('水平对齐','right');c=await save();assert.equal(c.metadata.roles.ai.name.region,'body-top');assert.equal(c.metadata.roles.ai.name.flow,'overlay');assert.equal(c.metadata.roles.ai.name.anchor,'right');
+ edit('AI 与用户','unified');assert.equal((await save()).metadata.unified.name.x,12);edit('AI 与用户','separate');assert.equal((await save()).metadata.roles.user.name.y,129);
  const msg=document.querySelector('.mes[is_user="false"]'),body=msg.querySelector('.mes_text'),name=msg.querySelector('.name_text');
  body.getBoundingClientRect=()=>({left:0,top:200,width:366,height:100,right:366,bottom:300});Object.defineProperty(body,'clientWidth',{value:366,configurable:true});
  const previousStyle=window.getComputedStyle;window.getComputedStyle=n=>({...previousStyle?.(n),transform:'none',zoom:'1',getPropertyValue:()=>'',paddingLeft:n===body?'27px':'0px',paddingRight:n===body?'19px':'0px'});

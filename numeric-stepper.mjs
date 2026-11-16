@@ -5,8 +5,8 @@ export function addNumericStepper(row,range,number){
  const doc=row.ownerDocument,make=(tag,cls,text)=>{const n=doc.createElement(tag);n.className=cls;if(text)n.textContent=text;return n;};
  const title=range.getAttribute('aria-label')||'数值',base=Number(number.step)||1;
  const minus=make('button','numeric-minus','−'),plus=make('button','numeric-plus','＋'),steps=make('select','numeric-step');
- for(const button of [minus,plus])button.type='button';minus.setAttribute('aria-label',title+' 手机减少');plus.setAttribute('aria-label',title+' 手机增加');steps.setAttribute('aria-label',title+' 调整步长');
- for(const value of stepOptions(base)){const option=make('option','','步长 '+value);option.value=String(value);option.selected=value===base;steps.append(option);}number.setAttribute('inputmode',base<1?'decimal':'numeric');
+ for(const button of [minus,plus])button.type='button';minus.setAttribute('aria-label',title+' 减少');plus.setAttribute('aria-label',title+' 增加');steps.setAttribute('aria-label',title+' 每次调整量');
+ for(const value of stepOptions(base)){const option=make('option','','每次调整 '+value);option.value=String(value);option.selected=value===base;steps.append(option);}number.setAttribute('inputmode',base<1?'decimal':'numeric');
  const emit=type=>number.dispatchEvent(new doc.defaultView.Event(type,{bubbles:true}));
  const change=direction=>{const current=Number(number.value),min=Number(number.min),max=Number(number.max);if(number.value===''||!Number.isFinite(current)||current<min||current>max)return;const next=steppedValue(current,direction*Number(steps.value),min,max);if(next===current)return;emit('change');number.value=String(next);emit('input');emit('change');};
  minus.addEventListener('click',e=>{e.preventDefault();change(-1);});plus.addEventListener('click',e=>{e.preventDefault();change(1);});

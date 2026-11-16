@@ -1,3 +1,8 @@
+import { activateEditedRegion } from './edit-activation.mjs';
+import { createCombinationLibrary } from './combination-library.mjs';
+import { captureCombination, applyCombination, inspectCombinationConflicts } from './region-combinations.mjs';
+import { combinationContext } from './combination-context.mjs';
+import { createCombinationPreview } from './combination-preview.mjs';
 import { rebaseBundledFontLinks } from './spring-fonts.mjs';
 import { portableScheme } from './portable-scheme.mjs';
 import { createCustomWorkStorage } from './custom-work-storage.mjs';
@@ -88,7 +93,7 @@ await (async () => {
   if (document.getElementById('orange-theme-lab')) return;
   const schemeStorage = createSchemeStorage();
   const appliedStorage = createSchemeStorage({ key: APPLIED_SCHEME_KEY });
-  let workLibrary = null;
+  let workLibrary = null, combinationLibrary = null;
   let appliedSnapshot = null,
     applying = false,
     applicationLoadError = null;
@@ -188,7 +193,7 @@ await (async () => {
   function syncSaveState() {
     shadow.querySelector('#save').disabled = saveState === 'saving';
     shadow.querySelector('#save-state').textContent = {
-      draft: '未保存的草稿',
+      draft: '草稿未保存',
       saving: '正在保存…',
       saved: '已保存方案',
       failed: '未保存',
@@ -198,7 +203,9 @@ await (async () => {
     saveState = state;
     syncSaveState();
   }
-  function remember() {
+  let pendingRegionEdit = null;
+  function remember(activateRegion = true) {
+    pendingRegionEdit = activateRegion ? { ui: { ...ui }, config } : null;
     if (saveState !== 'saving') setSaveState('draft');
     history.push(snapshotDraft(config));
     if (history.length > 40) history.shift();
@@ -963,6 +970,7 @@ await (async () => {
               target.asset = '';
               target.image = source.image || '';
             }
+            if (zone !== 'native') config.chromeStyle[zone].enabled = true;
             libraryPurpose = 'layer';
             apply();
             revealMaterialTarget(
@@ -975,9 +983,7 @@ await (async () => {
               zone === 'native' ? 'actions' : id,
             );
             notify(
-              zone !== 'native' && !config.chromeStyle[zone].enabled
-                ? '已选择图标，启用区域美化后生效'
-                : '已更新图标',
+              '已更新图标',
             );
           }
         : undefined,
@@ -1694,7 +1700,7 @@ await (async () => {
         ['base', '基础'],
         ['scene-images', '图片与形状'],
         ['scene-texts', '文字'],
-        ...(ui.page === 'home' ? [['native-home', '原生对象']] : []),
+        ...(ui.page === 'home' ? [['native-home', '酒馆文字与按钮']] : []),
       ];
       if (!kinds.some(([key]) => key === ui.kind)) ui.kind = 'base';
       objects =
@@ -1704,7 +1710,7 @@ await (async () => {
               ['title', '标题'],
               ['layout', '排版'],
               ...(PAGE_TITLE_SUBTITLE_TARGETS[ui.page]
-                ? [['subtitle', '原生标题副题'], ['decoration', '标题角标装饰']]
+                ? [['subtitle', '标题下方文字'], ['decoration', '标题装饰']]
                 : []),
             ]
           : ui.kind === 'native-home'
@@ -1899,8 +1905,8 @@ await (async () => {
             ]
           : [
               ['surface', '输入外框'],
-              ['text', '输入文字'],
-              ['placeholder', '空框文案'],
+              ['text', '输入框背景与高度'],
+              ['placeholder', '输入框自定义文案'],
               ['tools', '工具与发送'],
               ['image', '图片素材'],
             ];
@@ -1927,13 +1933,13 @@ await (async () => {
           ui.region === 'topbar'
             ? '顶栏整体'
             : ui.kind === 'text'
-              ? '输入文字'
+              ? '输入框背景与高度'
               : ui.kind === 'placeholder'
-                ? '空框文案'
+                ? '输入框自定义文案'
                 : '输入外框';
     } else if (ui.region === 'native') {
       kinds = [
-        ['actions', '编辑与更多'],
+        ['actions', '编辑与更多按钮'],
         ['info', '楼层信息'],
         ['swipe', '回复翻页'],
       ];
@@ -1953,7 +1959,7 @@ await (async () => {
           ['group', '整体排列'],
           ['left', '上一版'],
           ['right', '下一版'],
-          ['counter', '版本计数'],
+          ['counter', '翻页计数（a/b）'],
         ];
         if (!objects.some(([key]) => key === ui.object)) ui.object = 'group';
         title = objects.find(([key]) => key === ui.object)[1];
@@ -2027,6 +2033,14 @@ await (async () => {
           ? ui.object
           : ui.kind;
     workbench.render({ kinds, objects, title, extra, actions, activeKind });
+    const combinationTarget = combinationContext(ui);
+    if (combinationTarget) {
+      const combinations = make('button', '', '我的组合');
+      combinations.type = 'button';
+      combinations.id = 'open-region-combinations';
+      combinations.addEventListener('click', () => combinationLibrary.show(combinationTarget, combinations));
+      container.append(combinations);
+    }
     if (unavailable) {
       container.append(
         make('p', 'hint', '本页沿用全局外观，专属样式尚未开放。'),
@@ -2222,6 +2236,10 @@ await (async () => {
     }
   }
   function apply() {
+    if (pendingRegionEdit) {
+      if (pendingRegionEdit.config === config) activateEditedRegion(config, pendingRegionEdit.ui);
+      pendingRegionEdit = null;
+    }
     config.regionOrder = syncRegionOrder(config).regionOrder;
     scrollbarVisibility.set(
       active && normalizeScrollbars(config.hideScrollbars),
@@ -2305,6 +2323,7 @@ await (async () => {
     if (!active || (applying && !keepApplied)) return;
     if (materialSession || managerReturn) returnFromMaterials();
     workLibrary?.hide();
+    combinationLibrary?.hide();
     invalidateEditing();
     layerDrag.reset();
     headerDrag.reset();
@@ -2360,7 +2379,7 @@ await (async () => {
   );
   shadow.querySelector('.bar details .menu').append(scrollbarLabel);
   scrollbarToggle.addEventListener('change', () => {
-    remember();
+    remember(false);
     config.hideScrollbars = scrollbarToggle.checked;
     apply();
     notify('滚动条显示已更新，保存方案后记住');
@@ -2403,6 +2422,39 @@ await (async () => {
       renderFields();
       open();
       notify('作品已载入当前草稿');
+      return true;
+    },
+    onMessage: notify,
+  });
+  const combinationStores = new Map();
+  combinationLibrary = createCombinationLibrary({
+    shadow,
+    storageForRegion: (region) => {
+      if (!combinationStores.has(region)) combinationStores.set(region, createCustomWorkStorage({ databaseName: 'orange.theme-lab.combinations.' + region + '.v1' }));
+      return combinationStores.get(region);
+    },
+    capture: async (context) => portableScheme(captureCombination(validate(config), context.region, context.pageId)),
+    preview: (combination) => {
+      const context = { region: combination.region, pageId: combination.pageId };
+      const sample = validate(applyCombination(validate(clone(templates.blank)), combination, context.pageId, { moveNative: true }));
+      return createCombinationPreview(document, sample, context);
+    },
+    builtins: (context) => {
+      if (!['home', 'page'].includes(context.region)) return [];
+      const pageId = context.region === 'home' ? 'home' : context.pageId;
+      return [{ id: 'jinghai-' + pageId, name: '京海日报 · ' + PAGE_HEADER_PAGES[pageId], combination: captureCombination(validate(clone(templates.jinghai)), context.region, pageId) }];
+    },
+    apply: (combination, context) => {
+      const conflicts = inspectCombinationConflicts(config, combination);
+      if (conflicts.length && !window.confirm(conflicts.join('\n') + '\n继续套用吗？')) return false;
+      const next = validate(applyCombination(config, combination, context.pageId, { moveNative: conflicts.length > 0 }));
+      invalidateEditing();
+      remember();
+      config = next;
+      activateEditedRegion(config, ui);
+      apply();
+      renderFields();
+      notify('已套用到' + context.label);
       return true;
     },
     onMessage: notify,

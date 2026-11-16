@@ -22,23 +22,6 @@ export function createChromeEditor({
     const zone = ui.region,
       v = config.chromeStyle[zone],
       isInput = zone === 'input';
-    propertyHeading(container, '区域开关');
-    editorControl(
-      container,
-      field(isInput ? '启用输入区美化' : '启用顶栏美化', 'enabled', 'select', {
-        options: [
-          ['true', '启用'],
-          ['false', '关闭'],
-        ],
-        notice: '区域开关已更新，尚未保存',
-      }),
-      v,
-      () => renderFields(),
-    );
-    if (!v.enabled)
-      container.append(
-        make('p', 'hint', '当前关闭；下方设置保存为草稿，启用后生效。'),
-      );
     const controls = (target, fields) => {
       for (const [label, key, type, opts = {}] of fields)
         editorControl(
@@ -59,7 +42,7 @@ export function createChromeEditor({
     ];
     if (ui.kind === 'surface') {
       if (isInput) {
-        propertyHeading(container, '排版与宽度');
+        propertyHeading(container, '布局');
         controls(v, [
           [
             '输入区排版',
@@ -67,8 +50,8 @@ export function createChromeEditor({
             'select',
             {
               options: [
-                ['inline', '原生横排'],
-                ['stacked', '文字首行 · 功能第二行'],
+                ['inline', '输入框与按钮同排'],
+                ['stacked', '输入框在上，按钮在下'],
               ],
             },
           ],
@@ -79,11 +62,11 @@ export function createChromeEditor({
           range('上下内距', 'padY', 0, 32),
         ]);
       }
-      propertyHeading(container, '底色与玻璃');
+      propertyHeading(container, '背景');
       controls(v, [
         ['区域底色', 'color', 'color'],
-        range('背景透明度', 'alpha', 0, 1, '', 0.05),
-        range('玻璃模糊', 'blur', 0, 24),
+        range('背景不透明度', 'alpha', 0, 1, '', 0.05),
+        range('背景模糊', 'blur', 0, 24),
       ]);
       propertyHeading(container, '边框与圆角');
       controls(v, [
@@ -103,10 +86,10 @@ export function createChromeEditor({
         range('区域圆角', 'radius', 0, 40),
       ]);
       if (!isInput) {
-        propertyHeading(container, '图形与点击槽');
+        propertyHeading(container, '图标与按钮尺寸');
         controls(v, [
           range('顶栏图标大小', 'iconSize', 12, 40),
-          range('顶栏点击槽', 'slot', 28, 64),
+          range('顶栏按钮大小', 'slot', 28, 64),
           range('顶栏按钮间距', 'gap', 0, 16),
           range('顶栏上下内距', 'padY', 0, 16),
         ]);
@@ -151,10 +134,10 @@ export function createChromeEditor({
         propertyHeading(container, '外链字体');
         renderFontLinkFields(container, 'chrome-input', v, '输入文字');
       }
-      propertyHeading(container, '文字区域底色');
+      propertyHeading(container, '输入框背景');
       editorControl(
         container,
-        field('启用文字区域底色', 'enabled', 'select', {
+        field('启用输入框背景', 'enabled', 'select', {
           options: [
             ['false', '关闭'],
             ['true', '启用'],
@@ -163,16 +146,16 @@ export function createChromeEditor({
         v.textSurface,
       );
       controls(v.textSurface, [
-        ['文字区域底色', 'color', 'color'],
-        range('文字区域透明度', 'alpha', 0, 1, '', 0.05),
-        range('文字区域圆角', 'radius', 0, 40),
+        ['输入框背景', 'color', 'color'],
+        range('背景不透明度', 'alpha', 0, 1, '', 0.05),
+        range('输入框圆角', 'radius', 0, 40),
       ]);
     } else if (ui.kind === 'placeholder') {
       const empty = v.emptyText;
-      propertyHeading(container, '空框文案');
+      propertyHeading(container, '输入框自定义文案');
       editorControl(
         container,
-        field('启用空框文案', 'enabled', 'select', {
+        field('启用输入框自定义文案', 'enabled', 'select', {
           options: [
             ['false', '关闭'],
             ['true', '启用'],
@@ -181,8 +164,8 @@ export function createChromeEditor({
         empty,
       );
       for (const [key, title] of [
-        ['idle', '待输入文案'],
-        ['generating', '生成中文案'],
+        ['idle', '默认状态'],
+        ['generating', '生成状态'],
       ]) {
         const row = make('label', 'field', title),
           input = make('textarea');
@@ -197,8 +180,9 @@ export function createChromeEditor({
             tracking = true;
           }
           empty[key] = input.value;
+          empty.enabled = !!(empty.idle.trim() || empty.generating.trim());
           apply();
-          notify('空框文案已更新，尚未保存');
+          notify('输入框自定义文案已更新，尚未保存');
         });
         for (const event of ['change', 'blur'])
           input.addEventListener(event, () => {
@@ -211,34 +195,34 @@ export function createChromeEditor({
         make(
           'p',
           'hint',
-          '生成中文案留空时沿用待输入文案；断开连接时保留原生提示，已有草稿时不覆盖输入内容。',
+          '生成状态留空时沿用默认状态；断开连接时保留酒馆提示，已有草稿时不覆盖输入内容。',
         ),
       );
       container.append(
         make(
           'p',
           'hint',
-          '文案超出输入区可见范围会裁切，可在输入文字中调整最小高度。',
+          '文案超出输入区可见范围会裁切，可在输入框背景与高度中调整最小高度。',
         ),
       );
       propertyHeading(container, '文案外观');
       controls(empty, [
-        ['空框文案颜色', 'color', 'color'],
-        range('空框文案字号', 'size', 8, 60),
+        ['输入框自定义文案颜色', 'color', 'color'],
+        range('输入框自定义文案字号', 'size', 8, 60),
       ]);
     } else if (['tools', 'icons'].includes(ui.kind)) {
       if (isInput) {
         propertyHeading(container, '工具共用尺寸');
         controls(v, [
           range('输入图标大小', 'iconSize', 12, 40),
-          range('输入点击槽', 'slot', 28, 64),
+          range('输入区按钮大小', 'slot', 28, 64),
           range('输入工具间距', 'gap', 0, 24),
         ]);
       }
-      propertyHeading(container, '当前按钮图形');
+      propertyHeading(container, '当前按钮图标');
       const item = v.icons[ui.object];
       renderMaterialControl(container, item, {
-        label: '按钮图形',
+        label: '按钮图标',
         purpose: 'chrome:' + zone + ':' + ui.object,
         id: 'chrome-icon-pick',
       });

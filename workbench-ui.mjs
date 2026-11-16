@@ -1,9 +1,9 @@
 import {PAGE_ROOTS} from './page-style.mjs';
 import {footerKey} from './footer.mjs';
 import {captionKey} from './captions.mjs';
-export const COMMON_PARTS=[['text','界面文字'],['panel','面板'],['heading','分区标题'],['button','按钮'],['field','输入与选择']];
+export const COMMON_PARTS=[['text','界面文字'],['panel','面板'],['heading','分区标题'],['button','按钮'],['field','输入框与下拉框']];
 export const PAGE_STYLE_REGIONS=['page-common','page-header','page-content'];
-export const REGION_NAMES={'page-bai':'柏宝箱','page-common':'页面基础','page-header':'页面头部','page-content':'内容分组',common:'全局基础','home-design':'首页设计',overall:'卡片整体',header:'消息卡片 / 头像区',body:'消息卡片 / 正文',reasoning:'消息卡片 / 思维',footer:'消息卡片 / 尾部区',native:'消息控件',input:'共用输入区',topbar:'顶栏与工具',qr:'快捷回复 · 未接入'};
+export const REGION_NAMES={'page-bai':'柏宝箱','page-common':'页面基础','page-header':'页面头部','page-content':'内容分组',common:'全局基础','home-design':'首页设计',overall:'卡片整体',header:'消息卡片 / 头像区',body:'消息卡片 / 正文',reasoning:'消息卡片 / 思维',footer:'消息卡片 / 尾部区',native:'消息按钮与信息',input:'共用输入区',topbar:'顶栏与工具',qr:'快捷回复 · 未接入'};
 export const PAGE_NAMES={home:'首页和全局',chat:'聊天',presets:'预设',connection:'API',worldbook:'世界书',settings:'设置',backgrounds:'背景',extensions:'扩展',personas:'人设',characters:'角色',formatting:'回复格式'};
 export const LAYER_REGIONS=['overall','header','reasoning','footer','input'];
 const GLOBAL_REGIONS=['common','topbar','input','page-header','home-design'];

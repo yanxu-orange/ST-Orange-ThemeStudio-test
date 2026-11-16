@@ -27,7 +27,7 @@ export function createNativeControlsEditor({
   function nativeControl(container, target, f, onUpdate) {
     editorControl(
       container,
-      { ...f, notice: '原生功能样式已更新，尚未保存' },
+      { ...f, notice: '消息按钮与信息已更新，尚未保存' },
       target,
       onUpdate,
     );
@@ -104,9 +104,9 @@ export function createNativeControlsEditor({
   function renderNativeFields(container) {
     if (getUi().kind === 'actions') {
       const rootActions = getConfig().nativeStyle.actions;
-      const designRow = make('label', 'field', '设计对象'),
+      const designRow = make('label', 'field', 'AI 与用户'),
         design = make('select');
-      design.setAttribute('aria-label', '设计对象');
+      design.setAttribute('aria-label', 'AI 与用户');
       for (const [value, text] of [
         ['unified', '一起设置'],
         ['separate', '分开设置'],
@@ -220,12 +220,12 @@ export function createNativeControlsEditor({
     } else if (getUi().kind === 'info') {
       const rootStats = getConfig().nativeStyle.stats,
         key = getUi().object;
-      const designRow = make('label', 'field', '设计对象'),
+      const designRow = make('label', 'field', 'AI 与用户'),
         design = make('select');
-      design.setAttribute('aria-label', '设计对象');
+      design.setAttribute('aria-label', 'AI 与用户');
       for (const [value, text] of [
-        ['unified', '统一设计'],
-        ['separate', '分别设计'],
+        ['unified', '一起设置'],
+        ['separate', '分开设置'],
       ]) {
         const option = make('option', '', text);
         option.value = value;
@@ -319,7 +319,7 @@ export function createNativeControlsEditor({
           },
           field('字重', 'weight', 'select', {
             options: [
-              ['auto', id === 'label' ? '跟随数值字重' : '沿用原生字重'],
+              ['auto', id === 'label' ? '跟随数值字重' : '酒馆默认字重'],
               ...Array.from({ length: 9 }, (_, i) => [
                 String((i + 1) * 100),
                 String((i + 1) * 100),
@@ -359,9 +359,9 @@ export function createNativeControlsEditor({
             item.label = label;
           },
         },
-        field('标签文案', 'text', 'text', { maxLength: 40 }),
+        field('数字旁的文字', 'text', 'text', { maxLength: 40 }),
       );
-      const labelInput = container.querySelector('[aria-label="标签文案"]'),
+      const labelInput = container.querySelector('[aria-label="数字旁的文字"]'),
         hadLabel = Boolean(label.text);
       const refreshLabelFields = () => {
         if (labelInput.isConnected && Boolean(label.text) !== hadLabel)
@@ -476,7 +476,7 @@ export function createNativeControlsEditor({
           },
           field('字重', 'weight', 'select', {
             options: [
-              ['auto', label ? '跟随数值字重' : '沿用原生字重'],
+              ['auto', label ? '跟随数值字重' : '酒馆默认字重'],
               ...Array.from({ length: 9 }, (_, i) => [
                 String((i + 1) * 100),
                 String((i + 1) * 100),
@@ -491,7 +491,7 @@ export function createNativeControlsEditor({
           '回复翻页',
         );
       };
-      const flag = (target, name, label) =>
+      const flag = (target, name, label, visibleLabel = '不额外隐藏') =>
         nativeControl(
           container,
           {
@@ -504,7 +504,7 @@ export function createNativeControlsEditor({
           },
           field(label, 'value', 'select', {
             options: [
-              ['false', '不额外隐藏'],
+              ['false', visibleLabel],
               ['true', '隐藏'],
             ],
           }),
@@ -533,7 +533,7 @@ export function createNativeControlsEditor({
         propertyHeading(container, '外观');
         nativeAppearanceFields(container, swipe);
         propertyHeading(container, '显示');
-        flag(swipe, 'hideHistoryControls', '隐藏历史翻页按钮与计数');
+        flag(swipe, 'hideHistoryControls', '隐藏历史消息的翻页按钮和翻页计数（a/b）');
       } else if (key === 'left' || key === 'right') {
         const arrow = swipe[key],
           name = key === 'left' ? '左箭头' : '右箭头';
@@ -543,7 +543,7 @@ export function createNativeControlsEditor({
           arrow,
           field(name + '显示', 'mode', 'select', {
             options: [
-              ['default', '原生箭头'],
+              ['default', '酒馆默认箭头'],
               ['text', '自定义文字'],
             ],
           }),
@@ -572,21 +572,21 @@ export function createNativeControlsEditor({
               return true;
             },
           });
-        propertyHeading(container, '显示');
+        propertyHeading(container, '翻页计数（a/b）');
         for (const [name, label] of [
-          ['hideHistory', '隐藏历史版本页数'],
-          ['hideLatest', '隐藏最新AI版本页数'],
+          ['hideHistory', '历史消息'],
+          ['hideLatest', '最新回复'],
         ])
-          flag(swipe, name, label);
-        flag(counter, 'hideSingle', '隐藏单候选计数');
+          flag(swipe, name, label, '显示');
+        flag(counter, 'hideSingle', '单个候选时隐藏计数');
         propertyHeading(container, '数字');
         nativeControl(
           container,
           counter,
-          field('计数显示', 'mode', 'select', {
+          field('翻页计数（a/b）显示', 'mode', 'select', {
             options: [
-              ['native', '原生当前 / 总数'],
-              ['current', '仅当前版本'],
+              ['native', '当前候选 / 总数'],
+              ['current', '仅当前候选'],
             ],
           }),
           () => renderFields(),
@@ -602,7 +602,7 @@ export function createNativeControlsEditor({
                 counter.pad = v === true || v === 'true';
               },
             },
-            field('两位补零', 'value', 'select', {
+            field('两位数字', 'value', 'select', {
               options: [
                 ['false', '不补零'],
                 ['true', '补零'],
@@ -644,9 +644,9 @@ export function createNativeControlsEditor({
               counter.label = label;
             },
           },
-          field('标签文案', 'text', 'text', { maxLength: 40 }),
+          field('数字旁的文字', 'text', 'text', { maxLength: 40 }),
         );
-        const labelInput = container.querySelector('[aria-label="标签文案"]'),
+        const labelInput = container.querySelector('[aria-label="数字旁的文字"]'),
           hadLabel = Boolean(label.text),
           refresh = () => {
             if (labelInput.isConnected && Boolean(label.text) !== hadLabel)
@@ -676,7 +676,7 @@ export function createNativeControlsEditor({
         nativeControl(
           container,
           counter,
-          field('计数位置', 'position', 'select', {
+          field('翻页计数（a/b）位置', 'position', 'select', {
             options: [
               ['group', '跟随翻页按钮'],
               ['header', '头像区'],

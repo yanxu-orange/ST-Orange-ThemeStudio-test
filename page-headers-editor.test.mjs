@@ -22,18 +22,18 @@ test('page header editors use independent library targets, preserve navigation, 
   page('chat');assert.ok(![...sh.querySelector('#region-select').options].some(option=>option.value==='page-header'));
   for(const [i,target]of Object.keys(PAGE_HEADER_PAGES).entries()){
    page(target);region('page-header');click('[data-object=image]');const caller=path();
-   assert.equal(sh.querySelector('[aria-label="显示页面头部"]').value,'false');assert.equal(sh.querySelector('[aria-label="头部高度 数值"]'),null);assert.equal(sh.querySelector('#mode-layers').disabled,false);
+   assert.equal(sh.querySelector('[aria-label=\"显示页面头部\"]'),null);assert.equal(sh.querySelector('[aria-label="头部高度 数值"]'),null);assert.equal(sh.querySelector('#mode-layers').disabled,false);
    const before=await save();click(`[data-page-header-artwork=${target}]`);assert.deepEqual([...sh.querySelectorAll('[data-material-category]')].map(node=>node.dataset.materialCategory),['images']);
    const stale=sh.querySelector('button[data-builtin-asset]');click('#material-back');stale.click();assert.deepEqual(await save(),before);assert.deepEqual(path(),caller);
    click(`[data-page-header-artwork=${target}]`);const escape=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(escape,'key',{value:'Escape'});sh.querySelector('.fields').dispatchEvent(escape);assert.deepEqual(await save(),before);
-   click(`[data-page-header-artwork=${target}]`);document.querySelector('#WI-SP-button .drawer-toggle').click();await settleNativeCanvas();click('button[data-builtin-asset]');assert.deepEqual(path(),caller);assert.equal(sh.querySelector('[aria-label="显示页面头部"]').value,'true');
+   click(`[data-page-header-artwork=${target}]`);document.querySelector('#WI-SP-button .drawer-toggle').click();await settleNativeCanvas();click('button[data-builtin-asset]');assert.deepEqual(path(),caller);assert.equal(sh.querySelector('[aria-label=\"显示页面头部\"]'),null);
    click('[data-object=layout]');field('顶部留白 数值',i+4);field('左右留白 数值',i+7);field('头部高度 数值',160+i);click('[data-object=image]');field('图片显示','contain');field('水平取景 数值',30+i);field('垂直取景 数值',70-i);
    let edited=await save();assert.ok(edited.pageHeaders[target].asset);assert.equal(edited.pageHeaders[target].height,160+i);assert.equal(edited.pageHeaders[target].topGap,i+4);assert.equal(edited.pageHeaders[target].sideGap,i+7);assert.equal(edited.pageHeaders[target].fit,'contain');assert.equal(edited.pageHeaders[target].x,30+i);assert.equal(edited.pageHeaders[target].y,70-i);
    for(const other of Object.keys(PAGE_HEADER_PAGES).filter(key=>key!==target))assert.deepEqual(edited.pageHeaders[other],before.pageHeaders[other]);
    click('[data-object=layout]');field('高度方式','ratio');assert.equal(sh.querySelector('[aria-label="头部高度 数值"]'),null);click('[data-object=image]');assert.equal(sh.querySelector('[aria-label="图片显示"]'),null);click('[data-object=layout]');assert.equal((await save()).pageHeaders[target].sizing,'ratio');
    field('高度方式','fixed');assert.equal(Number(sh.querySelector('[aria-label="头部高度 数值"]').value),160+i);
    field('头部高度 数值',601);assert.equal((await save()).pageHeaders[target].height,160+i);assert.equal(sh.querySelector('[aria-label="头部高度 数值"]').getAttribute('aria-invalid'),'true');
-   field('显示页面头部','false');assert.equal((await save()).pageHeaders[target].enabled,false);click('#undo');assert.equal((await save()).pageHeaders[target].enabled,true);
+   assert.equal((await save()).pageHeaders[target].enabled,true);
    edited=await save();click('[data-object=image]');click(`[data-remove-page-header=${target}]`);assert.equal((await save()).pageHeaders[target].asset,'');click('#undo');assert.deepEqual((await save()).pageHeaders[target],edited.pageHeaders[target]);
   }
   const complete=await save();assert.deepEqual(complete.layers,initial.layers);assert.deepEqual(complete.pageStyle,initial.pageStyle);assert.deepEqual(complete.commonStyle,initial.commonStyle);assert.equal(document.querySelector('#native-setting').value,'keep');

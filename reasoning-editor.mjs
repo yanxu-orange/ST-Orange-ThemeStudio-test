@@ -65,7 +65,7 @@ export function createReasoningEditor({
           ],
         }),
       );
-      propertyHeading(container, '入口第二文案');
+      propertyHeading(container, '入口附加文字');
       reasoningControl(container, item.secondary, field('第二文案', 'content'));
       reasoningControl(container, item.secondary, field('第二文案字号', 'size', 'range', {min:10,max:34,unit:'px'}));
       renderReasoningColor(container, item.secondary, 'color', '第二文案颜色');
@@ -138,16 +138,16 @@ export function createReasoningEditor({
       propertyHeading(container, '外链字体');
       const linkRow = pairedFields(container);
       linkRow.classList.add('font-link-row');
-      const label = make('label', 'field', '字体文件直链（留空用预设）'),
+      const label = make('label', 'field', '字体文件链接'),
         link = make('input');
       link.type = 'url';
       link.maxLength = 2048;
       link.value = item.fontLink?.url || '';
       link.setAttribute('aria-label', prefix + ' 字体直链');
       label.append(link);
-      const faceLabel = make('label', 'field', '链接文件类型'),
+      const faceLabel = make('label', 'field', '字体文件字重'),
         face = make('select');
-      face.setAttribute('aria-label', prefix + ' 链接文件类型');
+      face.setAttribute('aria-label', prefix + ' 字体文件字重');
       for (const [v, t] of [
         ['400', '常规字体'],
         ['700', '粗体字体'],
@@ -166,7 +166,10 @@ export function createReasoningEditor({
       }
       face.value = item.fontLink?.faceWeight || '400';
       faceLabel.append(face);
-      linkRow.append(faceLabel, label);
+      linkRow.append(label);
+      const advanced = make('details', 'font-link-advanced');
+      advanced.append(make('summary', '', '高级设置'), faceLabel);
+      container.append(advanced);
       const commit = () => {
         try {
           const value = validateCaptionStyle({
@@ -268,7 +271,7 @@ export function createReasoningEditor({
         reasoningControl(
           container,
           bg,
-          field('背景透明度', 'opacity', 'range', {
+          field('背景不透明度', 'opacity', 'range', {
             min: 0,
             max: 1,
             step: 0.05,
@@ -317,7 +320,7 @@ export function createReasoningEditor({
           field(label, key, 'range', { min: 0, max, unit: 'px' }),
         );
     } else {
-      propertyHeading(container, '容器底色与边框');
+      propertyHeading(container, '背景与边框');
       const c = item.container;
       reasoningControl(
         container,
@@ -366,7 +369,7 @@ export function createReasoningEditor({
           ],
         }),
       );
-      propertyHeading(container, '容器留白');
+      propertyHeading(container, '内部留白');
       for (const [key, label] of [
         ['paddingX', '思维正文左右留白'],
         ['paddingY', '思维正文上下留白'],

@@ -7,7 +7,7 @@ test('title decoration edits, undo, save and export preserve native title bindin
 
  click('.launcher');await settleNativeCanvas();page('worldbook');click('[data-object="decoration"]');
  assert.equal((await save()).pageHeaders.worldbook.titleDecoration,null);
- await set('显示页面头部','true');await set('页面头部排版','standard');await set('显示标题装饰','true');
+ await set('页面头部排版','standard');await set('显示标题装饰','true');
  await set('装饰形状','dot');await set('装饰大小 数值',12);await set('装饰水平位置 数值',3);await set('装饰纵向位置 数值',-2);await set('装饰颜色','#aa2233');
  const configured=await save();assert.deepEqual(configured.pageHeaders.worldbook.titleDecoration,{shape:'dot',size:12,x:3,y:-2,color:'#aa2233'});
  await set('装饰形状','line');click('#undo');assert.equal(sh.querySelector('[aria-label="装饰形状"]').value,'dot');

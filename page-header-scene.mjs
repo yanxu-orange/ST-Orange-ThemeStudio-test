@@ -1,3 +1,4 @@
+import {pageTitleFontEntries} from './page-title-style.mjs';
 import {pageTitleSubtitleFontEntries} from './page-title-subtitle.mjs';
 import {newLayer,validateLayers} from './layers.mjs';
 import {newCaption,validateCaptions} from './captions.mjs';
@@ -21,7 +22,7 @@ export function normalizePageHeaderScene(raw={images:[],texts:[],order:[]}){
  if(keys.length>40||raw.order.length!==keys.length||new Set(raw.order).size!==keys.length||raw.order.some(k=>!keys.includes(k)))throw Error('页面头部图层顺序无效');
  return {images,texts,order:[...raw.order]};
 }
-export function pageHeaderSceneFontEntries(config){return {...pageTitleSubtitleFontEntries(config),...Object.fromEntries(Object.entries(config.pageHeaders||{}).flatMap(([page,v])=>v.enabled?[...(v.scene?.texts||[]).filter(t=>t.visible).map(t=>[pageHeaderSceneFontKey(page,t.id),{fontLink:t.fontLink}]),...(page==='home'&&v.placement==='native'&&v.native?.version?[['page-header-home-native-version',{fontLink:v.native.version.fontLink}]]:[])]:[]))};}
+export function pageHeaderSceneFontEntries(config){return {...pageTitleFontEntries(config),...pageTitleSubtitleFontEntries(config),...Object.fromEntries(Object.entries(config.pageHeaders||{}).flatMap(([page,v])=>v.enabled?[...(v.scene?.texts||[]).filter(t=>t.visible).map(t=>[pageHeaderSceneFontKey(page,t.id),{fontLink:t.fontLink}]),...(page==='home'&&v.placement==='native'&&v.native?.version?[['page-header-home-native-version',{fontLink:v.native.version.fontLink}]]:[])]:[]))};}
 export function sceneHasLayers(scene){return !!scene&&(scene.images.some(v=>v.visible)||scene.texts.some(v=>v.visible&&v.content.trim()));}
 export function createPageHeaderScene({document,resolveArtwork,onChange=()=>{}}={}){
  const records=new Map();let families={};

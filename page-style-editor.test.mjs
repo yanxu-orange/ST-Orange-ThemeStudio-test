@@ -30,13 +30,13 @@ test('independent page editors preserve native controls, inheritance, all fields
  panel:[['面板底色 HEX','#456789','background'],['面板不透明度 数值',.65,'opacity'],['面板边框颜色 HEX','#56789a','border'],['面板边框粗细 数值',3,'width'],['面板圆角 数值',21,'radius']],
  heading:[['标题文字颜色 HEX','#6789ab','color'],['标题底色 HEX','#789abc','background'],['标题字号 数值',23,'size'],['标题字重',800,'weight'],['标题圆角 数值',17,'radius']],
  button:[['按钮文字颜色 HEX','#89abcd','color'],['按钮底色 HEX','#9abcde','background'],['按钮边框颜色 HEX','#abcdef','border'],['按钮悬停底色 HEX','#bcdef0','hover'],['按钮圆角 数值',13,'radius']],
- field:[['控件文字颜色 HEX','#cdef01','color'],['控件底色 HEX','#def012','background'],['控件边框颜色 HEX','#ef0123','border'],['控件焦点颜色 HEX','#f01234','focus'],['控件圆角 数值',15,'radius']]
+ field:[['文字颜色 HEX','#cdef01','color'],['背景颜色 HEX','#def012','background'],['边框颜色 HEX','#ef0123','border'],['选中时边框颜色 HEX','#f01234','focus'],['控件圆角 数值',15,'radius']]
  };
  for(const target of Object.keys(PAGE_ROOTS)){
   page(target);region('page-common');assert.deepEqual([...sh.querySelector('#region-select').options].map(o=>o.value),['page-common','page-header',...(['settings','worldbook','presets'].includes(target)?['page-content']:[]),...(target==='presets'?['page-bai']:[])]);assert.equal(sh.querySelectorAll('.kind-tabs [data-kind]').length,5);
   const otherPages=structuredClone((await save()).pageStyle);delete otherPages[target];
   for(const [group,rows]of Object.entries(edits)){part(group);if(sh.querySelector('[aria-label="样式来源"]').value==='inherit')custom();for(const [label,value]of rows)field(label,value);const saved=await save();for(const [,value,key]of rows)assert.equal(saved.pageStyle[target][group][key],value,`${target}.${group}.${key}`);}
-  part('text');field('界面 字体直链',`https://example.com/${target}.woff2`);field('界面 链接文件类型','700');assert.equal(pageFontEntries(await save())['page-'+target].fontLink.faceWeight,'700');
+  part('text');field('界面 字体直链',`https://example.com/${target}.woff2`);field('界面 字体文件字重','700');assert.equal(pageFontEntries(await save())['page-'+target].fontLink.faceWeight,'700');
   part('text');field('样式来源','inherit');assert.equal((await save()).pageStyle[target].text,null);assert.equal(resolvePageGroup(await save(),target,'text').color,'#203040');click('#undo');assert.equal((await save()).pageStyle[target].text.color,'#123456');
   const afterPages=structuredClone((await save()).pageStyle);delete afterPages[target];assert.deepEqual(afterPages,otherPages,'editing '+target+' leaves other pages unchanged');
   if(target==='settings')assert.deepEqual((await save()).pageStyle.worldbook,initial.pageStyle.worldbook,'settings edits leave every worldbook override untouched');

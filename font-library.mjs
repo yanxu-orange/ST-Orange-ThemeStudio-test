@@ -16,6 +16,7 @@ export function renderFontLibrary(container,{library,onUse,onError=()=>{}}){
  const toolbar=make('div'),list=make('div'),form=make('form'),status=make('p');list.className='font-library-list';status.setAttribute('role','status');form.hidden=true;form.className='font-library-form';
  const name=make('input'),url=make('input'),weight=make('select');name.type='text';name.maxLength=80;url.type='url';url.maxLength=2048;
  for(const [control,label] of [[name,'字体名称'],[url,'字体文件直链'],[weight,'字体文件字重']]){control.setAttribute('aria-label',label);const field=make('label',label);field.className='field';field.append(control);form.append(field);}
+ const advanced=make('details');advanced.className='font-link-advanced';advanced.append(make('summary','高级设置'),weight.parentNode);form.append(advanced);
  for(const [value,title] of [['400','常规'],['700','粗体'],['100 900','可变'],['100','极细'],['200','纤细'],['300','细体'],['500','中等'],['600','半粗'],['800','特粗'],['900','重体']]){const option=make('option',title);option.value=value;weight.append(option);}
  let editing=null,disposed=false;const previews=new Map();
  const session=createFontSession({document:d,onChange:()=>{if(disposed)return;const families=session.families();for(const [key,node]of previews){node.style.fontFamily=families[key]?`"${families[key]}"`:'serif';const state=session.status(key);node.title=state==='error'?'字体加载失败，显示默认字体':state==='loading'?'字体加载中':'';}}});

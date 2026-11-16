@@ -129,10 +129,10 @@ export function createPageAppearanceEditor({
       );
     } else {
       for (const [key, label] of [
-        ['color', '控件文字颜色'],
-        ['background', '控件底色'],
-        ['border', '控件边框颜色'],
-        ['focus', '控件焦点颜色'],
+        ['color', '文字颜色'],
+        ['background', '背景颜色'],
+        ['border', '边框颜色'],
+        ['focus', '选中时边框颜色'],
       ])
         control(field(label, key, 'color'));
       control(
@@ -290,7 +290,7 @@ export function createPageAppearanceEditor({
         make(
           'p',
           'hint',
-          '与预设页面共用样式；修改会同时影响预设页面对应外观。启用提示词条目外观时，也会启用柏宝箱分组与条目外观。',
+          '与预设页面共用样式。',
         ),
       );
     if (
@@ -302,7 +302,7 @@ export function createPageAppearanceEditor({
         container,
         field('提示位置', 'sliderTip', 'select', {
           options: [
-            ['native', '原生位置'],
+            ['native', '酒馆默认位置'],
             ['flow', '随页面内容排列'],
           ],
         }),
@@ -313,20 +313,6 @@ export function createPageAppearanceEditor({
       );
       return;
     }
-    if (
-      getUi().page === 'presets' &&
-      (getUi().region === 'page-content' || bai)
-    )
-      editorControl(
-        container,
-        field('启用提示词条目外观', 'promptList', 'select', {
-          options: [
-            ['false', '关闭'],
-            ['true', '开启'],
-          ],
-        }),
-        getConfig().pageStyle.presets,
-      );
     if (bai && getUi().kind === 'group') {
       renderBaiGroups(container);
       return;
@@ -360,10 +346,10 @@ export function createPageAppearanceEditor({
     const follow = specific
       ? part === 'section'
         ? pageConfig.panel
-          ? '跟随本页面板'
-          : '沿用原生分组'
+          ? '跟随本页面板样式'
+          : '酒馆默认分组样式'
         : basePart === 'panel'
-          ? '跟随本页面板'
+          ? '跟随本页面板样式'
           : pageConfig.heading
             ? '跟随本页标题'
             : '沿用页面标题区'

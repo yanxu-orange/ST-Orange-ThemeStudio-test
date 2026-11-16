@@ -59,6 +59,8 @@ ${form}[data-oc-empty-text] ${s.textarea}:placeholder-shown:not(:disabled):not([
 }
 ${form} .otl-input-art{position:absolute;inset:0;pointer-events:none;z-index:0}${form} .otl-input-art>img{position:absolute;max-width:none;border:0;border-radius:0;box-shadow:none;pointer-events:none;object-fit:contain}${form}>:not(.otl-input-art){position:relative;z-index:1}`;
  }
+ if(t.enabled) for(const [id] of DRAWERS) if(t.icons[id].mode==='native') css+=`${holder} #${id} .drawer-icon:not([data-oc-image]){color:${t.icons[id].color||c.commonStyle?.text?.color||c.text}!important;text-shadow:none!important}`;
+ if(i.enabled) for(const [id] of INPUT_ICONS) if(i.icons[id].mode==='native') css+=`${form} #${id}:not([data-oc-image]),${form} #${id}:not([data-oc-image])>i{color:${i.icons[id].color||i.textColor}!important;text-shadow:none!important}`;
  css+=`${r} [data-oc-image]{position:relative}${r} [data-oc-image]:before,${r} [data-oc-image]>i:not([data-oc-owned]){visibility:hidden!important}${r} .otl-chrome-icon{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--oc-icon-size,22px);height:var(--oc-icon-size,22px);max-width:100%;object-fit:contain;pointer-events:none;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}`;
  return css;
 }
