@@ -202,3 +202,15 @@ https://github.com/yanxu-orange/ST-Orange-ThemeStudio-test
 - 各页独立设置文字、面板、分区标题、按钮、输入与选择，以及页面背景图片。页面头部、原生导航和业务控件保留。普通字段标签不当作分区标题处理；角色当前标题补入已有标题样式。
 - 完整 `npm test`：**407 项通过，0 失败、0 跳过**；`git diff --check` 通过。覆盖九页各组属性、独立字体、背景选用/取消/过期回调、撤销、其他页面不变、保存重载、导入导出、旧两页方案补全与无效配置拒绝；Select2 覆盖同时展开、动态控件、复用和退出清理。
 - 根节点、标题与 Select2 归属已对照官方 SillyTavern 1.18.0（51ad27f）源码核查。新建隔离服务能够启动，但本轮可用浏览器访问其地址返回连接拒绝，因此**本版没有完成真实浏览器视觉与交互验收，也未做实体手机验收**。自动测试不替代这些检查；各页专属列表/卡片、第三方扩展内部适配仍不在本轮范围。
+
+## 代码组织
+
+- `index.js`：工坊会话入口，协调导航、实时预览、素材选择、保存与撤销。
+- `scheme-model.mjs`：方案默认值、内置模板、字段定义和导入校验。
+- `property-controls.mjs`、`font-fields-editor.mjs`、`icon-controls-editor.mjs`：各属性面板共用的输入、字体与图标控件。
+- `avatar-editor.mjs`、`text-editor.mjs`、`body-card-editor.mjs`、`reasoning-editor.mjs`、`native-controls-editor.mjs`：聊天各区域的属性编辑。
+- `chrome-editor.mjs`：顶栏与输入区属性编辑。
+- `page-header-editor.mjs`、`page-appearance-editor.mjs`：页面头图、标题、图层及页面外观编辑。
+- `layer-editor.mjs`：素材属性、区域叠放顺序与图片裁剪。
+
+属性编辑器通过工厂接入当前会话；配置与选择使用 getter，保存、撤销、素材回填和预览仍由入口统一协调。修改对应模块后运行 `npm test`。

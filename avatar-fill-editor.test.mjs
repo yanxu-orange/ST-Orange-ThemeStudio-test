@@ -10,7 +10,7 @@ test('workbench fill and gradient save, restore, undo and keep independent norma
  const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme);
  sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="avatar"]').click();edit('设计对象','separate');
- const before=(await save());assert.equal(before.photos.ai.enabled,false);edit('铺满卡片顶部','true');edit('头像取景水平位置 数值',25);edit('渐变遮罩','true');edit('渐变强度 数值',.7);
+ const before=(await save());assert.equal(before.photos.ai.enabled,false);edit('铺满卡片顶部','true');edit('头像取景水平位置 数值',25);edit('下缘渐隐','true');edit('渐隐强度 数值',.7);
  let c=(await save());assert.equal(c.version,10);assert.equal(c.avatarFill.ai.enabled,true);assert.equal(c.avatarFill.ai.x,25);assert.equal(c.avatarFill.ai.gradient,true);assert.equal(c.avatarFill.ai.opacity,.7);assert.equal(c.avatarFill.user.enabled,false);assert.deepEqual(c.photos,before.photos);
  assert.match([...document.querySelectorAll('style')].map(n=>n.textContent).join('\n'),/object-position:25% 50%/);
  edit('铺满卡片顶部','false');sh.querySelector('#restore').click();c=(await save());assert.equal(c.avatarFill.ai.enabled,true);

@@ -87,7 +87,12 @@ test('all nine page roots inherit by default and independent base styles never e
   assert.doesNotMatch(css,/null\{|undefined|[;{](?:display|position|pointer-events|overflow|z-index):/);
   if(!['settings','worldbook'].includes(page)){
    assert.deepEqual(Object.keys(initial[page].art),['page']);
-   for(const invalid of [{entry:{}},{section:{}},{art:{entry:{}}},{art:{section:{}}},{panel:{radius:999}},{art:{page:{image:'javascript:alert(1)'}}}])assert.throws(()=>normalizePageConfig({pageStyle:{[page]:invalid}}));
+   if(page==='presets'){
+    const entry=normalizePageConfig({pageStyle:{presets:{entry:{radius:7}}}}).pageStyle.presets.entry;
+    assert.equal(entry.radius,7);
+    assert.throws(()=>normalizePageConfig({pageStyle:{presets:{entry:{radius:999}}}}));
+   }else assert.throws(()=>normalizePageConfig({pageStyle:{[page]:{entry:{}}}}));
+   for(const invalid of [{section:{}},{art:{entry:{}}},{art:{section:{}}},{panel:{radius:999}},{art:{page:{image:'javascript:alert(1)'}}}])assert.throws(()=>normalizePageConfig({pageStyle:{[page]:invalid}}),page+': '+JSON.stringify(invalid));
   }
  }
 });

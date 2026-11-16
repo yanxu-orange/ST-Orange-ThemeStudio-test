@@ -58,7 +58,7 @@ test('boundary is local to the host and can be removed', () => {
 });
 
 test('editor installs the boundary and keeps explanatory copy without defensive disclaimers', () => {
-  const sourceFiles = ['index.js','body-card-editor.mjs','reasoning-editor.mjs','native-controls-editor.mjs','chrome-editor.mjs'];
+  const sourceFiles = ['index.js','body-card-editor.mjs','reasoning-editor.mjs','native-controls-editor.mjs','chrome-editor.mjs','page-header-editor.mjs','page-appearance-editor.mjs','property-controls.mjs','avatar-editor.mjs','font-fields-editor.mjs','text-editor.mjs','layer-editor.mjs','icon-controls-editor.mjs'];
   const sources = sourceFiles.map(file => readFileSync(new URL(file,import.meta.url),'utf8'));
   assert.match(sources[0],/installWorkshopEventBoundary\(host\)/);
   const source = sources.join('\n');

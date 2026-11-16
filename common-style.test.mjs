@@ -24,7 +24,16 @@ test('same renderer provides appearance parity without host geometry or global t
  const live=commonStyleRules(c),preview=commonStyleRules(c,{preview:true});
  assert.ok(live.includes('html[data-orange-live]'));assert.ok(preview.includes('html[data-orange-lab] #chat>.otl-native-page'));
  const declarations=css=>css.split('\n').filter(row=>!row.startsWith('@media')&&!row.startsWith('@container')).map(row=>row.slice(row.indexOf('{')));
- assert.deepEqual(declarations(live),declarations(preview));
+ const home='html[data-orange-live] #chat > .welcomePanel';
+ const homeRules=live.split('\n').filter(row=>row.startsWith(home));
+ assert.deepEqual(homeRules,[
+  `${home} .recentChatList > .recentChat{color:#112233!important;background:rgba(171,205,239,0.4)!important;border:1px solid #d8e0d6!important;border-radius:12px!important;text-shadow:none!important}`,
+  `${home} .recentChatList > .recentChat:hover{background:#e4eddf!important}`,
+  `${home} :is(.chatMessage,.chatStats,.chatDate){color:#78847b!important}`,
+  `${home} :is(.recentChatsTitle,.welcomeHeaderVersionDisplay){color:#354b42!important;font-size:16px!important;font-weight:600!important;text-shadow:none!important}`,
+  `${home} .mes_button{color:#354b42!important;opacity:1!important;filter:none!important;text-shadow:none!important}`,
+ ]);
+ assert.deepEqual(declarations(live.split('\n').filter(row=>!row.startsWith(home)).join('\n')),declarations(preview));
  for(const css of [live,preview]){assert.match(css,/rgba\(171,205,239,0.4\)/);assert.match(css,/#778899/);assert.doesNotMatch(css,/display:|position:|pointer-events:|height:|z-index:|:root\{/);}
  assert.ok(live.includes('#chat *,#send_form *,#form_sheld *,#orange-theme-lab'));
 });
@@ -61,10 +70,16 @@ test('native text buttons follow interface fonts while Font Awesome keeps its gl
 });
 
 test('readonly state extends the base input selector so it wins native appearance specificity',()=>{
- const rows=commonStyleRules({}).split('\n'),normal=rows.find(row=>row.includes('input[type=password]')&&row.includes('box-shadow:none!important'));
- const readonly=rows.find(row=>row.includes('border-style:dashed!important'));
- const selector=normal.slice(0,normal.indexOf('{'));
- assert.equal(readonly.slice(0,readonly.indexOf('{')).replace('[readonly]:not(:disabled)',''),selector);
+ for(const preview of [false,true]){
+  const rows=commonStyleRules({},{preview}).split('\n');
+  const normal=rows.find(row=>row.includes('input[type=password]')&&row.includes('box-shadow:none!important'));
+  const readonly=rows.find(row=>row.includes('border-style:dashed!important'));
+  const selector=normal.slice(0,normal.indexOf('{'));
+  const readonlySelector=readonly.slice(0,readonly.indexOf('{'));
+  const state='[readonly]:not(:disabled)';
+  assert.equal(readonlySelector.split(state).length-1,preview?1:2);
+  assert.equal(readonlySelector.replaceAll(state,''),selector);
+ }
 });
 
 test('desktop narrow preview uses its container width for phone input sizing',()=>{
