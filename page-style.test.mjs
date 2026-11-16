@@ -108,3 +108,13 @@ test('Select2 ownership covers every native page, concurrent dropdowns, dynamic 
  document.querySelector('#PersonaManagement').innerHTML='<input>';await settle();assert.equal(result.parentElement.getAttribute('data-otl-page-owner'),null);
  bridge.stop();for(const [page]of pages)assert.equal(document.getElementById(page+'-dropdown').getAttribute('data-otl-page-owner'),null);
 });
+
+
+test('spring mobile drawers retain the original display transition without height animation',()=>{
+ const css=pageStyleRules({template:'spring'});
+ assert.match(css,/@media\(max-width:600px\)\{@supports\(height:calc-size\(auto,size\)\)/);
+ assert.match(css,/html\[data-orange-live\] #top-settings-holder > \.drawer > \.drawer-content\{height:calc-size\(auto,size\);transition-property:display;transition-duration:var\(--animation-duration-2x\);transition-behavior:allow-discrete/);
+ assert.match(css,/\.openDrawer\{@starting-style\{height:calc-size\(auto,size\)\}\}/);
+ assert.doesNotMatch(pageStyleRules({template:'spring'},{preview:true}),/transition-property:display/);
+ assert.doesNotMatch(pageStyleRules({template:'letter'}),/transition-property:display/);
+});

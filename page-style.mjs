@@ -76,6 +76,7 @@ export function pageStyleRules(config,{preview=false,page=null,families={},resol
    if(src)rules.push(`${surface==='page'?root:section}{background-image:url(${JSON.stringify(src)})!important;background-size:${art.fit}!important;background-position:${art.x}% ${art.y}%!important;background-repeat:no-repeat!important}`);
   }
  }
+ if(!preview&&c.template==='spring')rules.push(`@media(max-width:600px){@supports(height:calc-size(auto,size)){html[data-orange-live] #top-settings-holder > .drawer > .drawer-content{height:calc-size(auto,size);transition-property:display;transition-duration:var(--animation-duration-2x);transition-behavior:allow-discrete}html[data-orange-live] #top-settings-holder > .drawer > .drawer-content.openDrawer{@starting-style{height:calc-size(auto,size)}}}}`);
  return rules.filter(Boolean).join('\n');
 }
 
