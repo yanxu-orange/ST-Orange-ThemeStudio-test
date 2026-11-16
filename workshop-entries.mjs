@@ -1,8 +1,7 @@
 // Browser-local navigation preferences. Never serialize these into a theme scheme.
 export const WORKSHOP_ENTRIES_KEY='orange.theme-lab.entries.v1';
 export const DEFAULT_WORKSHOP_ENTRIES=Object.freeze({wand:true,extensions:true,floating:true});
-// Reuse the workshop's bundled 黑粉紫 · 黑玫撕裂蝶; no remote icon request.
-export const WORKSHOP_ICON_URL=new URL('./materials/shared/black-rose-butterfly.webp',import.meta.url).href;
+export const WORKSHOP_ICON_URL=new URL('./materials/shared/workshop-butterfly.svg',import.meta.url).href;
 const labels={wand:'魔棒',extensions:'扩展',floating:'悬浮入口'};
 const targets={wand:'#extensionsMenu',extensions:'#extensions_settings'};
 
@@ -30,7 +29,7 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
   const icon=make(butterfly?'img':'i');icon.setAttribute('aria-hidden','true');
   if(butterfly){
    icon.src=WORKSHOP_ICON_URL;icon.alt='';icon.draggable=false;
-   Object.assign(icon.style,{width:'1.25em',height:'1.25em',flex:'0 0 1.25em',objectFit:'contain',alignSelf:'center',pointerEvents:'none',filter:'brightness(1.5) drop-shadow(0 0 1px #e9a8d8)'});
+   Object.assign(icon.style,{width:'1.25em',height:'1.25em',flex:'0 0 1.25em',objectFit:'contain',alignSelf:'center',pointerEvents:'none'});
   }else icon.className='fa-solid fa-arrow-right-from-bracket';
   const label=make('span',text);if(name==='extensions')label.style.fontWeight='bold';node.append(icon,label);
   node.addEventListener('click',action);

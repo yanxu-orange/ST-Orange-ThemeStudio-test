@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {parseHTML} from 'linkedom';
 import {createWorkshopEntries,WORKSHOP_ENTRIES_KEY,WORKSHOP_ICON_URL} from './workshop-entries.mjs';
 function setup({native=true,stored=null,storageError=false}={}){
@@ -124,5 +125,16 @@ test('late native target ancestors and wand button availability update settings'
  const button=f.document.createElement('button');button.id='extensionsMenuButton';wrapper.append(button);await tick();
  assert.equal(settings.querySelector('[data-workshop-entry-hint="wand"]').textContent,'');
  button.remove();await tick();assert.match(settings.querySelector('[data-workshop-entry-hint="wand"]').textContent,/等待/);
+ f.entries.destroy();
+});
+
+test('entry uses the original black-pink-purple send butterfly without recoloring',()=>{
+ const svg=readFileSync(new URL('./materials/shared/workshop-butterfly.svg',import.meta.url),'utf8');
+ assert.match(WORKSHOP_ICON_URL,/workshop-butterfly\.svg$/);
+ assert.match(svg,/viewBox="0 0 24 24"/);
+ assert.match(svg,/color="#F3AABD"/);
+ assert.match(svg,/M11.8 10.7 C9.8 7.5 6.5 4.7 2.8 3.1/);
+ const f=setup();
+ for(const icon of f.document.querySelectorAll('[data-workshop-action="open"] img')) assert.ok(!icon.style.filter);
  f.entries.destroy();
 });
