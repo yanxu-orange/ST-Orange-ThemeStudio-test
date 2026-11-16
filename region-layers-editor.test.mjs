@@ -1,3 +1,4 @@
+import {createSchemeModel} from './scheme-model.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
@@ -10,7 +11,7 @@ test('regional layer UI selects local items, reorders uniquely, persists and sco
  const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
  const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});window.innerWidth=1200;window.innerHeight=900;
- seedNativeChat(document);const scheme=await editorStorage(null);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ seedNativeChat(document);const scheme=await editorStorage(JSON.stringify(createSchemeModel().templates.letter));await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const click=text=>{const button=[...sh.querySelectorAll('button')].find(n=>n.textContent===text);assert.ok(button,text);button.click();},select=key=>{const row=sh.querySelector(`[data-layer-key="${key}"]`);assert.ok(row,key);row.querySelector('.layer-select').click();assert.equal(sh.querySelector('.region-layer-row.selected').dataset.layerKey,key);assert.equal(sh.querySelectorAll('.region-layer-row.selected').length,1);};
  const set=(label,value)=>{const node=sh.querySelector(`[aria-label="${label}"]`);assert.ok(node,label);node.value=String(value);node.dispatchEvent(new window.Event('input'));node.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme),rows=()=>[...sh.querySelectorAll('.region-layer-row')].map(n=>n.dataset.layerKey),mode=()=>sh.querySelector('#mode-layers').click();

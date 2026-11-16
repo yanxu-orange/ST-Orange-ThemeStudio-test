@@ -1,3 +1,4 @@
+import {createSchemeModel} from './scheme-model.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {test} from 'node:test';
@@ -93,7 +94,7 @@ test('image-bearing undo isolates edits, replacement, deletion, branch edits and
  await import('./index.js?undo-snapshot-isolation');const sh=document.querySelector('#orange-theme-lab').shadowRoot;sh.querySelector('.launcher').click();await settleNativeCanvas();
  const save=()=>saveEditorScheme(sh,storage),undo=()=>sh.querySelector('#undo').click();
  const imageA='data:image/png;base64,'+'A'.repeat(200000),imageB='data:image/png;base64,'+'B'.repeat(200000);
- const initial=await save();initial.layers=[newLayer('custom',{id:'undo-image',image:imageA,x:8})];delete initial.regionOrder;
+ const initial=await save();initial.captions=createSchemeModel().validate(createSchemeModel().templates.letter).captions;initial.layers=[newLayer('custom',{id:'undo-image',image:imageA,x:8})];delete initial.regionOrder;
  await importFile(sh,window,new Blob([JSON.stringify(initial)]));const baseline=await save();
  function layerFields(){navigateRegion(sh,'header');sh.querySelector('[data-kind="image"]').click();}
  function input(label,value,finish=true){const node=sh.querySelector(`[aria-label="${label}"]`);assert.ok(node,label);node.value=String(value);node.dispatchEvent(new window.Event('input'));if(finish)node.dispatchEvent(new window.Event('change'));return node;}

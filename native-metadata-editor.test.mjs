@@ -1,3 +1,4 @@
+import {createSchemeModel} from './scheme-model.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
@@ -6,7 +7,7 @@ test('metadata editing activates only on change and preserves per-role designs',
  const {document,window}=parseHTML('<html><head><style id="custom-style"></style></head><body><div id="sheld"><div id="chat"></div></div></body></html>');
  const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
- const scheme=await editorStorage(null);seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
+ const scheme=await editorStorage(JSON.stringify(createSchemeModel().templates.letter));seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme);
  sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="name"]').click();assert.equal((await save()).metadata.unified.name,null);

@@ -8,7 +8,7 @@ import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 
-test('new schemes use 10px gutters and templates preserve their configured gutters',async()=>{
+test('new schemes use 16px gutters and templates preserve their configured gutters',async()=>{
   for(const settings of [BODY_CARD_DEFAULTS,bodyCardSettings()]){
     assert.equal(settings.bodyPaddingLeft,10);
     assert.equal(settings.bodyPaddingRight,10);
@@ -44,10 +44,10 @@ test('new schemes use 10px gutters and templates preserve their configured gutte
   shadow.querySelector('.launcher').click();
   navigateRegion(shadow,'body');
   await settleNativeCanvas();
-  assertGutters();
+  assertGutters(16,16);
   let saved=await saveEditorScheme(shadow,scheme);
-  assert.equal(saved.bodyPaddingLeft,10);
-  assert.equal(saved.bodyPaddingRight,10);
+  assert.equal(saved.bodyPaddingLeft,16);
+  assert.equal(saved.bodyPaddingRight,16);
 
   const template=shadow.querySelector('[aria-label="基础模板"]');
   for(const option of [...template.options].filter(option=>option.value)){

@@ -95,24 +95,7 @@ await (async () => {
   let loadError = null;
   const { fonts, base, templates, field, groups, validate } =
     createSchemeModel();
-  let config = normalizeAvatarFill(
-      normalizeChromeConfig(
-        normalizeTextScene(
-          normalizeNativeConfig(
-            normalizeFooterConfig(
-              normalizeReasoningConfig(
-                normalizeCaptionConfig({
-                  ...base,
-                  textItems: validateTextItems(),
-                  layers: migrateLayers(base),
-                  photos: validatePhotos(),
-                }),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
+  let config = validate(structuredClone(templates.blank)),
     saved = null,
     history = [],
     active = false,
@@ -2356,17 +2339,7 @@ await (async () => {
       return false;
     invalidateEditing();
     remember();
-    if (id === 'blank') {
-      const blank = validate(clone(templates.blank));
-      blank.layers = [];
-      blank.captions = [];
-      blank.footerCaptions = [];
-      blank.photos = validatePhotos();
-      blank.avatarFill.ai.enabled = false;
-      blank.avatarFill.user.enabled = false;
-      blank.reasoningStyle.entry.content = '思考过程';
-      config = validate(syncRegionOrder(blank));
-    } else config = validate(clone(templates[id]));
+    config = validate(clone(templates[id]));
     selectedLayerId = config.layers[0]?.id;
     ui.mobileView = 'preview';
     if (active) {

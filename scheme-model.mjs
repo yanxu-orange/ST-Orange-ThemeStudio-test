@@ -155,6 +155,32 @@ export function createSchemeModel() {
   templates.blank = {
     ...templates.clear,
     template: 'blank',
+    canvasBackground: 'tavern',
+    background: '#eceeef',
+    surface: '#f7f8f9',
+    text: '#363a40',
+    accent: '#68717c',
+    fontSize: 16,
+    lineHeight: 1.8,
+    bodyParagraphGap: 12,
+    bodyPaddingLeft: 16,
+    bodyPaddingRight: 16,
+    cardPadding: 16,
+    cardGutter: 10,
+    messageGap: 16,
+    cardShadow: false,
+    cardBorderColor: '#dfe2e5',
+    avatarSize: 56,
+    avatarRadius: 8,
+    headerHeight: 80,
+    nameFont: 'sans-serif',
+    nameColor: '#363a40',
+    nameSize: 18,
+    timeColor: '#707780',
+    captionColor: '#707780',
+    captionFont: 'sans-serif',
+    reasoning: '思考过程',
+    reasoningFont: 'sans-serif',
     caption: '',
     decoration: 'none',
     layers: [],
@@ -446,5 +472,17 @@ export function createSchemeModel() {
     );
   }
 
+  templates.blank = validate(templates.blank);
+  templates.blank.captions = [];
+  templates.blank.footerCaptions = [];
+  templates.blank.textItems.name.x = 20;
+  templates.blank.textItems.name.y = 4;
+  templates.blank.textItems.time.x = 20;
+  templates.blank.textItems.time.y = 32;
+  for (const photo of Object.values(templates.blank.photos)) {
+    photo.shadow = false;
+    photo.frameWidth = 0;
+  }
+  templates.blank = syncRegionOrder(templates.blank);
   return { fonts, base, templates, field, groups, validate };
 }

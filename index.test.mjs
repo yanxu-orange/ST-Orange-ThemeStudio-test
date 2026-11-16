@@ -1,3 +1,4 @@
+import {createSchemeModel} from './scheme-model.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {imageFile} from './test-support/image-file.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
@@ -11,7 +12,7 @@ test('editor independent controls validate links and preserve settings through s
   const selectValue=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');
   Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:selectValue.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
   const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
-  const scheme=await editorStorage(null);await import('./index.js');
+  const scheme=await editorStorage(JSON.stringify(createSchemeModel().templates.letter));await import('./index.js');
   const shadow=document.querySelector('#orange-theme-lab').shadowRoot;shadow.querySelector('.launcher').click();
   navigateRegion(shadow,'header');shadow.querySelector('[data-kind="name"]').click();
   const input=(label,value)=>{const node=shadow.querySelector(`[aria-label="${label}"]`);assert.ok(node,label);node.value=String(value);node.dispatchEvent(new window.Event(node.tagName==='SELECT'?'change':'input'));return node;};

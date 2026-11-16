@@ -16,7 +16,7 @@ test('body left border is optional, validated and survives scheme roundtrip',()=
  for(const surface of ['live','preview']){
   const {document}=parseHTML('<html><head></head><body></body></html>');const s=document.createElement('style');s.textContent=bodyCardRules('.body','.card',restored,surface);document.head.append(s);
   const rules=[...s.sheet.cssRules];assert.equal(rules.find(r=>r.selectorText==='.body').style.getPropertyValue('border-left'),'2px solid #e48fa6');
-  assert.equal(rules.find(r=>r.selectorText==='.card').style.getPropertyValue('border-left'),surface==='preview'?'1px solid #ffffffaa':'1px solid #ffffff88');
+  assert.equal(rules.find(r=>r.selectorText==='.card').style.getPropertyValue('border-left'),'1px solid #dfe2e5');
  }
 });
 test('body editor exposes independently editable width and color',()=>{
