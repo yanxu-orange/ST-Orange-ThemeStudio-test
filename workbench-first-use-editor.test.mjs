@@ -72,7 +72,7 @@ test('fresh entrance offers the same startup choices on desktop and mobile, then
   assert.equal(confirms, 0);
   assert.equal(phone.get('#full-view').textContent, '编辑');
   assert.equal(phone.shadow.querySelector('#choose-chat'), null);
-  assert.equal(wand.textContent, '主题工坊');
+  assert.equal(wand.textContent, '绘境·美化工坊');
   wand.click();
   assert.equal(phone.get('#full-view').textContent, '编辑');
   let nativeClicks = 0;
@@ -230,3 +230,4 @@ test('a newer edit survives a pending stop from a clean applied draft', async ()
   navigateRegion(second.shadow, 'body');
   assert.equal(second.get('[aria-label="正文字号 数值"]').value,'27');
 });
+

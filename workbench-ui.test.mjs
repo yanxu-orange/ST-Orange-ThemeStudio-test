@@ -10,3 +10,18 @@ test('resizable preview and panel share minimum width constraints at desktop wid
  for(const viewport of [701,800,1000,1200,1700])for(const requested of [35,55,65]){const size=layoutWidths(viewport,requested);assert.ok(size.panel>=(viewport<=1000?330:360));assert.equal(size.previewRight,size.panel+34);assert.ok(size.share>=35&&size.share<=65);assert.ok(size.panel+(viewport-48)*size.share/100<=viewport-48+1);}
  assert.ok(layoutWidths(800,65).share<65);assert.equal(layoutWidths(1700,55).share,55);
 });
+
+test('visible workshop branding keeps existing controls and technical identity',async()=>{
+ const {parseHTML}=await import('linkedom');
+ const {workbenchMarkup}=await import('./workbench-ui.mjs');
+ const {readFileSync}=await import('node:fs');
+ const {document}=parseHTML('<html><body>'+workbenchMarkup()+'</body></html>');
+ assert.equal(document.querySelector('.bar strong').textContent,'绘境·美化工坊');
+ assert.equal(document.querySelector('.launcher').textContent,'绘境');
+ assert.equal(document.querySelector('.launcher').getAttribute('aria-label'),'打开绘境·美化工坊，可拖动调整位置');
+ assert.equal(document.querySelector('#close').textContent,'退出编辑');
+ assert.equal(document.querySelector('#stop-and-close').textContent,'停用美化并退出');
+ const manifest=JSON.parse(readFileSync(new URL('./manifest.json',import.meta.url),'utf8'));
+ assert.equal(manifest.display_name,'绘境·美化工坊 · 真实画布测试');
+ assert.equal(manifest.js,'index.js');assert.equal(manifest.version,'0.24.5');
+});

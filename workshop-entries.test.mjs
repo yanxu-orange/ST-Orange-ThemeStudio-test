@@ -17,7 +17,7 @@ test('all entry actions share the open route and preserve native siblings',()=>{
  for(const name of ['wand','extensions'])f.document.querySelector(`[data-workshop-entry="${name}"] [data-workshop-action="open"]`).click();
  assert.equal(f.opens,2);assert.equal(f.document.querySelector('#native-item').textContent,'Native');assert.ok(f.document.querySelector('#native-setting'));
  f.entries.setApplied(true);
- const root=f.document.querySelector('[data-workshop-entry="wand"]');assert.equal(root.firstElementChild.textContent,'主题工坊');root.firstElementChild.click();assert.equal(f.opens,3);assert.equal(root.lastElementChild.hidden,false);root.lastElementChild.click();assert.equal(f.stops,1);
+ const root=f.document.querySelector('[data-workshop-entry="wand"]');assert.equal(root.firstElementChild.textContent,'绘境·美化工坊');root.firstElementChild.click();assert.equal(f.opens,3);assert.equal(root.lastElementChild.hidden,false);root.lastElementChild.click();assert.equal(f.stops,1);
  f.entries.setApplied(false);assert.equal(root.lastElementChild.hidden,true);
  f.entries.destroy();assert.ok(f.document.querySelector('#native-item'));assert.equal(f.document.querySelector('[data-workshop-entry]'),null);
 });
@@ -63,12 +63,12 @@ test('native entries are compact icon and label rows, without nested buttons or 
   assert.equal(open.style.flex,'0 0 auto');assert.ok(!open.style.minHeight);
   assert.equal(open.style.justifyContent,'flex-start');
   const wand=root.dataset.workshopEntry==='wand';
-  assert.equal(open.getAttribute('aria-label'),wand?'主题工坊':'打开主题工坊');
+  assert.equal(open.getAttribute('aria-label'),wand?'绘境·美化工坊':'打开绘境·美化工坊');
   const icon=open.querySelector('img');assert.equal(icon.src,WORKSHOP_ICON_URL);
   assert.equal(icon.getAttribute('aria-hidden'),'true');assert.equal(icon.alt,'');
   assert.equal(icon.style.width,'1.25em');assert.equal(icon.style.height,'1.25em');
-  const label=open.querySelector('span');assert.equal(label.textContent,'主题工坊');
-  f.entries.setApplied(true);assert.equal(open.querySelector('img'),icon);assert.equal(label.textContent,wand?'主题工坊':'继续编辑主题工坊');
+  const label=open.querySelector('span');assert.equal(label.textContent,'绘境·美化工坊');
+  f.entries.setApplied(true);assert.equal(open.querySelector('img'),icon);assert.equal(label.textContent,wand?'绘境·美化工坊':'继续编辑绘境·美化工坊');
   f.entries.setApplied(false);assert.equal(open.querySelector('img'),icon);
  }
  assert.ok(f.document.querySelector('[data-workshop-entry="wand"] > .list-group-item'));
@@ -155,3 +155,4 @@ test('stop uses an outline of the same butterfly and preserves applied visibilit
  }
  assert.equal(f.stops,2);f.entries.destroy();
 });
+

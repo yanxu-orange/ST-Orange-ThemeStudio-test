@@ -43,7 +43,7 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    if(!target)continue;
    const root=make('div');root.dataset.workshopEntry=name;
    root.className='extension_container';
-   const {node:open,label:openLabel}=actionRow(name,'主题工坊',()=>onOpen());
+   const {node:open,label:openLabel}=actionRow(name,'绘境·美化工坊',()=>onOpen());
    const {node:stop}=actionRow(name,'停用美化',()=>onStopApplied(),{iconUrl:WORKSHOP_STOP_ICON_URL});
    open.dataset.workshopAction='open';stop.dataset.workshopAction='stop';
    root.append(open,stop);target.append(root);entries.set(name,{root,open,openLabel,stop});
@@ -71,9 +71,9 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    // Explicit inline display is understood by SillyTavern's native wand item counter.
    const display=preferences[name]?'':'none';
    if(root.style.display!==display)root.style.display=display;
-   const text=name!=='wand'&&(editing||applied)?'继续编辑主题工坊':'主题工坊';
+   const text=name!=='wand'&&(editing||applied)?'继续编辑绘境·美化工坊':'绘境·美化工坊';
    if(openLabel.textContent!==text)openLabel.textContent=text;
-   open.setAttribute('aria-label',name==='wand'?'主题工坊':editing||applied?'继续编辑主题工坊':'打开主题工坊');
+   open.setAttribute('aria-label',name==='wand'?'绘境·美化工坊':editing||applied?'继续编辑绘境·美化工坊':'打开绘境·美化工坊');
    if(stop.hidden!==!applied)stop.hidden=!applied;
    if(stop.style.display!==(applied?'':'none'))stop.style.display=applied?'':'none';
   }
@@ -129,3 +129,4 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
   destroy(){destroyed=true;observer?.disconnect();for(const {root} of entries.values())root.remove();entries.clear();settings.clear();},
  };
 }
+
