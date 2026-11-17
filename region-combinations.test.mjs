@@ -102,3 +102,19 @@ test('applying a combination preserves target native controls absent from the so
  assert.equal(result.nativeStyle.actions.roles.ai.edit.position,'header');
  assert.equal(result.nativeStyle.actions.roles.user.edit.position,'header');
 });
+
+test('settings builtin uses editable text and shape without changing the full Jinghai work', async()=>{
+ const {builtinPageCombination}=await import('./region-combinations.mjs');
+ const source=jinghai(),before=structuredClone(source);
+ const combo=builtinPageCombination(source,'page','settings');
+ assert.equal(combo.header.image,''); assert.equal(combo.header.asset,'');
+ assert.deepEqual(combo.header.scene.texts.map(t=>t.content),['设置','SETTINGS']);
+ assert.equal(combo.header.scene.images[0].kind,'shape');
+ const applied=model.validate(applyCombination(blank(),combo,'settings'));
+ applied.pageHeaders.settings.scene.texts[0].content='我的设置';
+ const saved=model.validate(JSON.parse(JSON.stringify(applied)));
+ assert.equal(saved.pageHeaders.settings.scene.texts[0].content,'我的设置');
+ assert.deepEqual(source,before);assert.ok(source.pageHeaders.settings.image.startsWith('data:image/'));
+ assert.equal(builtinPageCombination(source,'page','characters'),null);
+ for(const page of ['presets','worldbook','backgrounds']) assert.deepEqual(builtinPageCombination(source,'page',page),captureCombination(source,'page',page));
+});

@@ -1,7 +1,7 @@
 import { avatarCombinationScheme } from './default-layout.mjs';
 import { activateEditedRegion } from './edit-activation.mjs';
 import { createCombinationLibrary } from './combination-library.mjs';
-import { captureCombination, applyCombination, inspectCombinationConflicts } from './region-combinations.mjs';
+import { captureCombination, applyCombination, inspectCombinationConflicts, builtinPageCombination } from './region-combinations.mjs';
 import { combinationContext } from './combination-context.mjs';
 import { createCombinationPreview } from './combination-preview.mjs';
 import { rebaseBundledFontLinks } from './spring-fonts.mjs';
@@ -85,6 +85,7 @@ import {
 import { newLayer, migrateLayers, clone, LAYER_LIMIT } from './layers.mjs';
 import { snapshotDraft } from './draft-snapshot.mjs';
 import { assetUrl, builtinAssetGroups } from './catalog.mjs';
+import { createBuiltinAssetLibrary } from './builtin-asset-library.mjs';
 import { validatePhotos } from './photos.mjs';
 import { createLiveAdapter } from './live-adapter.mjs';
 import { validateTextItems } from './text-layout.mjs';
@@ -129,6 +130,7 @@ await (async () => {
     normalizePageConfig(normalizeCommonConfig(config)),
   );
   const assetLibrary = createAssetLibrary();
+  const builtinAssets = createBuiltinAssetLibrary();
   const iconLibrary = createIconLibrary();
   let disposeIconLibrary = null,
     disposeFontLibrary = null;
@@ -1200,24 +1202,60 @@ await (async () => {
     }
     container.append(filters, builtin, mine);
     mine.hidden = true;
-    for (const group of builtinAssetGroups())
-      for (const asset of group.assets) {
-        const card = make(materialSession ? 'button' : 'div', 'material-card'),
-          preview = make('img');
-        card.dataset.builtinAsset = asset.id;
-        preview.src = assetUrl(asset.id);
-        preview.alt = '';
-        preview.loading = 'lazy';
-        card.append(preview, make('span', '', asset.name));
-        if (materialSession) {
-          card.type = 'button';
-          card.setAttribute('aria-label', '使用素材：' + asset.name);
-          card.addEventListener('click', () =>
-            useSource({ asset: asset.id, name: asset.name }),
-          );
-        }
-        builtin.append(card);
+    const builtinStatus = make('p', 'hint');
+    builtinStatus.dataset.builtinAssetStatus = '';
+    builtinStatus.setAttribute('role', 'status');
+    container.insertBefore(builtinStatus, mine);
+    function renderBuiltinAssets() {
+      let groups;
+      try { groups = builtinAssets.visible(builtinAssetGroups()); }
+      catch (error) {
+        builtinStatus.textContent = '内置素材列表未能读取，请重试。';
+        return;
       }
+      builtin.replaceChildren();
+      for (const group of groups)
+        for (const asset of group.assets) {
+          const entry = make('div'),
+            card = make(materialSession ? 'button' : 'div', 'material-card'),
+            preview = make('img');
+          entry.style.minWidth = '0';
+          card.style.width = '100%';
+          card.dataset.builtinAsset = asset.id;
+          preview.src = assetUrl(asset.id);
+          preview.alt = '';
+          preview.loading = 'lazy';
+          card.append(preview, make('span', '', asset.name));
+          if (materialSession) {
+            card.type = 'button';
+            card.setAttribute('aria-label', '使用素材：' + asset.name);
+            card.addEventListener('click', () => {
+              if (card.isConnected) useSource({ asset: asset.id, name: asset.name });
+            });
+          }
+          const remove = make('button', '', '删除');
+          remove.type = 'button';
+          remove.dataset.removeBuiltinAsset = asset.id;
+          remove.setAttribute('aria-label', '从素材库删除：' + asset.name);
+          remove.addEventListener('click', () => {
+            if (!visible() || !entry.isConnected || remove.disabled) return;
+            if (!window.confirm(`从素材库删除“${asset.name}”？已放入作品的图片不受影响。`)) return;
+            remove.disabled = true;
+            try {
+              builtinAssets.remove(asset.id);
+              builtinStatus.textContent = `已删除“${asset.name}”`;
+              renderBuiltinAssets();
+            } catch (error) {
+              builtinStatus.textContent = `未删除“${asset.name}”：列表未保存，请重试。`;
+              remove.disabled = false;
+            }
+          });
+          entry.append(card, remove);
+          builtin.append(entry);
+        }
+      if (!builtin.children.length) builtin.append(make('p', 'hint', '暂无内置素材'));
+    }
+    renderBuiltinAssets();
     const imports = make('div', 'material-import'),
       add = make('button', '', '添加图片');
     imports.hidden = true;
@@ -2555,7 +2593,8 @@ await (async () => {
       if (context.region === 'header') return [['flat', '平铺大头像'], ['rectangle', '矩形头像并排文字']].map(([variant, name]) => ({ id: 'avatar-' + variant, name, combination: captureCombination(validate(avatarCombinationScheme(templates.blank, variant)), 'header') }));
       if (!['home', 'page'].includes(context.region)) return [];
       const pageId = context.region === 'home' ? 'home' : context.pageId;
-      return [{ id: 'jinghai-' + pageId, name: '京海日报 · ' + PAGE_HEADER_PAGES[pageId], combination: captureCombination(validate(clone(templates.jinghai)), context.region, pageId) }];
+      const combination = builtinPageCombination(validate(clone(templates.jinghai)), context.region, pageId);
+      return combination ? [{ id: 'jinghai-' + pageId, name: '京海日报 · ' + PAGE_HEADER_PAGES[pageId], combination }] : [];
     },
     apply: (combination, context) => {
       const conflicts = inspectCombinationConflicts(config, combination);

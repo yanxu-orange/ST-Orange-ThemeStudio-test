@@ -1,3 +1,4 @@
+import { newPageHeaderImage, newPageHeaderText } from './page-header-scene.mjs';
 import { regionForImage, regionOrder, syncRegionOrder } from './region-layers.mjs';
 import { resolveMetadata, metadataItem } from './native-metadata.mjs';
 import { resolveNativeActions } from './native.mjs';
@@ -178,4 +179,15 @@ export function applyCombination(config,combination,pageId,{moveNative=false}={}
   if(['home','page'].includes(region)){const page=region==='home'?'home':pageId??combo.pageId;out.pageHeaders[page]=pageHeaderForTarget(out,combo,page);}
   if(['input','topbar'].includes(region))out.chromeStyle[region]=clone(combo.chrome);
   return syncRegionOrder(out);
+}
+
+export function builtinPageCombination(config, region, pageId) {
+  if (pageId === 'characters') return null;
+  const combo = captureCombination(config, region, pageId);
+  if (pageId !== 'settings') return combo;
+  const title = newPageHeaderText({id:'settings-title',name:'标题',content:'设置',font:'serif',size:24,color:'#29272a',weight:400,x:6,y:16,lineHeight:1.35});
+  const subtitle = newPageHeaderText({id:'settings-subtitle',name:'标题下方文字',content:'SETTINGS',font:'Georgia, serif',size:8,color:'#6e6152',weight:400,x:6,y:51,lineHeight:1.3});
+  const mark = newPageHeaderImage('shape',{id:'settings-mark',name:'标题装饰',shape:'rectangle',width:6,height:6,cornerRadius:0,color:'#a53c38',side:'left',x:2,y:29 / 87 * 100,offsetUnit:'percent'});
+  combo.header = {...combo.header,image:'',asset:'',title:'',height:87,layout:'standard',scene:{images:[mark],texts:[title,subtitle],order:['image:'+mark.id,'text:'+title.id,'text:'+subtitle.id]}};
+  return combo;
 }
