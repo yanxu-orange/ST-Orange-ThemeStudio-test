@@ -8,8 +8,8 @@ import {createSpringTemplate} from './spring-template.mjs';
 test('spring is a complete editable native scheme with nine packaged page illustrations',()=>{
  const m=createSchemeModel(),c=m.validate(m.templates.spring);
  assert.equal(c.template,'spring');assert.equal(c.bodyLeftBorderWidth,2);assert.equal(c.bodyLeftBorderColor,'#f49fb3');
- assert.equal(c.captions.find(x=>x.id==='spring').scaleX,.646);
- assert.equal(c.captions.find(x=>x.id==='letter').scaleX,.74);
+ assert.equal(c.captions.find(x=>x.id==='spring').scaleX,.60);
+ assert.equal(c.captions.find(x=>x.id==='letter').scaleX,.69);
  assert.equal(c.captions.find(x=>x.id==='to-you').width,'auto');
  assert.equal(c.reasoningStyle.entry.secondary.content,'——朱自清《细雨》');
  for(const id of ['presets','connection','formatting','worldbook','settings','backgrounds','extensions','personas','characters']){
@@ -77,4 +77,15 @@ test('spring mobile illustrations remain compact transparent WebP assets',()=>{
   assert.ok(bytes.length<100000);assert.equal(bytes.toString('ascii',12,16),'VP8L');
   const bits=bytes.readUInt32LE(21);assert.equal(1+(bits&0x3fff),name==='layers-2'?152:480);assert.equal((bits>>>28)&1,1);
  }
+});
+
+test('spring title, flower and paired captions use the configured geometry and font',()=>{
+ const c=createSchemeModel().validate(createSpringTemplate());
+ const first=c.captions.find(x=>x.id==='spring'),second=c.captions.find(x=>x.id==='letter');
+ assert.equal(first.y,74);assert.equal(second.y,106);
+ assert.equal(first.lineHeight,1);assert.equal(second.lineHeight,1);
+ const flower=c.layers.find(x=>x.id==='spring-ai-flower');
+ assert.equal(flower.width,144);assert.equal(flower.y,50);assert.equal(flower.side,'right');
+ const to=c.captions.find(x=>x.id==='to-you'),you=c.captions.find(x=>x.id==='to-you-second');
+ assert.deepEqual(you.fontLink,to.fontLink);assert.equal(you.lineHeight,to.lineHeight);
 });

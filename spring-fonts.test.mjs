@@ -9,8 +9,8 @@ test('Spring packaged fonts resolve beside the extension on either host',()=>{
   for(const link of Object.values(links)){assert.equal(new URL(link.url).origin,new URL(base).origin);assert.deepEqual(validateCaptionStyle({fontLink:link}).fontLink,link);}
   assert.equal(links.title.faceWeight,'400');assert.equal(links.poem.faceWeight,'300');
  }
- const config={captions:['spring','letter','to-you','other'].map(id=>({id,fontLink:null})),reasoningStyle:{entry:{content:'原诗句'}}};applySpringFonts(config,'https://tavern.example/extension/spring-fonts.mjs');
- assert.equal(config.captions[2].lineHeight,1);assert.equal(config.captions[3].fontLink,null);assert.equal(config.reasoningStyle.entry.content,'原诗句');
+ const config={captions:['spring','letter','to-you','other','to-you-second'].map(id=>({id,fontLink:null})),reasoningStyle:{entry:{content:'原诗句'}}};applySpringFonts(config,'https://tavern.example/extension/spring-fonts.mjs');
+ assert.equal(config.captions[2].lineHeight,1);assert.deepEqual(config.captions[4].fontLink,config.captions[2].fontLink);assert.equal(config.captions[3].fontLink,null);assert.equal(config.reasoningStyle.entry.content,'原诗句');
  for(const file of ['bodoni-moda-24pt.woff2','poem-serif-light.ttf','LICENSE-Bodoni-Moda.txt','LICENSE-Poem-Serif-Light.txt'])assert.ok(fs.statSync(new URL('./materials/fonts/spring/'+file,import.meta.url)).size>0);
 });
 

@@ -6,7 +6,7 @@ export function springFontLinks(baseUrl=import.meta.url) {
 }
 export function applySpringFonts(config,baseUrl=import.meta.url) {
   const fonts=springFontLinks(baseUrl);
-  for(const caption of config.captions)if(['spring','letter','to-you'].includes(caption.id))caption.fontLink={...fonts.title};
+  for(const caption of config.captions)if(['spring','letter','to-you','to-you-second'].includes(caption.id))caption.fontLink={...fonts.title};
   const toYou=config.captions.find(caption=>caption.id==='to-you');if(toYou)toYou.lineHeight=1;
   config.reasoningStyle.entry.fontLink={...fonts.poem};
   return config;
