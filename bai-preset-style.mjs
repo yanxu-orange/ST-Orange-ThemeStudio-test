@@ -19,9 +19,10 @@ export function baiPresetRules(root,page,global){
  `${manager} .bai-bai-preset-group-body-inner{background:${field.background}!important;box-shadow:none!important}`,
  `${header}{background:${heading.background}!important;color:${heading.color}!important;border-bottom:1px solid ${panel.border}!important;box-shadow:none!important}`,
  `${manager} :is(.bai-bai-preset-group-collapsed,.bai-bai-preset-global-library-collapsed) > .bai-bai-preset-group-header{border-bottom-color:transparent!important}`,
- `${manager} .bai-bai-preset-group-title-content > strong{color:${heading.color}!important;font-size:${heading.size}px!important;font-weight:${heading.weight}!important;white-space:normal!important;overflow-wrap:anywhere}`,
+ `${manager} .bai-bai-preset-group-title-content > strong{color:${heading.color}!important;font-size:calc(${heading.size}px * var(--fontScale, 1))!important;font-weight:${heading.weight}!important;white-space:normal!important;overflow-wrap:anywhere}`,
  `${manager} .bai-bai-preset-group-count{color:${text.muted}!important}`,
  `${manager} .bai-bai-preset-group-enable-toggle.fa-toggle-on{color:${text.accent}!important}`,
  `${manager} .bai-bai-preset-group-enable-toggle.fa-toggle-off{color:${text.muted}!important}`
  ].join('\n'));
 }
+

@@ -61,12 +61,12 @@ export function pageStyleRules(config,{preview=false,page=null,families={},resol
   if(section&&(v[surface]||v.panel))rules.push(`${section}{${panelCSS(v[surface]||v.panel)}}`);
   if(key==='worldbook'&&(v.entryHeading||v.heading)){
    const h=v.entryHeading||v.heading,header=`${root} #world_popup_entries_list .world_entry_form > .inline-drawer > .inline-drawer-header`,title=`${header} textarea[name=comment]`;
-   if(v.entryHeading)rules.push(`${header}{color:${h.color}!important;background:${h.background}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important;border-radius:${h.radius}px!important;text-shadow:none!important}`);
+   if(v.entryHeading)rules.push(`${header}{color:${h.color}!important;background:${h.background}!important;font-size:calc(${h.size}px * var(--fontScale, 1))!important;font-weight:${h.weight}!important;border-radius:${h.radius}px!important;text-shadow:none!important}`);
    // The editable memo is the actual entry title. Preserve field backgrounds,
    // borders and focus states while giving its text the entry heading style.
-   rules.push(`${title}{color:${h.color}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important}`);
-   rules.push(`@media(max-width:700px){${title}{font-size:${Math.max(16,h.size)}px!important}}`);
-   if(preview)rules.push(`@container(max-width:700px){${title}{font-size:${Math.max(16,h.size)}px!important}}`);
+   rules.push(`${title}{color:${h.color}!important;font-size:calc(${h.size}px * var(--fontScale, 1))!important;font-weight:${h.weight}!important}`);
+   rules.push(`@media(max-width:700px){${title}{font-size:calc(${Math.max(16,h.size)}px * var(--fontScale, 1))!important}}`);
+   if(preview)rules.push(`@container(max-width:700px){${title}{font-size:calc(${Math.max(16,h.size)}px * var(--fontScale, 1))!important}}`);
   }
   if(key==='worldbook')rules.push(worldEntryRules(root,v,global));
   if(key==='presets')rules.push(presetContentRules(root,v,global));
@@ -99,7 +99,7 @@ export function presetContentRules(root,page,global){
   rules.push(`${manager} .completion_prompt_manager_header_advanced > span[data-i18n="Prompts"],${list} > .completion_prompt_manager_list_head > span[data-i18n="Name"]{color:${text.color}!important}`);
  }
  if(page.promptList){for(let i=0;i<rules.length;i++)rules[i]=guardPresetRules(rules[i]);rules.push(baiPresetRules(root,page,global));}
- if(page.sliderTip==='flow')rules.push(`${root} #clickSlidersTips{position:static!important;inset:auto!important;box-sizing:border-box;width:auto!important;margin:2px 32px 3px 10px!important;padding:0!important;text-align:left!important;font-size:${text.size*.8}px!important;line-height:1.4!important;color:${text.muted}!important}`);
+ if(page.sliderTip==='flow')rules.push(`${root} #clickSlidersTips{position:static!important;inset:auto!important;box-sizing:border-box;width:auto!important;margin:2px 32px 3px 10px!important;padding:0!important;text-align:left!important;font-size:calc(${text.size*.8}px * var(--fontScale, 1))!important;line-height:1.4!important;color:${text.muted}!important}`);
  return rules.join('\n');
 }
 
@@ -134,4 +134,5 @@ export function createPageDropdownBridge({document,MutationObserver:Observe}={})
  function start(){stop();sync();const Observer=Observe||document.defaultView?.MutationObserver;if(Observer){observer=new Observer(changed);observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','aria-controls','aria-owns','id']});}}
  return {start,stop,sync};
 }
+
 

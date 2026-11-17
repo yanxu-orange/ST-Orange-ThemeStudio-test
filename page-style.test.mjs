@@ -26,7 +26,7 @@ test('rejects malformed groups, unsupported fields and unsafe images',()=>{
 });
 test('page rules reuse common controls, scope dropdowns and keep native states and mobile sizing',()=>{
  const css=pageStyleRules({pageStyle:{settings:{field:{color:'#123456'}},worldbook:{text:{size:18}}}});
- for(const token of ['html[data-orange-live] #user-settings-block','html[data-orange-live] #WorldInfo','[data-otl-page-owner="settings"]','[data-otl-page-owner="worldbook"]',':not(.red_button):not(.redWarningBG):not(.delete_entry_button)','[aria-disabled=true]','font-size:18px!important','font-size:16px!important'])assert.ok(css.includes(token),token);
+ for(const token of ['html[data-orange-live] #user-settings-block','html[data-orange-live] #WorldInfo','[data-otl-page-owner="settings"]','[data-otl-page-owner="worldbook"]',':not(.red_button):not(.redWarningBG):not(.delete_entry_button)','[aria-disabled=true]','font-size:calc(18px * var(--fontScale, 1))!important','font-size:calc(16px * var(--fontScale, 1))!important'])assert.ok(css.includes(token),token);
  assert.ok(!css.includes('body>.select2-container--open .select2-dropdown'));
  assert.doesNotMatch(css,/display:|position:|pointer-events:|overflow:|z-index:/);
 });
@@ -43,16 +43,16 @@ test('entry heading styles the editable title only and retains field chrome and 
  const title='html[data-orange-live] #WorldInfo #world_popup_entries_list .world_entry_form > .inline-drawer > .inline-drawer-header textarea[name=comment]';
  for(const size of [12,16,24]){
   const config={pageStyle:{worldbook:{entryHeading:{color:'#123456',size,weight:700}}}},css=pageStyleRules(config);
-  assert.ok(css.includes(`${title}{color:#123456!important;font-size:${size}px!important;font-weight:700!important}`));
-  assert.ok(css.includes(`@media(max-width:700px){${title}{font-size:${Math.max(16,size)}px!important}}`));
+  assert.ok(css.includes(`${title}{color:#123456!important;font-size:calc(${size}px * var(--fontScale, 1))!important;font-weight:700!important}`));
+  assert.ok(css.includes(`@media(max-width:700px){${title}{font-size:calc(${Math.max(16,size)}px * var(--fontScale, 1))!important}}`));
   const rule=css.split('\n').find(line=>line.startsWith(title));
   assert.doesNotMatch(rule,/background:|border:|outline:|font-family:|button/);
   config.pageStyle.worldbook.entryHeading=null;assert.ok(!pageStyleRules(config).includes('textarea[name=comment]'));
  }
  assert.ok(!pageStyleRules({}).includes('textarea[name=comment]'));
  const inherited={pageStyle:{worldbook:{heading:{color:'#456789',size:22,weight:500},entryHeading:null}}};
- assert.ok(pageStyleRules(inherited).includes(`${title}{color:#456789!important;font-size:22px!important;font-weight:500!important}`));
- inherited.pageStyle.worldbook.entryHeading={size:26};assert.ok(pageStyleRules(inherited).includes(`${title}{color:#354b42!important;font-size:26px!important;font-weight:600!important}`));
+ assert.ok(pageStyleRules(inherited).includes(`${title}{color:#456789!important;font-size:calc(22px * var(--fontScale, 1))!important;font-weight:500!important}`));
+ inherited.pageStyle.worldbook.entryHeading={size:26};assert.ok(pageStyleRules(inherited).includes(`${title}{color:#354b42!important;font-size:calc(26px * var(--fontScale, 1))!important;font-weight:600!important}`));
  inherited.pageStyle.worldbook.heading=null;inherited.pageStyle.worldbook.entryHeading=null;assert.ok(!pageStyleRules(inherited).includes('textarea[name=comment]'));
  assert.ok(!pageStyleRules({pageStyle:{settings:{heading:{size:22}}}}).includes('textarea[name=comment]'));
  assert.ok(pageStyleRules({pageStyle:{worldbook:{entryHeading:{size:12}}}},{preview:true}).includes('@container(max-width:700px)'));
@@ -169,3 +169,4 @@ test('spring mobile drawers retain the original display transition without heigh
  assert.doesNotMatch(pageStyleRules({template:'spring'},{preview:true}),/transition-property:display/);
  assert.doesNotMatch(pageStyleRules({template:'letter'}),/transition-property:display/);
 });
+

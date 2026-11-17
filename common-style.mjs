@@ -51,34 +51,34 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  const dropdown=dropdownScope||(preview?scope('.select2-dropdown'):'html[data-orange-live] body>.select2-container--open .select2-dropdown');
  const select2=selector=>`${scope(selector)},${dropdown} ${selector}`;
  const font=family?JSON.stringify(family):t.font==='auto'?'var(--mainFontFamily, sans-serif)':t.font;
- const fontVariables=`--mainFontSize:${t.size}px;${family||t.font!=='auto'?'--mainFontFamily:'+font+';':''}`;
+ const fontVariables=`--mainFontSize:calc(${t.size}px * var(--fontScale, 1));${family||t.font!=='auto'?'--mainFontFamily:'+font+';':''}`;
  const bg=`rgba(${[1,3,5].map(i=>parseInt(p.background.slice(i,i+2),16)).join(',')},${p.opacity})`;
  const input=COMMON_FIELD_SELECTOR,button=COMMON_BUTTON_SELECTOR;
  const disabled=':is(:disabled,[disabled],.disabled,[aria-disabled=true])';
  const headings=preview?':is(h3,.standoutHeader,.inline-drawer-header,.title_restorable)':':is(h3,:where(#user-settings-block) h4,:where(#rm_button_selected_ch) h2,.standoutHeader,.inline-drawer-header,.title_restorable)';
  const roots=[page,home].filter(Boolean).join(',');
  const rules=[];const add=(selector,css)=>rules.push(`${selector}{${css}}`);
- add(`${roots},${dropdown}`,`${fontVariables}--SmartThemeBodyColor:${t.color};--SmartThemeEmColor:${t.muted};--SmartThemeQuoteColor:${t.accent};--SmartThemeBorderColor:${p.border};--SmartThemeBlurTintColor:${bg};--SmartThemeCheckboxTickColor:#fff;color:${t.color}!important;font-family:${font}!important;font-size:${t.size}px!important;text-shadow:none!important`);
+ add(`${roots},${dropdown}`,`${fontVariables}--SmartThemeBodyColor:${t.color};--SmartThemeEmColor:${t.muted};--SmartThemeQuoteColor:${t.accent};--SmartThemeBorderColor:${p.border};--SmartThemeBlurTintColor:${bg};--SmartThemeCheckboxTickColor:#fff;color:${t.color}!important;font-family:${font}!important;font-size:calc(${t.size}px * var(--fontScale, 1))!important;text-shadow:none!important`);
  add(page,`background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important;box-shadow:none!important`);
  add(scope(':is(.wi-card-entry,.standoutHeader~.inline-drawer-content)'),`background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important`);
  if(home){
   add(`${home} .recentChatList > .recentChat`,`color:${t.color}!important;background:${bg}!important;border:${p.width}px solid ${p.border}!important;border-radius:${p.radius}px!important;text-shadow:none!important`);
   add(`${home} .recentChatList > .recentChat:hover`,`background:${b.hover}!important`);
   add(`${home} :is(.chatMessage,.chatStats,.chatDate)`,`color:${t.muted}!important`);
-  add(`${home} :is(.recentChatsTitle,.welcomeHeaderVersionDisplay)`,`color:${h.color}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important;text-shadow:none!important`);
+  add(`${home} :is(.recentChatsTitle,.welcomeHeaderVersionDisplay)`,`color:${h.color}!important;font-size:calc(${h.size}px * var(--fontScale, 1))!important;font-weight:${h.weight}!important;text-shadow:none!important`);
   add(`${home} .mes_button`,`color:${b.color}!important;opacity:1!important;filter:none!important;text-shadow:none!important`);
  }
  add(scope(':is(small,.notes,.toggle-description,.otl-sample-note,.otl-sample-version)'),`color:${t.muted}!important`);
- add(scope(headings),`color:${h.color}!important;background:${h.background}!important;font-size:${h.size}px!important;font-weight:${h.weight}!important;border-color:${p.border}!important;border-radius:${h.radius}px!important;text-shadow:none!important;filter:none!important`);
+ add(scope(headings),`color:${h.color}!important;background:${h.background}!important;font-size:calc(${h.size}px * var(--fontScale, 1))!important;font-weight:${h.weight}!important;border-color:${p.border}!important;border-radius:${h.radius}px!important;text-shadow:none!important;filter:none!important`);
  add(scope(`${headings} :is(b,strong)`),'font-weight:inherit!important;font-size:inherit!important;color:inherit!important');
  add(scope(`${headings} .inline-drawer-icon`),'font-size:1em!important;filter:none!important;color:inherit!important');
  add(scope(':is(.inline-drawer-header:hover,.inline-drawer-header:has(.inline-drawer-icon.up),.inline-drawer-header[aria-expanded=true],details[open]>.inline-drawer-header)'),`background:${b.hover}!important`);
- add(scope(input),`color:${f.color}!important;background:${f.background}!important;border:1px solid ${f.border}!important;border-radius:${f.radius}px!important;font-family:${font}!important;font-size:${t.size}px!important;text-shadow:none!important;box-shadow:none!important`);
+ add(scope(input),`color:${f.color}!important;background:${f.background}!important;border:1px solid ${f.border}!important;border-radius:${f.radius}px!important;font-family:${font}!important;font-size:calc(${t.size}px * var(--fontScale, 1))!important;text-shadow:none!important;box-shadow:none!important`);
  add(scope(':is(input,textarea)::placeholder'),`color:${t.muted}!important;opacity:1!important`);
  add(scope(`${input}[readonly]:not(:disabled)`),`border-style:dashed!important;color:${t.muted}!important`);
  // Native text buttons declare their own font; icon buttons keep Font Awesome.
  add(scope(button),`color:${b.color}!important;background:${b.background}!important;border:1px solid ${b.border}!important;border-radius:${b.radius}px!important;box-shadow:none!important;text-shadow:none!important;filter:none!important`);
- add(scope(`${button}:not(:is(.fa,.fas,.far,.fab,.fa-solid,.fa-regular,.fa-brands,.fa-light,.fa-thin,.fa-duotone))`),`font-family:${font}!important;font-size:${t.size}px!important`);
+ add(scope(`${button}:not(:is(.fa,.fas,.far,.fab,.fa-solid,.fa-regular,.fa-brands,.fa-light,.fa-thin,.fa-duotone))`),`font-family:${font}!important;font-size:calc(${t.size}px * var(--fontScale, 1))!important`);
  add(scope(`${button}:not(${disabled}):is(:hover,.active,.toggled,.toggleEnabled,[aria-pressed=true])`),`background:${b.hover}!important;border-color:${f.focus}!important`);
  add(scope(':is(input,select,textarea,button,.menu_button,summary,[tabindex]):focus-visible'),`outline:2px solid ${f.focus}!important;outline-offset:2px!important`);
  add(scope(`:is(input,select,textarea,button,.menu_button)${disabled}`),'opacity:.5!important;cursor:not-allowed!important');
@@ -101,9 +101,10 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  add(scope('.select2-container--disabled .select2-selection'),'opacity:.5!important;cursor:not-allowed!important');
  add(scope(':is(.select2-container--focus,.select2-container--open) .select2-selection'),`outline:2px solid ${f.focus}!important;outline-offset:2px!important`);
  add(`${dropdown} .select2-search__field:focus-visible`,`outline:2px solid ${f.focus}!important;outline-offset:2px!important`);
- const mobileFields=`${scope(input)},${scope(':is(.select2-selection,.select2-selection__rendered,.select2-selection__choice)')},${dropdown} .select2-search__field{font-size:${Math.max(16,t.size)}px!important}`;
+ const mobileFields=`${scope(input)},${scope(':is(.select2-selection,.select2-selection__rendered,.select2-selection__choice)')},${dropdown} .select2-search__field{font-size:calc(${Math.max(16,t.size)}px * var(--fontScale, 1))!important}`;
  rules.push(`@media(max-width:700px){${mobileFields}}`);
  if(preview)rules.push(`@container(max-width:700px){${mobileFields}}`);
  return rules.join('\n');
 }
+
 

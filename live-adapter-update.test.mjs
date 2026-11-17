@@ -250,8 +250,8 @@ test('mounted page headers skip comparison serialization and reads during chat-o
       reads++;
       const css = document.getElementById('orange-theme-live-style')?.textContent || '';
       initialStyleAtRead.push(css.includes('--ol-size:calc(15px * var(--fontScale, 1))') && document.documentElement.hasAttribute('data-orange-live'));
-      if (css.includes('font-size:23px!important')) cssAtRead.push('common');
-      if (css.includes('font-size:21px!important')) cssAtRead.push('page');
+      if (css.includes('font-size:calc(23px * var(--fontScale, 1))!important')) cssAtRead.push('common');
+      if (css.includes('font-size:calc(21px * var(--fontScale, 1))!important')) cssAtRead.push('page');
       return {paddingLeft:left, paddingRight:right, paddingTop:'4px'};
     }
     return {};
@@ -347,3 +347,4 @@ test('mounted page headers skip comparison serialization and reads during chat-o
   assert.equal(colorReads, 0);
   assert.equal(serializations, 0);
 });
+

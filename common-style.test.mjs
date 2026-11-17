@@ -30,7 +30,7 @@ test('same renderer provides appearance parity without host geometry or global t
   `${home} .recentChatList > .recentChat{color:#112233!important;background:rgba(171,205,239,0.4)!important;border:1px solid #d8e0d6!important;border-radius:12px!important;text-shadow:none!important}`,
   `${home} .recentChatList > .recentChat:hover{background:#e4eddf!important}`,
   `${home} :is(.chatMessage,.chatStats,.chatDate){color:#78847b!important}`,
-  `${home} :is(.recentChatsTitle,.welcomeHeaderVersionDisplay){color:#354b42!important;font-size:16px!important;font-weight:600!important;text-shadow:none!important}`,
+  `${home} :is(.recentChatsTitle,.welcomeHeaderVersionDisplay){color:#354b42!important;font-size:calc(16px * var(--fontScale, 1))!important;font-weight:600!important;text-shadow:none!important}`,
   `${home} .mes_button{color:#354b42!important;opacity:1!important;filter:none!important;text-shadow:none!important}`,
  ]);
  assert.deepEqual(declarations(live.split('\n').filter(row=>!row.startsWith(home)).join('\n')),declarations(preview));
@@ -46,12 +46,12 @@ test('native states, glyphs and detached Select2 are covered without changing be
  assert.ok(buttonRule);assert.ok(!buttonRule.includes('font-family'));
 });
 
-test('mobile fields use the same minimum 16px in live and preview without reducing larger text',()=>{
+test('mobile fields use the same base minimum 16px before Tavern scaling in live and preview without reducing larger text',()=>{
  for(const preview of [false,true])for(const size of [12,14,16,24]){
   const css=commonStyleRules({commonStyle:{text:{size}}},{preview});
   const mobile=css.split('\n').find(row=>row.startsWith('@media'));
   assert.ok(mobile.startsWith('@media(max-width:700px)'));
-  assert.ok(mobile.endsWith(`font-size:${Math.max(16,size)}px!important}}`));
+  assert.ok(mobile.endsWith(`font-size:calc(${Math.max(16,size)}px * var(--fontScale, 1))!important}}`));
   assert.ok(mobile.includes('.select2-search__field'));
  }
 });
@@ -63,9 +63,9 @@ test('worldbook h4 field labels are not painted as section headings',()=>{
 
 test('native text buttons follow interface fonts while Font Awesome keeps its glyph family',()=>{
  const css=commonStyleRules({commonStyle:{text:{font:'Georgia, serif',size:24}}});
- assert.match(css,/--mainFontSize:24px;--mainFontFamily:Georgia, serif;/);
+ assert.match(css,/--mainFontSize:calc\(24px \* var\(--fontScale, 1\)\);--mainFontFamily:Georgia, serif;/);
  const rule=css.split('\n').find(row=>row.includes(':not(:is(.fa,.fas,.far,.fab,.fa-solid'));
- assert.ok(rule);assert.match(rule,/font-family:Georgia, serif!important;font-size:24px!important/);
+ assert.ok(rule);assert.match(rule,/font-family:Georgia, serif!important;font-size:calc\(24px \* var\(--fontScale, 1\)\)!important/);
  assert.ok(!commonStyleRules({}).includes('--mainFontFamily:var(--mainFontFamily'));
 });
 
@@ -83,7 +83,7 @@ test('readonly state extends the base input selector so it wins native appearanc
 });
 
 test('desktop narrow preview uses its container width for phone input sizing',()=>{
- const css=commonStyleRules({},{preview:true});assert.match(css,/@container\(max-width:700px\).*font-size:16px!important/);
+ const css=commonStyleRules({},{preview:true});assert.match(css,/@container\(max-width:700px\).*font-size:calc\(16px \* var\(--fontScale, 1\)\)!important/);
  assert.ok(!commonStyleRules({}).includes('@container'));
 });
 
@@ -101,3 +101,4 @@ test('selected character heading is covered without promoting native field label
  assert.ok(css.includes(':where(#rm_button_selected_ch) h2'));
  assert.ok(!css.includes(':is(h2,h3,h4'));assert.ok(!css.includes('h5'));
 });
+
