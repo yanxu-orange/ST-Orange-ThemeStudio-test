@@ -1,3 +1,4 @@
+import { avatarCombinationScheme } from './default-layout.mjs';
 import { activateEditedRegion } from './edit-activation.mjs';
 import { createCombinationLibrary } from './combination-library.mjs';
 import { captureCombination, applyCombination, inspectCombinationConflicts } from './region-combinations.mjs';
@@ -2439,6 +2440,7 @@ await (async () => {
       return createCombinationPreview(document, sample, context);
     },
     builtins: (context) => {
+      if (context.region === 'header') return [['flat', '平铺大头像'], ['rectangle', '矩形头像并排文字']].map(([variant, name]) => ({ id: 'avatar-' + variant, name, combination: captureCombination(validate(avatarCombinationScheme(templates.blank, variant)), 'header') }));
       if (!['home', 'page'].includes(context.region)) return [];
       const pageId = context.region === 'home' ? 'home' : context.pageId;
       return [{ id: 'jinghai-' + pageId, name: '京海日报 · ' + PAGE_HEADER_PAGES[pageId], combination: captureCombination(validate(clone(templates.jinghai)), context.region, pageId) }];

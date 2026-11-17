@@ -1,3 +1,4 @@
+import { NATIVE_DEFAULTS } from './native.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createSchemeModel} from './scheme-model.mjs';
@@ -6,7 +7,7 @@ import {newLayer} from './layers.mjs';
 import {syncRegionOrder} from './region-layers.mjs';
 import {portableScheme} from './portable-scheme.mjs';
 const model=createSchemeModel();
-const blank=()=>structuredClone(model.templates.blank);
+const blank=()=>({...structuredClone(model.templates.blank),nativeStyle:structuredClone(NATIVE_DEFAULTS)});
 const jinghai=()=>model.validate(model.templates.jinghai);
 for(const region of ['header','footer','home','page','input','topbar'])test(`${region}: captures only the region and applies a valid editable configuration`,()=>{
  const source=jinghai(),target=blank(),before=structuredClone(target),combo=captureCombination(source,region,'worldbook');

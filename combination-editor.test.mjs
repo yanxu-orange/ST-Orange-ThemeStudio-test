@@ -31,7 +31,7 @@ test('saving and applying a header combination stays local and supports undo',as
  const combo=JSON.parse(await storage.load(item.id));assert.equal(combo.region,'header');assert.equal(combo.fontSize,undefined);
  click('[data-combo-action="close"]');navigateRegion(shadow,'body');
  const size=shadow.querySelector('[aria-label="正文字号 数值"]');size.value='23';size.dispatchEvent(new window.Event('input'));size.dispatchEvent(new window.Event('change'));
- navigateRegion(shadow,'header');
+ navigateRegion(shadow,'header');click('[data-kind="region"]');
  const height=shadow.querySelector('[aria-label="头像区总高度 数值"]');assert.ok(height);height.value='210';height.dispatchEvent(new window.Event('input'));height.dispatchEvent(new window.Event('change'));
  const before=await saveEditorScheme(shadow,draft);assert.equal(before.fontSize,23);assert.equal(before.headerHeight,210);
  click('#open-region-combinations');await settle();click(`[data-combo-id="${item.id}"] [data-combo-action="apply"]`);await settle();

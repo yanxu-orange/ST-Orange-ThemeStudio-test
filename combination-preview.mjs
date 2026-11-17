@@ -54,7 +54,7 @@ export function createCombinationPreview(document, config, { region, pageId = 's
       if (!v || v.scope === 'user') continue;
       const point = region === 'header' ? itemPoint(config, v, inner) : { x: v.x * inner / 100, y: v.y };
       const style = entry.key === 'name' ? { ...v, size: config.nameSize, color: config.nameColor, font: config.nameFont } : entry.key === 'time' ? { ...v, size: config.timeSize, color: config.timeColor, font: config.timeFont === 'auto' ? config.font : config.timeFont } : v;
-      text(style, entry.key === 'name' ? '角色名字' : entry.key === 'time' ? '12:00' : v.content, padding + point.x, (region === 'header' ? padding : 0) + point.y, z);
+      text(style, entry.key === 'name' ? '角色名字' : entry.key === 'time' ? '2026年11月17日 13:28' : v.content, padding + point.x, (region === 'header' ? padding : 0) + point.y, z);
     }
     const actions = resolveNativeActions(config.nativeStyle.actions), stats = resolveNativeStats(config.nativeStyle.stats);
     for (const [key, label] of [['edit', '编辑'], ['more', '更多']]) {

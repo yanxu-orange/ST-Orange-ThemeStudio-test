@@ -1,3 +1,4 @@
+import { defaultReadingScheme } from './default-layout.mjs';
 import {
   TEXT_DEFAULTS,
   validateTextItems,
@@ -474,17 +475,6 @@ export function createSchemeModel() {
     );
   }
 
-  templates.blank = validate(templates.blank);
-  templates.blank.captions = [];
-  templates.blank.footerCaptions = [];
-  templates.blank.textItems.name.x = 20;
-  templates.blank.textItems.name.y = 4;
-  templates.blank.textItems.time.x = 20;
-  templates.blank.textItems.time.y = 32;
-  for (const photo of Object.values(templates.blank.photos)) {
-    photo.shadow = false;
-    photo.frameWidth = 0;
-  }
-  templates.blank = syncRegionOrder(templates.blank);
+  templates.blank = validate(defaultReadingScheme(validate(templates.blank)));
   return { fonts, base, templates, field, groups, validate };
 }
