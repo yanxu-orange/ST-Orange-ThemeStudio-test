@@ -26,3 +26,15 @@ test('dash and wave paths are bounded, have no remote dependencies and support n
   assert.equal(d.querySelectorAll('image,script,foreignObject').length,0);
  }
 });
+
+test('percentage-width waves repeat in display pixels instead of stretching a percentage-sized path',()=>{
+ for(const width of [30,60,100]){
+  const l=newLayer('shape',{shape:'wave',widthUnit:'percent',width,height:36,color:'#336699'}),d=doc(l);
+  assert.equal(d.querySelector('svg').getAttribute('viewBox'),null);
+  assert.equal(d.querySelector('pattern').getAttribute('patternUnits'),'userSpaceOnUse');
+  assert.equal(d.querySelector('pattern').getAttribute('width'),'72');
+  assert.equal(d.querySelector('path').getAttribute('stroke-width'),'6');
+  assert.equal(d.querySelector('svg > rect').getAttribute('fill'),'#336699');
+  l.fillMode='gradient';assert.match(doc(l).querySelector('foreignObject div').getAttribute('style'),/linear-gradient\(90deg,/);
+ }
+});

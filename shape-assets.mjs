@@ -53,6 +53,17 @@ export function shapeSvg(layer){
     defs=`<defs><linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="${vector.x1}" y1="${vector.y1}" x2="${vector.x2}" y2="${vector.y2}"><stop offset="0" stop-color="${shape.color}"/><stop offset="1" stop-color="${shape.color2}"/></linearGradient></defs>`;
     fill='url(#fill)';
   }
+  // Relative widths are resolved by the browser, not by treating the percentage
+  // number as pixels. A user-space pattern repeats at a fixed wavelength.
+  if(shape.shape==='wave' && layer.widthUnit==='percent' && shape.heightUnit==='px'){
+    const stroke=height/6, halfWave=Math.max(stroke*6,1), y=height/2, amplitude=height/2-stroke/2;
+    const d=`M0 ${y} C${halfWave/3} ${y-amplitude} ${halfWave*2/3} ${y-amplitude} ${halfWave} ${y} C${halfWave*4/3} ${y+amplitude} ${halfWave*5/3} ${y+amplitude} ${halfWave*2} ${y}`;
+    const pattern=`<pattern id="wave-pattern" patternUnits="userSpaceOnUse" width="${halfWave*2}" height="${height}"><path d="${d}" fill="none" stroke="white" stroke-width="${stroke}"/></pattern><mask id="wave-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="${height}"><rect width="100%" height="${height}" fill="url(#wave-pattern)"/></mask>`;
+    const paint=shape.fillMode==='gradient'
+      ? `<foreignObject width="100%" height="${height}" mask="url(#wave-mask)"><div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;background:linear-gradient(${shape.gradientAngle}deg,${shape.color},${shape.color2})"></div></foreignObject>`
+      : `<rect width="100%" height="${height}" fill="${fill}" mask="url(#wave-mask)"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${height}"><defs>${pattern}</defs>${paint}</svg>`;
+  }
   let path;
   if(isLineShape(shape.shape)){
     const stroke=height/lineHeightFactor(shape.shape), y=height/2;
