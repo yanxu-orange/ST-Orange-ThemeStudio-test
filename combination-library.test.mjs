@@ -56,3 +56,43 @@ test('dismissed asynchronous capture does not save to a new region or reopen pan
   ui.library.hide(); await ui.library.show({ region: 'footer', label: '尾部区' }); finish({ value: 5 }); await settle();
   assert.equal((await ui.store('header').list()).length, 0); assert.equal((await ui.store('footer').list()).length, 0); assert.equal(ui.shadow.querySelector('h2').textContent, '尾部区 · 我的组合');
 });
+
+test('inline picker selects visually, applies once and collapses beside its opener', async () => {
+  const ui = setup(), source = ui.shadow.ownerDocument.createElement('button'); ui.shadow.append(source);
+  await ui.library.toggle({ region: 'home', label: '首页头部' }, source);
+  const panel = ui.shadow.querySelector('.combination-library');
+  assert.equal(source.nextElementSibling, panel); assert.equal(panel.getAttribute('role'), 'region');
+  assert.equal(panel.hasAttribute('aria-modal'), false); assert.equal(source.getAttribute('aria-expanded'), 'true');
+  assert.equal(ui.shadow.querySelector('.combination-create').hidden, true);
+  assert.equal(ui.shadow.querySelector('[data-combo-action="apply-selected"]').disabled, true);
+  ui.click('[data-combo-action="preview"]'); await settle();
+  assert.equal(ui.shadow.querySelector('[data-combo-action="preview"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(ui.shadow.querySelector('.combination-view').hidden, true);
+  assert.equal(ui.applied, undefined);
+  ui.allow = false; ui.click('[data-combo-action="apply-selected"]'); await settle(); assert.equal(panel.hidden, false);
+  ui.allow = true; ui.click('[data-combo-action="apply-selected"]'); await settle();
+  assert.equal(panel.hidden, true); assert.equal(ui.applied.combo.value, 9); assert.equal(source.getAttribute('aria-expanded'), 'false');
+  await ui.library.toggle(header, source); await ui.library.toggle(header, source); assert.equal(panel.hidden, true);
+});
+
+test('inline picker management preserves saving and returns to refreshed selection', async () => {
+  const ui = setup(), source = ui.shadow.ownerDocument.createElement('button'); ui.shadow.append(source);
+  await ui.library.toggle(header, source); ui.click('[data-combo-action="manage"]'); await settle();
+  const panel = ui.shadow.querySelector('.combination-library');
+  assert.equal(panel.getAttribute('role'), 'dialog'); assert.equal(ui.shadow.querySelector('.combination-create').hidden, false);
+  await ui.save('新组合'); ui.click('[data-combo-action="close"]'); await settle();
+  assert.equal(panel.hidden, false); assert.equal(panel.getAttribute('role'), 'region');
+  assert.equal(source.nextElementSibling, panel); assert.equal(ui.shadow.querySelectorAll('.combination-item').length, 1);
+  ui.click('[data-combo-action="preview"]'); await settle(); ui.click('[data-combo-action="apply-selected"]'); await settle();
+  assert.equal(ui.applied.combo.value, 1); assert.equal(panel.hidden, true);
+});
+
+test('changing region or closing a loading picker cannot restore stale choices', async () => {
+  const ui = setup(), source = ui.shadow.ownerDocument.createElement('button'); ui.shadow.append(source);
+  const first = ui.library.toggle({ region: 'home', label: '首页头部' }, source);
+  ui.library.hide(); await ui.library.toggle(header, source); await first; await settle();
+  assert.equal(ui.shadow.querySelectorAll('.combination-item').length, 0);
+  assert.equal(ui.shadow.querySelector('[data-combo-action="apply-selected"]').disabled, true);
+  ui.shadow.querySelector('.combination-library').dispatchEvent(Object.assign(new ui.shadow.ownerDocument.defaultView.Event('keydown'), { key: 'Escape' }));
+  assert.equal(ui.shadow.querySelector('.combination-library').hidden, true);
+});

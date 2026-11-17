@@ -24,7 +24,7 @@ test('saving and applying a header combination stays local and supports undo',as
  const click=selector=>{const element=shadow.querySelector(selector);assert.ok(element,selector);element.click();};
  click('.launcher');navigateRegion(shadow,'header');
  const initial=await saveEditorScheme(shadow,draft);
- click('#open-region-combinations');await settle();
+ click('#open-region-combinations');await settle();click('[data-combo-action="manage"]');await settle();
  shadow.querySelector('[aria-label="组合名称"]').value='我的头像';click('[data-combo-action="save-current"]');await settle();
  const storage=createCustomWorkStorage({databaseName:'orange.theme-lab.combinations.header.v1'});
  const [item]=await storage.list();assert.equal(item.name,'我的头像');
@@ -34,7 +34,7 @@ test('saving and applying a header combination stays local and supports undo',as
  navigateRegion(shadow,'header');click('[data-kind="region"]');
  const height=shadow.querySelector('[aria-label="头像区总高度 数值"]');assert.ok(height);height.value='210';height.dispatchEvent(new window.Event('input'));height.dispatchEvent(new window.Event('change'));
  const before=await saveEditorScheme(shadow,draft);assert.equal(before.fontSize,23);assert.equal(before.headerHeight,210);
- click('#open-region-combinations');await settle();click(`[data-combo-id="${item.id}"] [data-combo-action="apply"]`);await settle();
+ click('#open-region-combinations');await settle();click(`[data-combo-id="${item.id}"] [data-combo-action="preview"]`);await settle();click('[data-combo-action="apply-selected"]');await settle();
  const applied=await saveEditorScheme(shadow,draft);assert.equal(applied.fontSize,23);assert.equal(applied.headerHeight,initial.headerHeight);
  click('#undo');const undone=await saveEditorScheme(shadow,draft);assert.deepEqual(undone,before);
  click('#close');

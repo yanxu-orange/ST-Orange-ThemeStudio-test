@@ -1650,6 +1650,7 @@ await (async () => {
   }
 
   function renderFields(group, { fromPreview = false } = {}) {
+    combinationLibrary?.hide({ focus: false });
     headerDrag.cancel();
     queueMicrotask(() => {
       if (active) headerDrag.refresh();
@@ -2067,7 +2068,8 @@ await (async () => {
       const combinations = make('button', '', '我的组合');
       combinations.type = 'button';
       combinations.id = 'open-region-combinations';
-      combinations.addEventListener('click', () => combinationLibrary.show(combinationTarget, combinations));
+      combinations.setAttribute('aria-expanded', 'false');
+      combinations.addEventListener('click', () => combinationLibrary.toggle(combinationTarget, combinations));
       container.append(combinations);
     }
     if (unavailable) {
