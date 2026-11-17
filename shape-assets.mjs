@@ -1,6 +1,12 @@
 /** Recolorable vector layers. All SVG content is generated from validated values. */
-export const SHAPES = Object.freeze(['rectangle','star','heart']);
-export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心'});
+export const SHAPES = Object.freeze(['rectangle','star','heart','line','dashed','wave']);
+export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心',line:'实线',dashed:'虚线',wave:'波浪线'});
+export const isLineShape = shape => ['line','dashed','wave'].includes(shape);
+export const lineHeightFactor = shape => shape === 'wave' ? 6 : 1;
+// Keep saved height as the real artwork box; expose stroke thickness in the editor.
+export function lineThicknessTarget(layer) {
+  return {get height(){return layer.height / lineHeightFactor(layer.shape);},set height(value){layer.height=value*lineHeightFactor(layer.shape);}};
+}
 export const SHAPE_DEFAULTS = Object.freeze({
   shape:'rectangle',height:90,heightUnit:'px',cornerRadius:12,
   fillMode:'solid',color:'#e5b3b1',color2:'#e9ca81',gradientAngle:90,
@@ -48,7 +54,18 @@ export function shapeSvg(layer){
     fill='url(#fill)';
   }
   let path;
-  if(shape.shape==='rectangle'){
+  if(isLineShape(shape.shape)){
+    const stroke=height/lineHeightFactor(shape.shape), y=height/2;
+    const strokeSizing=shape.heightUnit==='px'?' vector-effect="non-scaling-stroke"':'';
+    if(shape.shape==='line')path=`<rect width="${width}" height="${height}" fill="${fill}"/>`;
+    else if(shape.shape==='dashed')path=`<path d="M0 ${y}H${width}" fill="none" stroke="${fill}" stroke-width="${stroke}"${strokeSizing} stroke-dasharray="${stroke*4} ${stroke*3}"/>`;
+    else {
+      const halfWave=Math.max(stroke*6,1), amplitude=height/2-stroke/2;
+      let d=`M0 ${y}`, x=0, sign=-1;
+      while(x<width){const end=Math.min(width,x+halfWave), span=end-x;d+=` C${decimal(x+span/3)} ${decimal(y+sign*amplitude)} ${decimal(x+span*2/3)} ${decimal(y+sign*amplitude)} ${decimal(end)} ${y}`;x=end;sign*=-1;}
+      path=`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${stroke}"${strokeSizing}/>`;
+    }
+  }else if(shape.shape==='rectangle'){
     const radius=Math.min(shape.cornerRadius,width/2,height/2);
     path=`<rect width="${width}" height="${height}" rx="${decimal(radius)}" fill="${fill}"/>`;
   }else{

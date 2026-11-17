@@ -1,3 +1,4 @@
+import { isLineShape, lineThicknessTarget } from './shape-assets.mjs';
 import { LAYER_LIMIT, newLayer, clone, cropRect } from './layers.mjs';
 import { uniqueId } from './unique-id.mjs';
 import { matchingLayers } from './workbench-ui.mjs';
@@ -168,7 +169,7 @@ export function createLayerEditor({
       const dimensions = pairedFields(container);
       editorControl(
         dimensions,
-        field('宽度', 'width', 'range', {
+        field(isLineShape(layer.shape) ? '长度' : '宽度', 'width', 'range', {
           min: 1,
           max: 500,
           unit: layer.widthUnit === 'percent' ? '%' : 'px',
@@ -177,8 +178,8 @@ export function createLayerEditor({
       );
       editorControl(
         dimensions,
-        field('高度', 'height', 'range', { min: 1, max: 500, unit: 'px' }),
-        layer,
+        field(isLineShape(layer.shape) ? '粗细' : '高度', 'height', 'range', { min: 1, max: isLineShape(layer.shape) ? 40 : 500, unit: 'px' }),
+        isLineShape(layer.shape) ? lineThicknessTarget(layer) : layer,
       );
       editorControl(
         container,

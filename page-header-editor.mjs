@@ -9,7 +9,7 @@ import {
   pageHeaderSceneFontKey,
 } from './page-header-scene.mjs';
 import { uniqueId } from './unique-id.mjs';
-import { SHAPE_NAMES } from './shape-assets.mjs';
+import { SHAPE_NAMES, isLineShape, lineThicknessTarget } from './shape-assets.mjs';
 import {
   PAGE_TITLE_SUBTITLE_TARGETS,
   newPageTitleSubtitle,
@@ -440,7 +440,7 @@ export function createPageHeaderEditor({
             ['percent', '相对区域百分比'],
           ],
         }),
-        field('素材宽度', 'width', 'range', { min: 1, max: 500 }),
+        field(isLineShape(item.shape) ? '长度' : '素材宽度', 'width', 'range', { min: 1, max: 500 }),
         field('距离单位', 'offsetUnit', 'select', {
           options: [
             ['px', '像素'],
@@ -458,15 +458,15 @@ export function createPageHeaderEditor({
           field('形状', 'shape', 'select', {
             options: Object.entries(SHAPE_NAMES),
           }),
-          field('高度单位', 'heightUnit', 'select', {
+          field(isLineShape(item.shape) ? '粗细单位' : '高度单位', 'heightUnit', 'select', {
             options: [
               ['px', '像素'],
               ['percent', '相对区域百分比'],
             ],
           }),
-          field('形状高度', 'height', 'range', {
+          field(isLineShape(item.shape) ? '粗细' : '形状高度', 'height', 'range', {
             min: 1,
-            max: 500,
+            max: isLineShape(item.shape) ? 40 : 500,
             unit: item.heightUnit === 'percent' ? '%' : 'px',
           }),
           field('填色', 'fillMode', 'select', {
@@ -492,7 +492,7 @@ export function createPageHeaderEditor({
           editorControl(
             container,
             f,
-            item,
+            f.key === 'height' && isLineShape(item.shape) ? lineThicknessTarget(item) : item,
             ['shape', 'fillMode', 'heightUnit'].includes(f.key)
               ? () => renderFields()
               : undefined,
