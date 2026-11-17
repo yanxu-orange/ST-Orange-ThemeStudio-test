@@ -56,10 +56,10 @@ ${root} .mes_reasoning_actions .mes_button{color:inherit!important;filter:none!i
 ${root} .mes_reasoning_actions .mes_button:not(:disabled):not([aria-disabled=true]):not(.disabled){opacity:1!important;}
 ${root} .mes_reasoning_header_block{display:block!important;flex:1;min-width:0}
 ${root} .mes_reasoning_header_title[data-otl-live-reasoning]{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important}`;}
-export function reasoningRules(entry,body,bg,c,families={},interfaceFamily='sans-serif'){
+export function reasoningRules(entry,body,bg,c,families={},interfaceFamily='sans-serif',editor=null){
  const s=c.reasoningStyle,e=s.entry,b=s.body,g=e.geometry,a=e.background,t=b.container;
  const family=(part,key)=>{const value=part.fontSource==='body'?(families.body?`${JSON.stringify(families.body)},${c.font}`:c.font):part.fontSource==='interface'?interfaceFamily:part.font;return part.fontSource==='custom'&&families['reasoning:'+key]?'"'+families['reasoning:'+key]+'",'+value:value;};
- const typography=(v,key)=>`font-family:${family(v,key)}!important;font-size:${v.size}px!important;font-weight:${v.weight==='auto'?400:v.weight}!important;color:${v.color==='auto'?(key==='entry'?c.accent:c.text):v.color}!important;line-height:${key==='entry'?1.6:1.8}!important;`;
+ const typography=(v,key)=>`font-family:${family(v,key)}!important;font-size:calc(${v.size}px * var(--fontScale, 1))!important;font-weight:${v.weight==='auto'?400:v.weight}!important;color:${v.color==='auto'?(key==='entry'?c.accent:c.text):v.color}!important;line-height:${key==='entry'?1.6:1.8}!important;`;
  const url=reasoningImageUrl(a.source),image=a.mode==='image'&&url?'url('+JSON.stringify(url)+')':'none';
  return `${entry}{position:relative!important;display:flex!important;gap:8px;flex-wrap:nowrap!important;align-items:baseline!important;box-sizing:border-box!important;min-width:0!important;max-width:100%!important;width:${g.width==='auto'?'auto':g.width+'%'}!important;min-height:${g.minHeight}px!important;padding:${g.paddingY}px ${g.paddingX}px!important;margin:0!important;border:0!important;border-radius:${g.radius}px!important;background:transparent!important;${typography(e,'entry')}overflow-wrap:anywhere;}
 ${entry} > :not(.otl-reasoning-bg):not(.otl-live-art):not(.otl-decoration){position:relative;z-index:1}
@@ -68,11 +68,12 @@ ${entry} .mes_reasoning_arrow:is(.mes_reasoning_details:not([open]) *){transform
 ${entry} :is(.otl-live-reasoning,.otl-reasoning-title){transform:translate(${e.labelPosition.x}px,${e.labelPosition.y}px)!important;min-width:0;${typography(e,'entry')}white-space:pre-wrap;overflow-wrap:anywhere}
 ${e.secondary?.content?`${entry} :is(.otl-live-reasoning,.otl-reasoning-title){display:block;flex:1;width:100%}
 ${entry} .otl-reasoning-primary{display:block}
-${entry} .otl-reasoning-secondary{display:block;font-size:${e.secondary.size}px!important;color:${e.secondary.color==='auto'?'inherit':e.secondary.color}!important;text-align:${e.secondary.align};white-space:pre-wrap}`:''}
+${entry} .otl-reasoning-secondary{display:block;font-size:calc(${e.secondary.size}px * var(--fontScale, 1))!important;color:${e.secondary.color==='auto'?'inherit':e.secondary.color}!important;text-align:${e.secondary.align};white-space:pre-wrap}`:''}
 ${bg}{display:block!important;position:absolute!important;inset:0!important;z-index:0!important;pointer-events:none!important;border-radius:inherit!important;background-color:${a.mode==='color'?a.color:'transparent'}!important;background-image:${image}!important;background-size:${a.fit}!important;background-position:${a.x}% ${a.y}%!important;background-repeat:no-repeat!important;opacity:${a.opacity}!important;}
 ${body}{position:relative!important;box-sizing:border-box!important;min-width:0!important;margin:8px 0!important;padding:${t.paddingY}px ${t.paddingX}px!important;border:${t.borderWidth}px ${t.borderStyle} ${t.borderColor}!important;border-radius:${t.radius}px!important;background:${t.background==='color'?t.color:'transparent'}!important;${typography(b,'body')}overflow-wrap:anywhere;overflow:visible!important;}
 ${body} blockquote{border-color:${c.accent}!important;background:color-mix(in srgb,${c.accent} 8%,transparent)!important;}
 ${body} :is(em,i,q,u,strong,b,blockquote){color:inherit!important;}
+${editor?`${editor}{${typography(b,'body')}}`:''}
 ${body} > p{font-family:inherit!important;font-size:inherit!important;line-height:inherit!important;color:inherit!important;}`;
 }
 export function watchInterfaceFont(document,onChange,{fontEvents=true}={}){

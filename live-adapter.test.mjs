@@ -182,7 +182,7 @@ test('reasoning anchors track real content, scope, native open state and remount
 
 test('reasoning family responds to actual interface updates without affecting body typography or retaining observers',async()=>{
  const {normalizeReasoningConfig}=await import('./reasoning.mjs');const {document,window,adapter,settle,queue}=environment();let family='Lato, sans-serif';window.getComputedStyle=()=>({display:'block',fontFamily:family});const c=normalizeReasoningConfig(normalizeCaptionConfig(config()));c.reasoningStyle.entry.fontSource='interface';c.reasoningStyle.body.fontSource='body';c.reasoningStyle.entry.size=25;c.reasoningStyle.body.size=18;adapter.start(c);await settle();
- const style=document.querySelector('#orange-theme-live-style'),find=selector=>[...style.sheet.cssRules].find(r=>r.selectorText===selector),q='#chat > .mes[data-otl-live]';assert.equal(find(q+' .mes_reasoning_header').style.getPropertyValue('font-family'),'Lato, sans-serif');assert.equal(find(q+' .mes_reasoning').style.getPropertyValue('font-size'),'18px');family='Other UI';document.body.classList.add('different-family');await settle();assert.equal(find(q+' .mes_reasoning_header').style.getPropertyValue('font-family'),'Other UI');assert.equal(find(q+' .mes_reasoning').style.getPropertyValue('font-family'),c.font);assert.equal(queue.size,0);adapter.stop();document.body.classList.add('after-stop');await settle();assert.equal(queue.size,0);assert.equal(style.isConnected,false);
+ const style=document.querySelector('#orange-theme-live-style'),find=selector=>[...style.sheet.cssRules].find(r=>r.selectorText===selector),q='#chat > .mes[data-otl-live]';assert.equal(find(q+' .mes_reasoning_header').style.getPropertyValue('font-family'),'Lato, sans-serif');assert.equal(find(q+' .mes_reasoning').style.getPropertyValue('font-size'),'calc(18px * var(--fontScale, 1))');family='Other UI';document.body.classList.add('different-family');await settle();assert.equal(find(q+' .mes_reasoning_header').style.getPropertyValue('font-family'),'Other UI');assert.equal(find(q+' .mes_reasoning').style.getPropertyValue('font-family'),c.font);assert.equal(queue.size,0);adapter.stop();document.body.classList.add('after-stop');await settle();assert.equal(queue.size,0);assert.equal(style.isConnected,false);
 });
 
 test('footer adds only owned content after attachments, separates scope and reconciles native rebuilds precisely',async()=>{
@@ -439,4 +439,21 @@ test('reasoning second text stays within native summary and preserves actions du
  title.dataset.duration='4.5';await settle();assert.equal(primary.textContent,'诗句 · 4.5 s');
  c.reasoningStyle.entry.secondary.content='';adapter.update(c);await settle();assert.equal(summary.querySelector('.otl-reasoning-secondary'),null);assert.equal(summary.querySelector('.otl-live-reasoning').textContent,'诗句 · 4.5 s');
  adapter.stop();assert.equal(summary.querySelector('.otl-live-reasoning'),null);assert.equal(title.textContent,'真实耗时标题');assert.equal(summary.querySelector('button'),copy);
+});
+
+test('body and native editors share baseline font scale without changing saved sizes',async()=>{
+ const {document,adapter,settle}=environment(),c=config();c.fontSize=17;
+ adapter.start(c);await settle();
+ const css=document.getElementById('orange-theme-live-style').textContent;
+ assert.match(css,/--ol-size:calc\(17px \* var\(--fontScale, 1\)\)/);
+ assert.match(css,/> #curEditTextarea\{font-family:inherit!important;font-size:inherit!important;line-height:inherit!important\}/);
+ assert.match(css,/\.reasoning_edit_textarea\{font-family:[^;]+!important;font-size:calc\(15px \* var\(--fontScale, 1\)\)/);
+ const style=document.getElementById('orange-theme-live-style');
+ for(const scale of [0.85,1,1.3]){
+  document.documentElement.style.setProperty('--fontScale',scale);
+  await settle();
+  assert.equal(style.textContent,css);
+  assert.equal(c.fontSize,17);
+ }
+ adapter.stop();
 });

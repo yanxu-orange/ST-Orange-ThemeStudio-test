@@ -249,7 +249,7 @@ test('mounted page headers skip comparison serialization and reads during chat-o
     if (node.id === 'WorldInfo' || node.id === 'user-settings-block') {
       reads++;
       const css = document.getElementById('orange-theme-live-style')?.textContent || '';
-      initialStyleAtRead.push(css.includes('--ol-size:15px') && document.documentElement.hasAttribute('data-orange-live'));
+      initialStyleAtRead.push(css.includes('--ol-size:calc(15px * var(--fontScale, 1))') && document.documentElement.hasAttribute('data-orange-live'));
       if (css.includes('font-size:23px!important')) cssAtRead.push('common');
       if (css.includes('font-size:21px!important')) cssAtRead.push('page');
       return {paddingLeft:left, paddingRight:right, paddingTop:'4px'};

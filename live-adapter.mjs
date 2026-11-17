@@ -43,7 +43,7 @@ function styleText(config,families={},interfaceFamily='sans-serif') {
   const settings=textSettings(config),custom=customTextLayout(settings);
   const alignment={start:'flex-start',center:'center',end:'flex-end'}[settings.textAlign];
   const opacity=Math.round((config.surfaceOpacity??1)*255).toString(16).padStart(2,'0');
-  const vars={background:config.background,surface:config.surface+opacity,text:config.text,accent:config.accent,radius:config.radius+'px',font:config.font,size:config.fontSize+'px',line:config.lineHeight,nameFont:config.nameFont,nameColor:config.nameColor,nameSize:config.nameSize+'px',timeColor:config.timeColor,timeSize:config.timeSize+'px',glass:config.glass+'px',cardWidth:config.cardWidth+'px',avatarRadius:config.avatarRadius+'px'};
+  const vars={background:config.background,surface:config.surface+opacity,text:config.text,accent:config.accent,radius:config.radius+'px',font:config.font,size:`calc(${config.fontSize}px * var(--fontScale, 1))`,line:config.lineHeight,nameFont:config.nameFont,nameColor:config.nameColor,nameSize:config.nameSize+'px',timeColor:config.timeColor,timeSize:config.timeSize+'px',glass:config.glass+'px',cardWidth:config.cardWidth+'px',avatarRadius:config.avatarRadius+'px'};
   const fallbacks=textFallbacks(config),selectors={name:`${meta} > .name_text`,time:`${meta} > .timestamp`,...Object.fromEntries(config.captions.map(c=>[captionKey(c.id),`${meta} .otl-live-caption[data-caption-id="${c.id}"]`]))};
   const font=new URL('./materials/字体/SourceHanSerifCN-VF.ttf.woff2',import.meta.url).href;
   return `@font-face{font-family:LabSongti;src:url("${font}") format("woff2");font-style:normal;font-weight:250 900;font-display:swap}
@@ -70,10 +70,11 @@ ${q} > .mes_block > .mes_text pre{max-width:100%;overflow:auto}
 ${reasoningShellRules(q)}
 ${q} .mes_reasoning_actions{flex-shrink:0}
 ${q} .mes_reasoning_header_title[data-otl-live-reasoning]{font-size:0!important}
-${reasoningRules(`${q} .mes_reasoning_header`,`${q} .mes_reasoning`,`${q} .otl-reasoning-bg`,config,families,interfaceFamily)}
+${reasoningRules(`${q} .mes_reasoning_header`,`${q} .mes_reasoning`,`${q} .otl-reasoning-bg`,config,families,interfaceFamily,`${q} .reasoning_edit_textarea`)}
 ${q} .otl-live-art{display:contents}
 ${q} .otl-live-art img{position:absolute!important;max-width:none!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;filter:none!important;object-fit:contain;pointer-events:none!important;transform-origin:center}
 ${q} > .mes_block > .mes_text textarea{max-width:100%;box-sizing:border-box}
+${q} > .mes_block > .mes_text > #curEditTextarea{font-family:inherit!important;font-size:inherit!important;line-height:inherit!important}
 ${q} > :is(.swipe_left,.swipeRightBlock){z-index:5}
 ${q}[data-otl-live-avatar-hidden=true] > .mesAvatarWrapper > .avatar{display:none!important}
 ${q}[data-otl-live-avatar-hidden=true] > .mesAvatarWrapper{position:relative!important;left:auto!important;top:auto!important;width:100%!important;justify-content:flex-start!important}
