@@ -230,6 +230,44 @@ test('full-header avatar preserves real source, reserves content, respects hidde
  document.body.classList.add('hideChatAvatars');adapter.start(c);await settle();assert.equal(msg.getAttribute('data-otl-live-avatar-hidden'),'true');const hiddenRules=[...document.querySelector('#orange-theme-live-style').sheet.cssRules].filter(r=>r.style?.getPropertyValue('object-position'));assert.ok(hiddenRules.every(r=>!msg.querySelector('.avatar>img').matches(r.selectorText)));adapter.stop();
 });
 
+test('Spring framed avatars use the native originals and restore thumbnail sources',async()=>{
+ const {createSpringTemplate}=await import('./spring-template.mjs');
+ const {document,window,adapter,settle}=environment();
+ Object.defineProperty(document,'baseURI',{value:'http://localhost:8000/'});
+ const [ai,user]=document.querySelectorAll('.avatar > img');
+ const aiThumbnail='/thumbnail?type=avatar&file=Spring%20AI.png&t=12';
+ const userThumbnail='/thumbnail?type=persona&file=Spring%20User.jpg';
+ const aiOriginal='http://localhost:8000/characters/Spring%20AI.png?t=12';
+ const userOriginal='http://localhost:8000/User%20Avatars/Spring%20User.jpg';
+ ai.setAttribute('src',aiThumbnail);
+ user.setAttribute('src',userThumbnail);
+ const c=createSpringTemplate();
+ assert.ok(c.photos.ai.enabled&&c.photos.user.enabled);
+ assert.ok(!c.avatarFill.ai.enabled&&!c.avatarFill.user.enabled);
+ adapter.start(c);
+ await settle();
+ assert.equal(ai.getAttribute('src'),aiOriginal);
+ assert.equal(user.getAttribute('src'),userOriginal);
+
+ ai.dispatchEvent(new window.Event('error'));
+ await settle();
+ assert.equal(ai.getAttribute('src'),aiThumbnail,'failed original stays on the native thumbnail');
+ document.body.classList.add('hideChatAvatars');
+ await settle();
+ assert.equal(user.getAttribute('src'),userThumbnail);
+ document.body.classList.remove('hideChatAvatars');
+ await settle();
+ assert.equal(user.getAttribute('src'),userOriginal);
+
+ c.photos.ai.enabled=false;
+ adapter.update(c);
+ await settle();
+ assert.equal(ai.getAttribute('src'),aiThumbnail);
+ assert.equal(user.getAttribute('src'),userOriginal);
+ adapter.stop();
+ assert.equal(user.getAttribute('src'),userThumbnail);
+});
+
 test('fixed avatar area shrink/enlarge restores clipping and never rewrites native content or model positions',async()=>{
  const {normalizeAvatarFill}=await import('./avatar-fill.mjs'),{normalizeChromeConfig}=await import('./chrome.mjs'),{normalizeTextScene}=await import('./text-scene.mjs'),{normalizeNativeConfig}=await import('./native.mjs'),{normalizeFooterConfig}=await import('./footer.mjs'),{normalizeReasoningConfig}=await import('./reasoning.mjs');
  for(const fill of [false,true]){

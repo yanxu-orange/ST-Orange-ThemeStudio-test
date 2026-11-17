@@ -283,7 +283,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const documentMode=document.body.classList.contains('documentstyle');
     const photoHidden=state.nativeHidden||photo.hidden||photo.parentElement.hidden||photo.style.display==='none'||photo.parentElement.style.display==='none'||documentMode||document.body.classList.contains('hideChatAvatars');
     attribute(state,msg,'data-otl-live-avatar-hidden',photoHidden?'true':'false');
-    state.avatarSource=updateAvatarSource(state.avatarSource,nativeImage,c.avatarFill[user?'user':'ai'].enabled&&!photoHidden,document.baseURI||win?.location?.href);
+    state.avatarSource=updateAvatarSource(state.avatarSource,nativeImage,(p.enabled||c.avatarFill[user?'user':'ai'].enabled)&&!photoHidden,document.baseURI||win?.location?.href);
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
     const width=yield()=>sceneWidth(msg,c);
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden,width);
