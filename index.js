@@ -391,7 +391,7 @@ await (async () => {
   const canvas = createLiveCanvas({
     document,
     onPage: (page) => {
-      if (active) { workbench.syncViewedPage(page); syncStartPreview(); }
+      if (active) workbench.syncViewedPage(page);
     },
   });
   const liveAdapter = createLiveAdapter({
@@ -400,7 +400,6 @@ await (async () => {
     fitInput,
     onRender: ({ nodes = [], chromeChanged = false, pageHeaderNodes = [] }) => {
       if (!active) return;
-      syncStartPreview();
       updateFontStatuses();
       if (!headerDrag.dragging) headerDrag.refresh(pageHeaderNodes);
       if (!layerDrag.dragging)
@@ -2252,7 +2251,6 @@ await (async () => {
       shadow.querySelector('#' + id).disabled =
         id === 'undo' && !history.length;
     syncSaveState();
-    syncStartPreview();
     updateWorkbenchLayout();
     const selection = JSON.stringify([
       active,
@@ -2348,7 +2346,6 @@ await (async () => {
     shadow.querySelector('#stop-and-close').hidden = appliedSnapshot === null && !applicationLoadError;
     syncSaveState();
     renderFields();
-    syncStartPreview();
     if (loadError)
       notify(
         '保存的方案未载入：' + loadError.message + ' 点击“恢复已保存”重试。',
@@ -2365,7 +2362,6 @@ await (async () => {
     layerDrag.reset();
     headerDrag.reset();
     active = false;
-    ui.startPreview = false;
     ui.mobileView = 'adjust';
     workbench.resetLayoutSession();
     imageDisplay.clear();
@@ -2409,10 +2405,8 @@ await (async () => {
     selectedLayerId = config.layers[0]?.id;
     ui.mode = 'edit';
     ui.mobileView = preview ? 'preview' : 'adjust';
-    ui.startPreview = preview;
     if (active) { apply(); renderFields(); }
     else open();
-    syncStartPreview();
     notify('新起点已载入，尚未保存');
     return true;
   }
@@ -2420,19 +2414,6 @@ await (async () => {
   function replaceStart(id) {
     if (!Object.hasOwn(templates, id)) return false;
     return startScheme(validate(clone(templates[id])), { preview: id !== 'blank' });
-  }
-
-  function syncStartPreview() {
-    const chooseChat = shadow.querySelector('#choose-chat');
-    if (!active || ui.mobileView !== 'preview' || ui.page !== 'chat') {
-      chooseChat.hidden = true;
-      return;
-    }
-    const welcome = document.querySelector('#chat .welcomePanel');
-    const welcomeVisible = welcome && !welcome.hidden && !welcome.classList.contains('displayNone') &&
-      document.defaultView?.getComputedStyle?.(welcome)?.display !== 'none';
-    const hasMessages = !!document.querySelector('#chat > .mes:not(.smallSysMes):not([is_system="true"]):not([data-orange-lab-fixture])');
-    chooseChat.hidden = !welcomeVisible && hasMessages;
   }
 
   const exitDialog = make('dialog', 'workbench-exit');
@@ -2632,15 +2613,6 @@ await (async () => {
   shadow.querySelector('.launcher').addEventListener('click', launch);
   shadow.querySelector('#close').addEventListener('click', () => requestExit(false));
   shadow.querySelector('#stop-and-close').addEventListener('click', () => requestExit(true));
-  shadow.querySelector('#choose-chat').addEventListener('click', async () => {
-    const button = shadow.querySelector('#choose-chat');
-    button.disabled = true;
-    try {
-      if (!(await canvas.navigateToPage('characters'))) notify('请在酒馆打开角色列表并选择聊天。', 0);
-    } finally {
-      button.disabled = false;
-    }
-  });
   document.addEventListener('click', (event) => {
     if (!active || ui.mode === 'library') return;
     const target = event.target;

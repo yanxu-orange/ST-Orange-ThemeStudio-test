@@ -11,7 +11,7 @@ const settle = async () => { for (let i = 0; i < 6; i++) await new Promise(resol
 let generation = 0;
 async function boot(width, factory) {
   const {document, window} = parseHTML(`<html><head><style id="custom-style"></style></head><body>
-    <div id="extensions_settings"></div><div id="rightNavHolder"><button class="drawer-toggle">角色</button><div class="drawer-content"></div></div>
+    <div id="extensions_settings"></div><button id="extensionsMenuButton"></button><div id="extensionsMenu"></div><div id="rightNavHolder"><button class="drawer-toggle">角色</button><div class="drawer-content"></div></div>
     <div id="sheld"><div id="chat"></div></div></body></html>`);
   const select = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
   Object.defineProperty(window.HTMLSelectElement.prototype, 'value', {get:select.get, set(value) {
@@ -58,7 +58,8 @@ test('fresh entrance offers the same startup choices on desktop and mobile, then
 
   const {factory} = indexedDatabase();
   const phone = await boot(412, factory);
-  phone.document.querySelector('[data-workshop-action=open]').click();
+  const wand = phone.document.querySelector('[data-workshop-entry=wand] [data-workshop-action=open]');
+  wand.click();
   assert.equal(phone.home(), true);
   phone.click('[data-flow=library]');
   await settle();
@@ -69,21 +70,23 @@ test('fresh entrance offers the same startup choices on desktop and mobile, then
   card.click();
   await settle();
   assert.equal(confirms, 0);
-  assert.equal(phone.get('#full-view').textContent, '开始编辑');
-  assert.equal(phone.get('#choose-chat').hidden, false);
+  assert.equal(phone.get('#full-view').textContent, '编辑');
+  assert.equal(phone.shadow.querySelector('#choose-chat'), null);
+  assert.equal(wand.textContent, '主题工坊');
+  wand.click();
+  assert.equal(phone.get('#full-view').textContent, '编辑');
   let nativeClicks = 0;
   const drawer = phone.document.querySelector('#rightNavHolder .drawer-toggle');
   drawer.addEventListener('click', () => {
     nativeClicks++;
     drawer.nextElementSibling.classList.add('openDrawer');
   });
-  phone.click('#choose-chat');
+  drawer.click();
   assert.equal(nativeClicks, 1);
   phone.click('#full-view');
-  assert.equal(phone.get('#choose-chat').hidden, true);
   assert.equal(phone.get('#full-view').textContent, '预览');
   phone.click('#full-view');
-  assert.equal(phone.get('#full-view').textContent, '继续编辑');
+  assert.equal(phone.get('#full-view').textContent, '编辑');
   phone.click('#close');
   assert.equal(phone.get('.workbench-exit').hasAttribute('open'), true);
   phone.click('[data-exit-choice=discard]');
@@ -117,7 +120,7 @@ test('file import from the start screen previews before editing without writing 
   input.dispatchEvent(new ui.window.Event('change'));
   await settle();
   assert.equal(ui.get('.work-library').hidden, true);
-  assert.equal(ui.get('#full-view').textContent, '开始编辑');
+  assert.equal(ui.get('#full-view').textContent, '编辑');
   assert.equal(await loadScheme(factory).load(), null);
   ui.click('#full-view');
   ui.click('#save-work');

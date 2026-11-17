@@ -71,9 +71,9 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    // Explicit inline display is understood by SillyTavern's native wand item counter.
    const display=preferences[name]?'':'none';
    if(root.style.display!==display)root.style.display=display;
-   const text=editing||applied?'继续编辑主题工坊':'主题工坊';
+   const text=name!=='wand'&&(editing||applied)?'继续编辑主题工坊':'主题工坊';
    if(openLabel.textContent!==text)openLabel.textContent=text;
-   open.setAttribute('aria-label',editing||applied?'继续编辑主题工坊':'打开主题工坊');
+   open.setAttribute('aria-label',name==='wand'?'主题工坊':editing||applied?'继续编辑主题工坊':'打开主题工坊');
    if(stop.hidden!==!applied)stop.hidden=!applied;
    if(stop.style.display!==(applied?'':'none'))stop.style.display=applied?'':'none';
   }
