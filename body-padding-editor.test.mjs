@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import { createSchemeModel } from './scheme-model.mjs';
 import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
@@ -41,7 +42,7 @@ test('new schemes use 16px gutters and templates preserve their configured gutte
     assert.equal(rule.style.getPropertyValue('padding-right'),`${right}px`);
     for(const message of native.messages)assert.equal(message.querySelector('.mes_text').matches(rule.selectorText),true,'the rule applies to both AI and user messages');
   };
-  shadow.querySelector('.launcher').click();
+  openEditor(shadow);
   navigateRegion(shadow,'body');
   await settleNativeCanvas();
   assertGutters(16,16);
@@ -63,7 +64,7 @@ test('new schemes use 16px gutters and templates preserve their configured gutte
   await settleNativeCanvas();
   assert.equal(shadow.querySelector('.panel').classList.contains('hidden'),true,'apply closes the workbench');
   assertGutters(saved.bodyPaddingLeft,saved.bodyPaddingRight);
-  shadow.querySelector('.launcher').click();
+  openEditor(shadow);
   await settleNativeCanvas();
   assertGutters(saved.bodyPaddingLeft,saved.bodyPaddingRight);
 

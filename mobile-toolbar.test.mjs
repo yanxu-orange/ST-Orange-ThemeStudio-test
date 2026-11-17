@@ -23,7 +23,8 @@ test('More uses paired short actions, full-width controls and aligned touch-size
  assert.match(css,/\.bar \.menu>label,\.bar \.menu>section,\.bar \.menu>\.menu-wide\{grid-column:1\/-1\}/);
  assert.match(css,/\.bar \.menu label:has\(>input\[type=checkbox\]\)\{display:flex;flex-direction:row;align-items:center;gap:8px;min-height:44px\}/);
  assert.match(css,/input\[type=checkbox\]\{width:20px;height:20px;min-height:20px/);
- assert.equal(shadow.querySelector('#restore').nextElementSibling.id,'close');
+ assert.equal(shadow.querySelector('#restore').nextElementSibling.id,'stop-and-close');
+ assert.equal(shadow.querySelector('#stop-and-close').nextElementSibling.id,'close');
  assert.equal(shadow.querySelector('#import').nextElementSibling.id,'export');
 });
 

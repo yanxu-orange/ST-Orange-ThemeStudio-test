@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {createLiveAdapter} from './live-adapter.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
@@ -10,7 +11,7 @@ test('stat objects independently style native values and labels, persist, restor
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
  seedNativeChat(document);const storage=await editorStorage(null);await import('./index.js');
  const shadow=document.querySelector('#orange-theme-lab').shadowRoot;
- shadow.querySelector('.launcher').click();await settleNativeCanvas();navigateRegion(shadow,'native');shadow.querySelector('[data-kind="info"]').click();
+ openEditor(shadow);await settleNativeCanvas();navigateRegion(shadow,'native');shadow.querySelector('[data-kind="info"]').click();
  const set=async(label,v,event='input')=>{const input=shadow.querySelector(`[aria-label="${label}"]`);assert.ok(input,label);input.value=String(v);input.dispatchEvent(new window.Event(event));if(event==='input')input.dispatchEvent(new window.Event('change'));await settleNativeCanvas();};
  assert.ok(shadow.querySelector('[data-object="floor"]'));assert.equal(shadow.querySelectorAll('[aria-label="所在区域"]').length,1);
  await set('前缀','第 ');await set('后缀',' 期');await set('左右移动 数值',12);

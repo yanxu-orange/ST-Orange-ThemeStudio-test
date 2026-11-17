@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
@@ -17,7 +18,7 @@ test('workshop initializes and opens without secure-context randomUUID',async()=
     await import('./index.js');
     const shadow=document.querySelector('#orange-theme-lab')?.shadowRoot;
     assert.ok(shadow,'startup completes');
-    shadow.querySelector('.launcher').click();
+    openEditor(shadow);
     assert.equal(shadow.querySelector('.panel').classList.contains('hidden'),false);
     shadow.querySelector('#close').click();
   }finally{if(original)Object.defineProperty(globalThis,'crypto',original);else delete globalThis.crypto;}

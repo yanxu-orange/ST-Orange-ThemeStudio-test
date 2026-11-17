@@ -31,6 +31,7 @@ test('named works open and save independently without replacing the saved draft 
   assert.ok(menuActions.indexOf('export') < menuActions.indexOf('restore'));
   assert.equal(menuActions.at(-1), 'close');
   click('.launcher');
+  click('[data-flow=blank]');
   const savedBefore = await saveEditorScheme(shadow, draft);
   changeSize(21);
   click('#open-work-library'); await settle(); await newWork('我的第一份');
@@ -39,7 +40,10 @@ test('named works open and save independently without replacing the saved draft 
   assert.deepEqual(JSON.parse(await draft.load()), savedBefore, 'saving a work does not overwrite the saved draft');
   assert.equal(await createSchemeStorage({ key: APPLIED_SCHEME_KEY }).load(), null, 'saving a work does not apply it');
   click('[data-work-library="close"]'); changeSize(26);
-  click('[aria-label="打开工坊首页"]'); click('[data-flow="library"]'); await settle(); await newWork('我的第二份');
+  click('#save-work'); await newWork('我的第二份');
+  assert.equal(shadow.querySelector('.work-library').hidden, true);
+  assert.equal(shadow.querySelector('#region-select').value, 'body');
+  click('[aria-label="打开工坊首页"]'); click('[data-flow="library"]'); await settle();
   assert.equal((await works.list()).length, 2);
   click(`[data-work-id="${first.id}"] [data-work-action="open"]`); await settle();
   assert.equal((await saveEditorScheme(shadow, draft)).fontSize, 21);

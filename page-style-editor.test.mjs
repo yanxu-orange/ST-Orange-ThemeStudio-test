@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {expectPortableExport} from './test-support/portable-export.mjs';
 import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
@@ -63,7 +64,7 @@ test('independent page editors preserve native controls, inheritance, all fields
  for(const node of nativeNodes){assert.equal(document.getElementById(node.id),node);if(node.tagName==='BUTTON')node.click();else{node.value='edited natively';node.dispatchEvent(new window.Event('input',{bubbles:true}));}}assert.equal(inputEvents,9);assert.equal(buttonEvents,9);assert.deepEqual(await save(),config);assert.equal(document.querySelectorAll('.otl-native-page').length,0);
  click('#apply-live');await settleSchemeApplication();assert.equal(document.documentElement.hasAttribute('data-orange-live'),true);assert.match(document.querySelector('#orange-theme-live-style').textContent,/#123456/);assert.match(document.querySelector('#orange-theme-live-style').textContent,/#WorldInfo/);assert.match(document.querySelector('#orange-theme-live-style').textContent,/#user-settings-block/);click('.launcher');click('[data-flow=continue]');assert.deepEqual(await save(),config);
  // Reinitialize against the same IndexedDB to exercise the startup migration/load path.
- click('#close');await settleSchemeApplication();document.querySelector('#orange-theme-lab').remove();await import('./index.js?page-style-reload');const reloaded=document.querySelector('#orange-theme-lab').shadowRoot;reloaded.querySelector('.launcher').click();reloaded.querySelector('[data-flow=continue]')?.click();assert.deepEqual(await saveEditorScheme(reloaded,storage),config);reloaded.querySelector('#close').click();
+ click('#close');await settleSchemeApplication();document.querySelector('#orange-theme-lab').remove();await import('./index.js?page-style-reload');const reloaded=document.querySelector('#orange-theme-lab').shadowRoot;openEditor(reloaded);reloaded.querySelector('[data-flow=continue]')?.click();assert.deepEqual(await saveEditorScheme(reloaded,storage),config);reloaded.querySelector('#close').click();
  }finally{document.querySelector('#orange-theme-lab')?.shadowRoot.querySelector('#close')?.click();}
 });
 

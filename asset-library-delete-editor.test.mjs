@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
 import {test} from 'node:test';
@@ -21,7 +22,7 @@ test('library deletion requires selection and confirmation, commits before refre
   const card=()=>shadow.querySelector(`[data-library-asset="${record.id}"]`),remove=()=>card().querySelector('[aria-label^="从素材库删除："]');
   const save=()=>saveEditorScheme(shadow,scheme);
   const show=async()=>{shadow.querySelector('#mode-library').click();await tick();};
-  shadow.querySelector('.launcher').click();await show();
+  openEditor(shadow);await show();
   assert.equal(confirmations,0);assert.equal((await library.list()).length,2,'opening the library never deletes records');
   remove().click();await tick();assert.ok(card());assert.equal((await library.list()).length,2,'cancel keeps the selected source');
   navigateRegion(shadow,'header');shadow.querySelector('[data-kind=image]').click();shadow.querySelector('#add-current-image').click();await tick();card().querySelector('[aria-label^="使用素材："]').click();const placed=(await save());assert.equal(placed.layers.at(-1).image,record.image);
@@ -30,7 +31,7 @@ test('library deletion requires selection and confirmation, commits before refre
   controls.holdCommit=true;remove().click();const pendingButton=remove();pendingButton.click();await tick();
   assert.equal(confirmations,3,'a repeated click does not request another deletion');assert.equal(pendingButton.disabled,true);assert.ok(card(),'source remains visible until transaction commits');
   controls.holdCommit=false;controls.finish();await tick();assert.equal(card(),null);assert.equal(await library.get(record.id),null);assert.equal((await library.get(other.id)).image,other.image);assert.deepEqual((await save()),placed,'deleting source cannot change the placed image');
-  shadow.querySelector('#close').click();shadow.querySelector('.launcher').click();await show();assert.equal(card(),null);assert.equal(shadow.querySelectorAll('[data-library-asset]').length,1);
+  shadow.querySelector('#close').click();await tick();openEditor(shadow);await show();assert.equal(card(),null);assert.equal(shadow.querySelectorAll('[data-library-asset]').length,1);
   const remaining=shadow.querySelector('[aria-label^="从素材库删除："]');controls.holdCommit=true;remaining.click();await tick();shadow.querySelector('#mode-edit').click();controls.holdCommit=false;controls.finish();await tick();await show();assert.equal(shadow.querySelectorAll('[data-library-asset]').length,0,'confirmed deletion may finish after navigation without reopening the old panel');assert.deepEqual((await save()),placed);
   shadow.querySelector('#close').click();library.close();
 });

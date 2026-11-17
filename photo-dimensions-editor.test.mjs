@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
@@ -9,7 +10,7 @@ test('responsive photo dimensions save, restore and remain independent',async()=
  const scheme=await editorStorage(null);seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme);
- sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="avatar"]').click();edit('AI 与用户','separate');
+ openEditor(sh);navigateRegion(sh,'header');sh.querySelector('[data-kind="avatar"]').click();edit('AI 与用户','separate');
  edit('头像宽度单位','percent');edit('头像宽度 数值',43);const prior=await save(),msg=document.querySelector('#chat > .mes[data-otl-live][is_user="false"]'),inner=Math.max(1,(msg.clientWidth||prior.cardWidth)-(prior.cardPadding??24)*2);edit('头像高度','fixed');assert.ok(Math.abs((await save()).photos.ai.height-Math.min(600,inner*.43/Number(prior.photos.ai.ratio)))<1e-8);edit('头像固定高度 数值',166);let c=await save();assert.equal(c.photos.ai.widthUnit,'percent');assert.equal(c.photos.ai.size,43);assert.equal(c.photos.ai.height,166);assert.equal(c.photos.user.widthUnit,prior.photos.user.widthUnit);
  edit('头像固定高度 数值',150);sh.querySelector('#restore').click();assert.equal((await save()).photos.ai.height,166);
  edit('头像高度','auto');assert.ok(sh.querySelector('[aria-label="头像比例"]'));edit('头像比例','0.75');assert.equal((await save()).photos.ai.height,'auto');

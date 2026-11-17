@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
@@ -10,7 +11,7 @@ test('real canvas editor preserves host nodes across drag, pending apply, return
  const settle=async()=>{for(let round=0;round<5;round++){await new Promise(r=>setImmediate(r));if(!queue.size)break;for(const [id,fn]of [...queue]){queue.delete(id);fn();}}};
  const scheme=await editorStorage(null);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot,save=()=>saveEditorScheme(sh,scheme),click=s=>{const n=sh.querySelector(s);assert.ok(n,s);n.click();},button=text=>{const n=[...sh.querySelectorAll('button')].find(n=>n.textContent===text);assert.ok(n,text);n.click();};
  const msg=document.querySelector('.mes'),name=msg.querySelector('.name_text'),nativeImage=msg.querySelector('.avatar img'),edit=msg.querySelector('.mes_edit'),draft=document.querySelector('#send_textarea'),before=msg.outerHTML;let edits=0;edit.addEventListener('click',()=>edits++);
- click('.launcher');await settle();assert.equal(document.querySelector('[data-orange-lab-fixture]'),null);assert.equal(msg.querySelector('.name_text'),name);assert.equal(msg.querySelector('.avatar img'),nativeImage);edit.click();assert.equal(edits,1);assert.equal(draft.value,'Native draft');
+ openEditor(sh);await settle();assert.equal(document.querySelector('[data-orange-lab-fixture]'),null);assert.equal(msg.querySelector('.name_text'),name);assert.equal(msg.querySelector('.avatar img'),nativeImage);edit.click();assert.equal(edits,1);assert.equal(draft.value,'Native draft');
  name.click();assert.equal(name.dataset.previewDraggable,'true');const original=await save();
  let globalDragScans=0;const originalQuery=document.querySelectorAll.bind(document);document.querySelectorAll=selector=>{if(selector.startsWith('.mes[data-otl-live] :is('))globalDragScans++;return originalQuery(selector);};
  // Palette changes are live but don't mutate the saved draft until confirmed.
@@ -22,6 +23,6 @@ test('real canvas editor preserves host nodes across drag, pending apply, return
  pointer('pointerdown',0,0);pointer('pointermove',10,20);pointer('pointerup',10,20);const moved=await save();assert.equal(moved.textItems.name.y,original.textItems.name.y+20);
  // Apply before the queued adapter update runs: latest model must survive close.
  click('#apply-live');await settle();assert.equal(document.documentElement.hasAttribute('data-orange-editor'),false);assert.equal(document.documentElement.hasAttribute('data-orange-live'),true);assert.equal(name.hasAttribute('data-preview-draggable'),false);assert.equal(msg.querySelector('.name_text'),name);
- click('.launcher');await settle();assert.equal(msg.querySelector('.name_text'),name);click('#close');await settle();assert.ok(document.querySelector('#orange-theme-live-style'));window.dispatchEvent(new window.Event('pagehide'));await settle();assert.equal(msg.outerHTML,before);assert.equal(draft.value,'Native draft');edit.click();assert.equal(edits,2);assert.equal(document.querySelectorAll('[data-otl-live-owned]').length,0);
+ openEditor(sh);await settle();assert.equal(msg.querySelector('.name_text'),name);click('#close');await settle();assert.ok(document.querySelector('#orange-theme-live-style'));window.dispatchEvent(new window.Event('pagehide'));await settle();assert.equal(msg.outerHTML,before);assert.equal(draft.value,'Native draft');edit.click();assert.equal(edits,2);assert.equal(document.querySelectorAll('[data-otl-live-owned]').length,0);
 });
 

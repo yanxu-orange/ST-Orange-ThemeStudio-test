@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {seedNativeChat,requestNativeFrame,cancelNativeFrame,settleNativeCanvas} from './test-support/native-chat.mjs';
@@ -9,7 +10,7 @@ test('stat roles preserve unified data, independent role drafts, anchors and per
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
  seedNativeChat(document);const storage=await editorStorage(null);await import('./index.js');
  const shadow=document.querySelector('#orange-theme-lab').shadowRoot;
- shadow.querySelector('.launcher').click();await settleNativeCanvas();navigateRegion(shadow,'native');shadow.querySelector('[data-kind="info"]').click();
+ openEditor(shadow);await settleNativeCanvas();navigateRegion(shadow,'native');shadow.querySelector('[data-kind="info"]').click();
  const set=async(label,value)=>{const el=shadow.querySelector(`[aria-label="${label}"]`);assert.ok(el,label);el.value=String(value);el.dispatchEvent(new window.Event('input'));el.dispatchEvent(new window.Event('change'));await settleNativeCanvas();};
  const object=key=>shadow.querySelector(`[data-object="${key}"]`).click(),save=()=>saveEditorScheme(shadow,storage);
  const baseline=await save();assert.equal(shadow.querySelector('[aria-label="AI 与用户"]').value,'unified');assert.equal(shadow.querySelector('[aria-label="正在设计"]'),null);assert.equal(shadow.querySelector('[aria-label="水平定位"]').value,'left');for(const key of ['time','tokens','floor'])object(key);assert.deepEqual(await save(),baseline);

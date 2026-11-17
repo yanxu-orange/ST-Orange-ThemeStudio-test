@@ -1,6 +1,6 @@
 import { BUILTIN_TEMPLATE_NOTICE } from './builtin-template-library.mjs';
 
-export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen, onBuiltin, onMessage }) {
+export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen, onBuiltin, onImport, onMessage }) {
   const document = shadow.ownerDocument;
   const make = (tag, text) => {
     const node = document.createElement(tag);
@@ -18,7 +18,11 @@ export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen,
   const card = make('div'); card.className = 'work-library-card';
   const heading = make('div'); heading.className = 'work-library-heading';
   const back = make('button', '返回编辑'); back.type = 'button'; back.dataset.workLibrary = 'close';
-  heading.append(make('h2', '作品库'), back);
+  const headingText = make('h2', '作品库');
+  const importButton = make('button', '导入方案');
+  importButton.type = 'button';
+  importButton.dataset.workLibrary = 'import';
+  heading.append(headingText, importButton, back);
   const create = make('div'); create.className = 'work-library-create';
   const nameLabel = make('label', '作品名称'), name = make('input');
   name.type = 'text'; name.setAttribute('aria-label', '新作品名称'); nameLabel.append(name);
@@ -27,18 +31,18 @@ export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen,
   const status = make('p'); status.className = 'work-library-status'; status.setAttribute('role', 'status');
   const list = make('div'); list.className = 'work-library-list'; list.setAttribute('aria-label', '作品列表');
   card.append(heading, create, status, list); panel.append(card); shadow.append(style, panel);
-  let busy = false, epoch = 0, opener;
+  let busy = false, epoch = 0, opener, mode = 'library', onBack;
   function confirm(message) { return document.defaultView?.confirm?.(message) !== false; }
   function announce(message) { status.textContent = message; onMessage?.(message); }
   function setBusy(value) {
     busy = value;
-    for (const button of panel.querySelectorAll('button')) if (button !== back) button.disabled = value;
+    for (const button of panel.querySelectorAll('button')) if (button !== back || mode === 'create') button.disabled = value;
   }
   function row(item, kind) {
     const element = make('div'); element.className = 'work-library-item'; element.dataset.workId = item.id;
     const title = make('h3', item.name); title.className = 'work-library-name';
     const actions = make('div'); actions.className = 'work-library-actions';
-    const open = make('button', '打开'); open.type = 'button'; open.dataset.workAction = 'open';
+    const open = make('button', '使用这份作品'); open.type = 'button'; open.dataset.workAction = 'open';
     open.addEventListener('click', () => run(async token => {
       if (kind === 'builtin') {
         if (onBuiltin(item.id) !== false) hide();
@@ -50,7 +54,7 @@ export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen,
       }
     }));
     actions.append(open);
-    if (kind === 'custom') {
+    if (kind === 'custom' && mode === 'library') {
       const save = make('button', '覆盖保存'); save.type = 'button'; save.dataset.workAction = 'save';
       save.addEventListener('click', () => {
         if (!confirm(`用当前草稿覆盖「${item.name}」？`)) return;
@@ -75,7 +79,8 @@ export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen,
         await refresh(); announce(kind === 'builtin' ? `已从本机内置列表移除「${item.name}」。` : `已删除「${item.name}」。`);
       });
     });
-    actions.append(remove); element.append(title);
+    if (mode === 'library') actions.append(remove);
+    element.append(title);
     if (kind === 'builtin') {
       const badge = make('span', '内置'); badge.className = 'work-library-badge'; title.append(' ', badge);
       const notice = make('p', BUILTIN_TEMPLATE_NOTICE); element.append(notice);
@@ -100,21 +105,51 @@ export function createWorkLibrary({ shadow, builtins, storage, snapshot, onOpen,
     catch (error) { announce('操作未完成：' + error.message); }
     finally { setBusy(false); }
   }
-  async function show(source) {
+  async function show(source, { view = 'library', onCancel } = {}) {
+    if (busy) return;
     opener = source;
+    onBack = onCancel;
+    mode = view;
     panel.hidden = false;
+    headingText.textContent = view === 'create' ? '另存为作品' : '作品库';
+    panel.setAttribute('aria-label', headingText.textContent);
+    back.textContent = view === 'create' ? '取消' : view === 'start' ? '返回工坊首页' : '返回编辑';
+    importButton.hidden = view !== 'start';
+    name.value = '';
+    create.hidden = view === 'start';
+    list.hidden = view === 'create';
+    saveNew.textContent = view === 'create' ? '保存作品' : '保存为新作品';
     status.textContent = '';
-    await run(() => refresh());
-    back.focus?.();
+    if (view === 'create') name.focus?.();
+    else {
+      await run(() => refresh());
+      if (!panel.hidden) back.focus?.();
+    }
   }
-  function hide() { ++epoch; panel.hidden = true; opener?.focus?.(); }
-  back.addEventListener('click', hide);
-  saveNew.addEventListener('click', () => run(async () => {
+  function hide() {
+    ++epoch;
+    panel.hidden = true;
+    opener?.focus?.();
+  }
+  function cancel() {
+    const callback = onBack;
+    hide();
+    callback?.();
+  }
+  back.addEventListener('click', cancel);
+  importButton.addEventListener('click', () => {
+    if (!busy) onImport?.();
+  });
+  saveNew.addEventListener('click', () => run(async token => {
     const title = name.value.trim();
     if (!title) { name.focus?.(); throw new Error('请填写作品名称。'); }
     await storage.save({ name: title, json: snapshot() });
-    name.value = ''; await refresh(); announce(`已保存「${title}」。`);
+    if (token !== epoch || panel.hidden) return;
+    name.value = '';
+    if (mode === 'create') hide();
+    else await refresh();
+    announce(`已保存「${title}」。`);
   }));
-  panel.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); hide(); } });
+  panel.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden && !busy) { event.preventDefault(); cancel(); } });
   return { show, hide };
 }

@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {clickEditor,navigateRegion} from './test-support/editor-navigation.mjs';
 import {test} from 'node:test';
@@ -18,7 +19,7 @@ test('independent scopes, supported material destinations and hidden entry prefe
  const idle=async()=>{await new Promise(resolve=>setTimeout(resolve,80));await settleNativeCanvas();};
  const save=()=>saveEditorScheme(sh,storage),button=text=>[...sh.querySelectorAll('button')].find(node=>node.textContent===text);
  try{
-  click('.launcher');await idle();const initial=await save();
+  openEditor(sh);await idle();const initial=await save();
   assert.deepEqual([...sh.querySelector('#workspace-page').options].map(option=>option.value),Object.keys(PAGE_NAMES));
   assert.equal(sh.querySelector('#region-select [value=common]'),null);
   for(const region of ['body','native']){navigateRegion(sh,region);assert.equal(sh.querySelector('#mode-layers').disabled,true);assert.equal(sh.querySelector('#mode-library').disabled,false);}

@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {expectPortableExport} from './test-support/portable-export.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,7 +46,7 @@ test('page header editors use independent library targets, preserve navigation, 
   const portable=await expectPortableExport(complete);try{click('#export');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await exported.text()).pageHeaders,portable.pageHeaders);}finally{URL.createObjectURL=createURL;URL.revokeObjectURL=revokeURL;}
   const legacy={...complete};delete legacy.pageHeaders;await importScheme(legacy);for(const header of Object.values((await save()).pageHeaders))assert.deepEqual(header,PAGE_HEADER_DEFAULTS);
   await importScheme(complete);assert.deepEqual((await save()).pageHeaders,complete.pageHeaders);
-  click('#close');document.querySelector('#orange-theme-lab').remove();await import('./index.js?page-headers-reload');const reloaded=document.querySelector('#orange-theme-lab').shadowRoot;reloaded.querySelector('.launcher').click();reloaded.querySelector('[data-flow=continue]')?.click();assert.deepEqual((await saveEditorScheme(reloaded,storage)).pageHeaders,complete.pageHeaders);reloaded.querySelector('#close').click();
+  click('#close');document.querySelector('#orange-theme-lab').remove();await import('./index.js?page-headers-reload');const reloaded=document.querySelector('#orange-theme-lab').shadowRoot;openEditor(reloaded);reloaded.querySelector('[data-flow=continue]')?.click();assert.deepEqual((await saveEditorScheme(reloaded,storage)).pageHeaders,complete.pageHeaders);reloaded.querySelector('#close').click();
  }finally{document.querySelector('#orange-theme-lab')?.shadowRoot.querySelector('#close')?.click();}
 });
 

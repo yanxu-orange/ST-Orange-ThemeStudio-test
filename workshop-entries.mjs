@@ -44,7 +44,7 @@ export function createWorkshopEntries({document,launcher,onOpen=()=>{},onStopApp
    const root=make('div');root.dataset.workshopEntry=name;
    root.className='extension_container';
    const {node:open,label:openLabel}=actionRow(name,'主题工坊',()=>onOpen());
-   const {node:stop}=actionRow(name,'退出工坊应用',()=>onStopApplied(),{iconUrl:WORKSHOP_STOP_ICON_URL});
+   const {node:stop}=actionRow(name,'停用美化',()=>onStopApplied(),{iconUrl:WORKSHOP_STOP_ICON_URL});
    open.dataset.workshopAction='open';stop.dataset.workshopAction='stop';
    root.append(open,stop);target.append(root);entries.set(name,{root,open,openLabel,stop});
   }

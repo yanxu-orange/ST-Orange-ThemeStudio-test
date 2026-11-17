@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import { settleSchemeApplication } from './test-support/editor-storage.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
@@ -11,12 +12,12 @@ test('shape dimensions precede appearance and position; import survives retarget
  const scheme=await editorStorage(null);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const set=(label,value)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(value);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme);
- sh.querySelector('.launcher').click();navigateRegion(sh,'header');sh.querySelector('[data-kind="image"]').click();sh.querySelector('#add-current-image').click();sh.querySelector('[data-material-category=shapes]').click();sh.querySelector('[data-add-shape="rectangle"]').click();
+ openEditor(sh);navigateRegion(sh,'header');sh.querySelector('[data-kind="image"]').click();sh.querySelector('#add-current-image').click();sh.querySelector('[data-material-category=shapes]').click();sh.querySelector('[data-add-shape="rectangle"]').click();
  const headings=[...sh.querySelectorAll('.property-heading')].map(n=>n.textContent);assert.ok(headings.indexOf('形状与尺寸')<headings.indexOf('外观'));assert.ok(headings.indexOf('外观')<headings.indexOf('位置与叠放'));
  assert.equal(sh.querySelector('[aria-label="宽度 数值"]').closest('.paired-fields'),sh.querySelector('[aria-label="高度 数值"]').closest('.paired-fields'));
  set('宽度 数值',137);set('高度 数值',42);set('旋转 数值',15);let config=(await save()),shape=config.layers.at(-1);assert.equal(shape.width,137);assert.equal(shape.height,42);assert.equal(shape.rotation,15);
  const input=sh.querySelector('#import-file');let resolve;Object.defineProperty(input,'files',{value:[{size:1024,text:()=>new Promise(r=>resolve=r)}]});
  const event=new window.Event('change');input.dispatchEvent(event);Object.defineProperty(event,'target',{value:null});resolve(JSON.stringify(config));await new Promise(r=>setImmediate(r));assert.equal(input.value,'');assert.match(sh.querySelector('#notice').textContent,/已导入预览/);assert.deepEqual((await save()),config);
  sh.querySelector('#apply-live').click();await settleSchemeApplication();assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
- sh.querySelector('.launcher').click();assert.deepEqual((await save()),config);sh.querySelector('#close').click();await settleSchemeApplication();window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
+ openEditor(sh);assert.deepEqual((await save()),config);sh.querySelector('#close').click();await settleSchemeApplication();window.dispatchEvent(new window.Event('resize'));assert.equal(document.querySelectorAll('[data-orange-lab-fixture]').length,0);
 });

@@ -97,6 +97,7 @@ await (async () => {
   let workLibrary = null, combinationLibrary = null;
   let appliedSnapshot = null,
     applying = false,
+    exiting = false,
     applicationLoadError = null;
   let loadError = null;
   const { fonts, base, templates, field, groups, validate } =
@@ -141,6 +142,17 @@ await (async () => {
     document,
     selector: 'img[data-layer-id], [data-library-asset] img',
   });
+  const blankDraft = snapshotDraft(config);
+  const recoverableDraft = () => saved ?? appliedSnapshot ?? blankDraft;
+  function sameDraft(a, b) {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length &&
+      keys.every(key => Object.hasOwn(b, key) && sameDraft(a[key], b[key]));
+  }
+  const hasUnsavedDraft = () => !sameDraft(config, recoverableDraft());
+
   const scrollbarVisibility = createScrollbarVisibility({
     document,
     ownShadow: shadow,
@@ -181,16 +193,19 @@ await (async () => {
   let noticeTimer;
   function notify(text, duration = 4500) {
     const n = shadow.querySelector('#notice');
+    const visibleNotice = shadow.querySelector('#visible-notice');
     n.textContent = text;
+    visibleNotice.textContent = text;
     clearTimeout(noticeTimer);
     if (duration) {
       noticeTimer = setTimeout(() => {
         n.textContent = '';
+        visibleNotice.textContent = '';
       }, duration);
       noticeTimer.unref?.();
     }
   }
-  let saveState = 'draft';
+  let saveState = saved ? 'saved' : 'draft';
   function syncSaveState() {
     shadow.querySelector('#save').disabled = saveState === 'saving';
     shadow.querySelector('#save-state').textContent = {
@@ -376,7 +391,7 @@ await (async () => {
   const canvas = createLiveCanvas({
     document,
     onPage: (page) => {
-      if (active) workbench.syncViewedPage(page);
+      if (active) { workbench.syncViewedPage(page); syncStartPreview(); }
     },
   });
   const liveAdapter = createLiveAdapter({
@@ -385,6 +400,7 @@ await (async () => {
     fitInput,
     onRender: ({ nodes = [], chromeChanged = false, pageHeaderNodes = [] }) => {
       if (!active) return;
+      syncStartPreview();
       updateFontStatuses();
       if (!headerDrag.dragging) headerDrag.refresh(pageHeaderNodes);
       if (!layerDrag.dragging)
@@ -550,15 +566,18 @@ await (async () => {
   applyButton.id = 'apply-live';
   shadow.querySelector('#save').after(applyButton);
   applyButton.addEventListener('click', async () => {
-    if (applying) return;
+    if (applying || exiting || saveState === 'saving') return;
     applying = true;
     applyButton.disabled = true;
     try {
-      const snapshot = validate(config);
+      const draftAtApply = snapshotDraft(config);
+      const snapshot = validate(draftAtApply);
       await appliedStorage.save(JSON.stringify(snapshot));
       appliedSnapshot = snapshot;
-      liveAdapter.update(snapshot);
-      close({ keepApplied: true });
+      const newerDraft = !sameDraft(config, draftAtApply);
+      if (!newerDraft) resetDraftTo(recoverableDraft());
+      await close({ keepApplied: true });
+      if (newerDraft) notify('已应用点击时的方案，之后的修改仍保留为未保存草稿。');
       entries.setApplied(true);
       entries.sync();
     } catch (error) {
@@ -569,20 +588,30 @@ await (async () => {
     }
   });
   async function clearApplied() {
-    if (appliedSnapshot === null) return true;
+    if (appliedSnapshot === null && !applicationLoadError) return true;
     try {
       await appliedStorage.clear();
       appliedSnapshot = null;
+      applicationLoadError = null;
       return true;
     } catch (error) {
-      notify('退出应用失败：' + error.message);
+      notify('停用美化失败：' + error.message);
       return false;
     }
   }
   async function stopApplied() {
-    if (!(await clearApplied())) return;
-    liveAdapter.stop();
-    entries.setApplied(false);
+    if (active) return requestExit(true);
+    if (exiting || applying) return;
+    exiting = true;
+    try {
+      const keepDraft = !!saved || hasUnsavedDraft();
+      if (!(await clearApplied())) return;
+      if (!keepDraft) resetDraftTo(recoverableDraft());
+      liveAdapter.stop();
+      entries.setApplied(false);
+    } finally {
+      exiting = false;
+    }
   }
 
   const headerDrag = createLayerDrag({
@@ -2221,6 +2250,7 @@ await (async () => {
       shadow.querySelector('#' + id).disabled =
         id === 'undo' && !history.length;
     syncSaveState();
+    syncStartPreview();
     updateWorkbenchLayout();
     const selection = JSON.stringify([
       active,
@@ -2289,6 +2319,7 @@ await (async () => {
     workbench.syncSizing();
     active = true;
     invalidateEditing();
+    mobileFlow.hide();
     mobileFlow.setEditorOpen(true);
     canvas.start();
     try {
@@ -2312,7 +2343,10 @@ await (async () => {
       .querySelector('#narrow')
       .setAttribute('aria-pressed', String(ui.narrow));
     builtinLibrary.syncCurrent();
+    shadow.querySelector('#stop-and-close').hidden = appliedSnapshot === null && !applicationLoadError;
+    syncSaveState();
     renderFields();
+    syncStartPreview();
     if (loadError)
       notify(
         '保存的方案未载入：' + loadError.message + ' 点击“恢复已保存”重试。',
@@ -2321,6 +2355,7 @@ await (async () => {
   }
   async function close({ keepApplied = false } = {}) {
     if (!active || (applying && !keepApplied)) return;
+    hideExitDialog();
     if (materialSession || managerReturn) returnFromMaterials();
     workLibrary?.hide();
     combinationLibrary?.hide();
@@ -2328,6 +2363,8 @@ await (async () => {
     layerDrag.reset();
     headerDrag.reset();
     active = false;
+    ui.startPreview = false;
+    ui.mobileView = 'adjust';
     workbench.resetLayoutSession();
     imageDisplay.clear();
     mobileFlow.setEditorOpen(false);
@@ -2347,27 +2384,131 @@ await (async () => {
     shadow.querySelector('.splitter').classList.add('hidden');
   }
 
-  function replaceStart(id) {
-    if (!Object.hasOwn(templates, id)) return false;
-    if (
-      typeof window.confirm === 'function' &&
-      !window.confirm(
-        '这会替换当前草稿。原已保存方案不变，替换后可撤销。继续吗？',
-      )
-    )
-      return false;
-    invalidateEditing();
-    remember();
-    config = validate(clone(templates[id]));
+  function resetDraftTo(snapshot) {
+    config = snapshotDraft(snapshot);
     selectedLayerId = config.layers[0]?.id;
-    ui.mobileView = 'preview';
-    if (active) {
-      apply();
-      renderFields();
+    history.length = 0;
+    pendingRegionEdit = null;
+    setSaveState(saved ? 'saved' : 'draft');
+  }
+
+  function startScheme(next, { preview }) {
+    if (exiting || applying) return false;
+    if (!document.querySelector('#chat')) {
+      notify('请先打开酒馆聊天界面');
+      return false;
     }
+    const replacing = !sameDraft(config, next);
+    if (replacing && hasUnsavedDraft() &&
+      window.confirm?.('这会替换尚未保存的草稿。替换后可撤销，继续吗？') === false) return false;
+    invalidateEditing();
+    if (replacing) remember(false);
+    config = next;
+    selectedLayerId = config.layers[0]?.id;
+    ui.mode = 'edit';
+    ui.mobileView = preview ? 'preview' : 'adjust';
+    ui.startPreview = preview;
+    if (active) { apply(); renderFields(); }
+    else open();
+    syncStartPreview();
     notify('新起点已载入，尚未保存');
     return true;
   }
+
+  function replaceStart(id) {
+    if (!Object.hasOwn(templates, id)) return false;
+    return startScheme(validate(clone(templates[id])), { preview: id !== 'blank' });
+  }
+
+  function syncStartPreview() {
+    const chooseChat = shadow.querySelector('#choose-chat');
+    if (!active || ui.mobileView !== 'preview' || ui.page !== 'chat') {
+      chooseChat.hidden = true;
+      return;
+    }
+    const welcome = document.querySelector('#chat .welcomePanel');
+    const welcomeVisible = welcome && !welcome.hidden && !welcome.classList.contains('displayNone') &&
+      document.defaultView?.getComputedStyle?.(welcome)?.display !== 'none';
+    const hasMessages = !!document.querySelector('#chat > .mes:not(.smallSysMes):not([is_system="true"]):not([data-orange-lab-fixture])');
+    chooseChat.hidden = !welcomeVisible && hasMessages;
+  }
+
+  const exitDialog = make('dialog', 'workbench-exit');
+  exitDialog.setAttribute('aria-labelledby', 'workbench-exit-title');
+  exitDialog.innerHTML = `<h2 id="workbench-exit-title">草稿尚未保存</h2>
+    <p id="workbench-exit-message"></p>
+    <p data-exit-error role="status"></p>
+    <div class="actions">
+      <button type="button" data-exit-choice="stay">继续编辑</button>
+      <button type="button" data-exit-choice="discard">不保存退出</button>
+      <button type="button" data-exit-choice="save" class="primary">保存草稿后退出</button>
+    </div>`;
+  const exitStyle = make('style');
+  exitStyle.textContent = '.workbench-exit{width:min(430px,calc(100vw - 32px));box-sizing:border-box;border:1px solid var(--line);background:var(--paper);color:#303330;padding:20px;z-index:20300}.workbench-exit:not([open]){display:none}.workbench-exit::backdrop{background:#0006}.workbench-exit h2{font-size:18px;margin:0}.workbench-exit [data-exit-error]:empty{display:none}.workbench-exit [data-exit-error]{color:#9e3930}.workbench-exit button{min-height:44px}';
+  shadow.append(exitStyle);
+  let exitMode = false;
+  function hideExitDialog() {
+    if (exitDialog.hasAttribute('open') && typeof exitDialog.close === 'function') exitDialog.close();
+    exitDialog.removeAttribute('open');
+    exitDialog.remove();
+  }
+  async function requestExit(stop) {
+    if (!active || exiting || applying) return;
+    if (saveState === 'saving') {
+      notify('草稿正在保存，请稍后重试。', 0);
+      return;
+    }
+    if (!hasUnsavedDraft()) return finishExit(stop);
+    exitMode = stop;
+    exitDialog.querySelector('#workbench-exit-message').textContent = stop
+      ? '停用美化并退出前，可以先保存草稿。'
+      : '退出编辑前，可以先保存草稿。';
+    exitDialog.querySelector('[data-exit-error]').textContent = '';
+    if (!exitDialog.hasAttribute('open')) {
+      shadow.append(exitDialog);
+      if (typeof exitDialog.showModal === 'function') exitDialog.showModal();
+      if (!exitDialog.hasAttribute('open')) exitDialog.setAttribute('open', '');
+    }
+    exitDialog.querySelector('[data-exit-choice="stay"]').focus?.();
+  }
+  async function finishExit(stop, choice) {
+    if (!active || exiting || applying) return;
+    exiting = true;
+    const buttons = [...exitDialog.querySelectorAll('button')];
+    const baseline = recoverableDraft();
+    buttons.forEach(button => { button.disabled = true; });
+    try {
+      if (choice === 'save' && !(await saveDraft())) {
+        exitDialog.querySelector('[data-exit-error]').textContent = shadow.querySelector('#notice').textContent;
+        return;
+      }
+      const draftAtStop = stop ? snapshotDraft(config) : null;
+      if (stop && !(await clearApplied())) {
+        exitDialog.querySelector('[data-exit-error]').textContent = shadow.querySelector('#notice').textContent;
+        return;
+      }
+      const newerDraft = stop && !sameDraft(config, draftAtStop);
+      if (!newerDraft) {
+        if (choice === 'discard') resetDraftTo(saved ?? (stop ? blankDraft : baseline));
+        else if (stop && !saved) resetDraftTo(blankDraft);
+      }
+      await close();
+      if (newerDraft) notify('已停用美化，等待期间的修改仍保留为未保存草稿。');
+    } finally {
+      buttons.forEach(button => { button.disabled = false; });
+      exiting = false;
+    }
+  }
+  exitDialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    if (!exiting) hideExitDialog();
+  });
+  exitDialog.addEventListener('click', event => {
+    const choice = event.target.dataset.exitChoice;
+    if (choice === 'stay') hideExitDialog();
+    else if (choice) finishExit(exitMode, choice);
+  });
+
   const scrollbarLabel = make('label', 'field'),
     scrollbarToggle = make('input');
   scrollbarToggle.type = 'checkbox';
@@ -2387,43 +2528,31 @@ await (async () => {
   const mobileFlow = installMobileFlow({
     shadow,
     templateLibrary: builtinLibrary,
-    onLibrary: () => workLibrary.show(),
+    onLibrary: (source) => workLibrary.show(source, {
+      view: 'start',
+      onCancel: () => {
+        invalidateEditing();
+        mobileFlow.show({ canContinue: active || !!saved || !!appliedSnapshot, source });
+      },
+    }),
     onVisibility: (visible) =>
       scrollbarVisibility.set(
         (active || visible) && normalizeScrollbars(config.hideScrollbars),
       ),
     onContinue: open,
-    onTemplate: replaceStart,
     onBlank: () => replaceStart('blank'),
-    onImport: () => {
-      open();
-      shadow.querySelector('#import-file').click();
-    },
   });
   workLibrary = createWorkLibrary({
     shadow,
     builtins: builtinLibrary,
     storage: createCustomWorkStorage(),
     snapshot: () => JSON.stringify(validate(config)),
-    onBuiltin: (id) => {
-      const replaced = replaceStart(id);
-      if (replaced) open();
-      return replaced;
-    },
-    onOpen: (json) => {
-      const next = validate(rebaseBundledFontLinks(JSON.parse(json), import.meta.url));
-      if (typeof window.confirm === 'function' && !window.confirm('打开作品会替换当前草稿，可撤销。继续吗？'))
-        return false;
-      invalidateEditing();
-      remember();
-      config = next;
-      selectedLayerId = config.layers[0]?.id;
-      apply();
-      renderFields();
-      open();
-      notify('作品已载入当前草稿');
-      return true;
-    },
+    onBuiltin: replaceStart,
+    onOpen: (json) => startScheme(
+      validate(rebaseBundledFontLinks(JSON.parse(json), import.meta.url)),
+      { preview: true },
+    ),
+    onImport: () => shadow.querySelector('#import-file').click(),
     onMessage: notify,
   });
   const combinationStores = new Map();
@@ -2465,12 +2594,21 @@ await (async () => {
   libraryButton.id = 'open-work-library';
   shadow.querySelector('.desktop-scheme .menu').prepend(libraryButton);
   libraryButton.addEventListener('click', () => workLibrary.show(libraryButton));
+  const saveWorkButton = make('button', '', '另存为作品');
+  saveWorkButton.type = 'button';
+  saveWorkButton.id = 'save-work';
+  libraryButton.after(saveWorkButton);
+  saveWorkButton.addEventListener('click', () => {
+    if (active && !exiting && !applying) workLibrary.show(shadow.querySelector('.desktop-scheme summary'), { view: 'create' });
+  });
   const launch = () => {
     if (active) {
       workbench.restoreWorkbench();
       return;
     }
-    open();
+    if (exiting) return;
+    if (saved || appliedSnapshot || loadError || hasUnsavedDraft()) open();
+    else mobileFlow.show({source: shadow.querySelector('.launcher')});
   };
   const entries = createWorkshopEntries({
     document,
@@ -2490,7 +2628,17 @@ await (async () => {
     '[data-workshop-entry-settings] h4{margin:10px 0 4px}[data-workshop-entry-settings] p{font-size:12px}[data-workshop-entry-settings] .checkbox_label{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:13px}[data-workshop-entry-settings] input{width:20px;height:20px;flex:none}';
   shadow.append(entryStyle);
   shadow.querySelector('.launcher').addEventListener('click', launch);
-  shadow.querySelector('#close').addEventListener('click', close);
+  shadow.querySelector('#close').addEventListener('click', () => requestExit(false));
+  shadow.querySelector('#stop-and-close').addEventListener('click', () => requestExit(true));
+  shadow.querySelector('#choose-chat').addEventListener('click', async () => {
+    const button = shadow.querySelector('#choose-chat');
+    button.disabled = true;
+    try {
+      if (!(await canvas.navigateToPage('characters'))) notify('请在酒馆打开角色列表并选择聊天。', 0);
+    } finally {
+      button.disabled = false;
+    }
+  });
   document.addEventListener('click', (event) => {
     if (!active || ui.mode === 'library') return;
     const target = event.target;
@@ -2571,11 +2719,11 @@ await (async () => {
     renderFields();
     notify('已撤销上一步');
   });
-  shadow.querySelector('#save').addEventListener('click', async () => {
-    if (saveState === 'saving') return;
+  async function saveDraft() {
+    if (saveState === 'saving') return false;
     if (loadError) {
       notify('未保存：请先点击“恢复已保存”重新读取方案。原保存未改变。', 0);
-      return;
+      return false;
     }
     let checked, json;
     try {
@@ -2584,7 +2732,7 @@ await (async () => {
     } catch (error) {
       setSaveState('failed');
       notify('未保存：' + error.message, 0);
-      return;
+      return false;
     }
     setSaveState('saving');
     try {
@@ -2600,6 +2748,7 @@ await (async () => {
           ? '方案已保存到当前浏览器，刷新后可以继续编辑。'
           : '点击保存时的方案已保存；之后的修改尚未保存。',
       );
+      return unchanged;
     } catch (error) {
       setSaveState('failed');
       notify(
@@ -2608,8 +2757,10 @@ await (async () => {
           : '未保存：' + error.message,
         0,
       );
+      return false;
     }
-  });
+  }
+  shadow.querySelector('#save').addEventListener('click', () => { if (!exiting && !applying) saveDraft(); });
   shadow.querySelector('#restore').addEventListener('click', async () => {
     const button = shadow.querySelector('#restore');
     if (button.disabled) return;
@@ -2677,23 +2828,20 @@ await (async () => {
   shadow
     .querySelector('#import-file')
     .addEventListener('change', async (event) => {
-      const input = event.target,
-        file = input.files[0];
+      const input = event.target;
+      const file = input.files[0];
       if (!file) return;
       invalidateEditing();
-      const epoch = editEpoch,
-        originalConfig = config;
+      const epoch = editEpoch;
+      const originalConfig = config;
       try {
         const contents = await file.text();
-        if (!active || epoch !== editEpoch || config !== originalConfig) return;
+        if (epoch !== editEpoch || config !== originalConfig) return;
         const next = validate(rebaseBundledFontLinks(JSON.parse(contents), import.meta.url));
-        invalidateEditing();
-        remember();
-        config = next;
-        selectedLayerId = config.layers[0]?.id;
-        apply();
-        renderFields();
-        notify('已导入预览，点击保存后记住。');
+        if (startScheme(next, { preview: true })) {
+          workLibrary.hide();
+          notify('已导入预览，点击保存后记住。');
+        }
       } catch (error) {
         notify('未导入：' + error.message);
       } finally {
@@ -2704,8 +2852,7 @@ await (async () => {
     notify('已应用方案未载入：' + applicationLoadError.message, 0);
   if (appliedSnapshot !== null) {
     try {
-      config = clone(appliedSnapshot);
-      selectedLayerId = config.layers[0]?.id;
+      if (!saved) resetDraftTo(appliedSnapshot);
       liveAdapter.start(appliedSnapshot);
       entries.setApplied(true);
     } catch (error) {

@@ -1,3 +1,4 @@
+import {openEditor} from './test-support/open-editor.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
@@ -12,7 +13,7 @@ test('inline material control commits only selected sources and keeps cancelled,
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
  seedNativeChat(document);const store=await editorStorage();await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
  const save=()=>saveEditorScheme(sh,store),go=r=>navigateRegion(sh,r),select=(label,value)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=value;n.dispatchEvent(new window.Event('change'));};
- sh.querySelector('.launcher').click();
+ openEditor(sh);
  for(const region of ['topbar','input']){
   go(region);sh.querySelector(`[data-kind=${region==='topbar'?'icons':'tools'}]`).click();
   const target=sh.querySelector('.object-list [aria-pressed=true]').dataset.object;

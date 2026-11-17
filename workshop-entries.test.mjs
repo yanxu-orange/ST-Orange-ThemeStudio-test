@@ -147,7 +147,7 @@ test('stop uses an outline of the same butterfly and preserves applied visibilit
  for(const root of f.document.querySelectorAll('[data-workshop-entry]')){
   const stop=root.querySelector('[data-workshop-action="stop"]');
   assert.equal(stop.querySelector('img').src,WORKSHOP_STOP_ICON_URL);
-  assert.equal(stop.textContent,'退出工坊应用');
+  assert.equal(stop.textContent,'停用美化');
   assert.equal(stop.hidden,true);assert.equal(stop.style.display,'none');
   f.entries.setApplied(true);assert.equal(stop.hidden,false);assert.equal(stop.style.display,'');
   stop.click();f.entries.setApplied(false);assert.equal(stop.hidden,true);
