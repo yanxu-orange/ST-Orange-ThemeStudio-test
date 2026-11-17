@@ -71,7 +71,7 @@ test('two-stop gradients support full-turn CSS directions and remain local to ea
     const doc=documentFor(newLayer('shape',{shape,width:200,height:100,fillMode:'gradient',color:'#123456',color2:'#abcdef',gradientAngle:angle})),gradient=doc.querySelector('linearGradient'),stops=[...doc.querySelectorAll('stop')];
     assert.equal(gradient.getAttribute('id'),'fill');assert.equal(gradient.getAttribute('gradientUnits'),'userSpaceOnUse');
     assert.deepEqual(stops.map(n=>[n.getAttribute('offset'),n.getAttribute('stop-color')]),[['0','#123456'],['1','#abcdef']]);
-    assert.equal(doc.querySelector('rect,path').getAttribute(['dashed','wave'].includes(shape)?'stroke':'fill'),'url(#fill)');
+    assert.equal(doc.querySelector('rect,path').getAttribute(['dashed','dotted','wave'].includes(shape)?'stroke':'fill'),'url(#fill)');
     if(['star','heart'].includes(shape))assert.equal(gradient.getAttribute('gradientTransform'),'scale(0.5 1)');
   }
   for(const bad of [-1,361,Infinity,'90'])assert.throws(()=>gradientVector(bad));

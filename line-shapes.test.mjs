@@ -6,7 +6,7 @@ import {shapeSvg,shapeDataUrl,layerSizeStyle,lineThicknessTarget} from './shape-
 import {pinchLayer} from './layer-drag.mjs';
 const doc=l=>new DOMParser().parseFromString(shapeSvg(l),'image/svg+xml');
 test('lines offer readable defaults and thickness changes preserve real box geometry and saved schema',()=>{
- for(const shape of ['line','dashed','wave']){
+ for(const shape of ['line','dashed','dotted','wave']){
   const l=newLayer('shape',{shape});assert.equal(l.width,200);assert.equal(lineThicknessTarget(l).height,2);
   const target=lineThicknessTarget(l);target.height=5;assert.equal(target.height,5);assert.equal(l.height,shape==='wave'?30:5);
   assert.deepEqual(validateLayers(JSON.parse(JSON.stringify([l]))),[l]);assert.equal(layerSizeStyle(l).height,l.height+'px');
@@ -17,10 +17,11 @@ test('lines offer readable defaults and thickness changes preserve real box geom
  }
 });
 test('dash and wave paths are bounded, have no remote dependencies and support narrow lengths',()=>{
- for(const shape of ['dashed','wave'])for(const width of [1,20,200,500])for(const thickness of [1,2,40]){
+ for(const shape of ['dashed','dotted','wave'])for(const width of [1,20,200,500])for(const thickness of [1,2,40]){
   const l=newLayer('shape',{shape,width});lineThicknessTarget(l).height=thickness;const d=doc(l),path=d.querySelector('path');
   assert.equal(path.getAttribute('stroke-width'),String(thickness));assert.equal(path.getAttribute('vector-effect'),'non-scaling-stroke');assert.equal(d.querySelector('svg').getAttribute('viewBox'),`0 0 ${width} ${l.height}`);
   if(shape==='dashed')assert.equal(path.getAttribute('stroke-dasharray'),`${thickness*4} ${thickness*3}`);
+  else if(shape==='dotted'){assert.equal(path.getAttribute('stroke-linecap'),'round');assert.equal(path.getAttribute('stroke-dasharray'),`0 ${thickness*3}`);}
   else {assert.match(path.getAttribute('d'),/^M0 /);assert.ok(path.getAttribute('d').includes(` ${width} ${l.height/2}`));}
   assert.equal(d.querySelectorAll('image,script,foreignObject').length,0);
  }

@@ -1,7 +1,7 @@
 /** Recolorable vector layers. All SVG content is generated from validated values. */
-export const SHAPES = Object.freeze(['rectangle','star','heart','line','dashed','wave']);
-export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心',line:'实线',dashed:'虚线',wave:'波浪线'});
-export const isLineShape = shape => ['line','dashed','wave'].includes(shape);
+export const SHAPES = Object.freeze(['rectangle','star','heart','line','dashed','dotted','wave']);
+export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心',line:'实线',dashed:'虚线',dotted:'点线',wave:'波浪线'});
+export const isLineShape = shape => ['line','dashed','dotted','wave'].includes(shape);
 export const lineHeightFactor = shape => shape === 'wave' ? 6 : 1;
 // Keep saved height as the real artwork box; expose stroke thickness in the editor.
 export function lineThicknessTarget(layer) {
@@ -59,6 +59,7 @@ export function shapeSvg(layer){
     const strokeSizing=shape.heightUnit==='px'?' vector-effect="non-scaling-stroke"':'';
     if(shape.shape==='line')path=`<rect width="${width}" height="${height}" fill="${fill}"/>`;
     else if(shape.shape==='dashed')path=`<path d="M0 ${y}H${width}" fill="none" stroke="${fill}" stroke-width="${stroke}"${strokeSizing} stroke-dasharray="${stroke*4} ${stroke*3}"/>`;
+    else if(shape.shape==='dotted')path=`<path d="M${Math.min(stroke/2,width/2)} ${y}H${Math.max(width/2,width-stroke/2)}" fill="none" stroke="${fill}" stroke-width="${stroke}"${strokeSizing} stroke-linecap="round" stroke-dasharray="0 ${stroke*3}"/>`;
     else {
       const halfWave=Math.max(stroke*6,1), amplitude=height/2-stroke/2;
       let d=`M0 ${y}`, x=0, sign=-1;
