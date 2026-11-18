@@ -30,7 +30,7 @@ test('independent page editors preserve native controls, inheritance, all fields
  text:[['界面字体','serif','font'],['界面字号 数值',19,'size'],['界面文字颜色 HEX','#123456','color'],['辅助文字颜色 HEX','#234567','muted'],['界面强调颜色 HEX','#345678','accent']],
  panel:[['面板底色 HEX','#456789','background'],['面板不透明度 数值',.65,'opacity'],['面板边框颜色 HEX','#56789a','border'],['面板边框粗细 数值',3,'width'],['面板圆角 数值',21,'radius']],
  heading:[['标题文字颜色 HEX','#6789ab','color'],['标题底色 HEX','#789abc','background'],['标题字号 数值',23,'size'],['标题字重',800,'weight'],['标题圆角 数值',17,'radius']],
- button:[['按钮文字颜色 HEX','#89abcd','color'],['按钮底色 HEX','#9abcde','background'],['按钮边框颜色 HEX','#abcdef','border'],['按钮悬停底色 HEX','#bcdef0','hover'],['按钮圆角 数值',13,'radius']],
+ button:[['按钮文字颜色 HEX','#89abcd','color'],['按钮底色 HEX','#9abcde','background'],['按钮边框颜色 HEX','#abcdef','border'],['按钮悬停底色 HEX','#bcdef0','hover'],['按钮圆角 数值',13,'radius'],['按钮底色不透明度 数值',.3,'opacity'],['按钮悬停底色不透明度 数值',.55,'hoverOpacity']],
  field:[['文字颜色 HEX','#cdef01','color'],['背景颜色 HEX','#def012','background'],['边框颜色 HEX','#ef0123','border'],['选中时边框颜色 HEX','#f01234','focus'],['控件圆角 数值',15,'radius']]
  };
  for(const target of Object.keys(PAGE_ROOTS)){

@@ -4,7 +4,7 @@ export const COMMON_STYLE_DEFAULTS={
  text:{font:'auto',size:14,color:'#354b42',muted:'#78847b',accent:'#6f8973',fontLink:null},
  panel:{background:'#fffdf8',opacity:1,border:'#d8e0d6',width:1,radius:12},
  heading:{color:'#354b42',background:'#eef2e9',size:16,weight:600,radius:8},
- button:{color:'#354b42',background:'#f4f7ef',border:'#cbd7c8',radius:7,hover:'#e4eddf'},
+ button:{color:'#354b42',background:'#f4f7ef',border:'#cbd7c8',radius:7,hover:'#e4eddf',opacity:1,hoverOpacity:1},
  field:{color:'#354b42',background:'#ffffff',border:'#cbd7c8',radius:6,focus:'#6f8973'}
 };
 const fonts=['auto','serif','sans-serif','Georgia, serif','monospace','"LabSongti",serif'];
@@ -26,7 +26,7 @@ export function normalizeCommonConfig(raw={}){
    if(key==='font'){if(!fonts.includes(v))throw Error('界面字体无效');}
    else if(key==='fontLink'){item.fontLink=validateCaptionStyle({fontLink:v}).fontLink;}
    else if(typeof defaults[key]==='number'){
-    const [min,max]=key==='size'?[12,group==='text'?24:32]:key==='weight'?[100,900]:key==='opacity'?[0,1]:key==='width'?[0,4]:[0,32];
+    const [min,max]=key==='size'?[12,group==='text'?24:32]:key==='weight'?[100,900]:['opacity','hoverOpacity'].includes(key)?[0,1]:key==='width'?[0,4]:[0,32];
     if(!Number.isFinite(v)||v<min||v>max||(key==='weight'&&v%100!==0))throw Error('共用外观数值无效：'+key);
    }else if(typeof v!=='string'||!/^#[0-9a-f]{6}$/i.test(v))throw Error('共用外观颜色无效：'+key);
   }
@@ -54,6 +54,7 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  const fontVariables=`--mainFontSize:calc(${t.size}px * var(--fontScale, 1));${family||t.font!=='auto'?'--mainFontFamily:'+font+';':''}`;
  const bg=`rgba(${[1,3,5].map(i=>parseInt(p.background.slice(i,i+2),16)).join(',')},${p.opacity})`;
  const input=COMMON_FIELD_SELECTOR,button=COMMON_BUTTON_SELECTOR;
+ const buttonBackground=(color,opacity)=>opacity===1?color:`rgba(${[1,3,5].map(i=>parseInt(color.slice(i,i+2),16)).join(',')},${opacity})`;
  const disabled=':is(:disabled,[disabled],.disabled,[aria-disabled=true])';
  const headings=preview?':is(h3,.standoutHeader,.inline-drawer-header,.title_restorable)':':is(h3,:where(#user-settings-block) h4,:where(#rm_button_selected_ch) h2,.standoutHeader,.inline-drawer-header,.title_restorable)';
  const roots=[page,home].filter(Boolean).join(',');
@@ -77,9 +78,9 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  add(scope(':is(input,textarea)::placeholder'),`color:${t.muted}!important;opacity:1!important`);
  add(scope(`${input}[readonly]:not(:disabled)`),`border-style:dashed!important;color:${t.muted}!important`);
  // Native text buttons declare their own font; icon buttons keep Font Awesome.
- add(scope(button),`color:${b.color}!important;background:${b.background}!important;border:1px solid ${b.border}!important;border-radius:${b.radius}px!important;box-shadow:none!important;text-shadow:none!important;filter:none!important`);
+ add(scope(button),`color:${b.color}!important;background:${buttonBackground(b.background,b.opacity)}!important;border:1px solid ${b.border}!important;border-radius:${b.radius}px!important;box-shadow:none!important;text-shadow:none!important;filter:none!important`);
  add(scope(`${button}:not(:is(.fa,.fas,.far,.fab,.fa-solid,.fa-regular,.fa-brands,.fa-light,.fa-thin,.fa-duotone))`),`font-family:${font}!important;font-size:calc(${t.size}px * var(--fontScale, 1))!important`);
- add(scope(`${button}:not(${disabled}):is(:hover,.active,.toggled,.toggleEnabled,[aria-pressed=true])`),`background:${b.hover}!important;border-color:${f.focus}!important`);
+ add(scope(`${button}:not(${disabled}):is(:hover,.active,.toggled,.toggleEnabled,[aria-pressed=true])`),`background:${buttonBackground(b.hover,b.hoverOpacity)}!important;border-color:${f.focus}!important`);
  add(scope(':is(input,select,textarea,button,.menu_button,summary,[tabindex]):focus-visible'),`outline:2px solid ${f.focus}!important;outline-offset:2px!important`);
  add(scope(`:is(input,select,textarea,button,.menu_button)${disabled}`),'opacity:.5!important;cursor:not-allowed!important');
  add(scope('input[type=checkbox]'),`accent-color:${t.accent};background:${f.background}!important;border-color:${f.border}!important;box-shadow:none!important;filter:none!important`);
@@ -91,7 +92,7 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  add(`${scope(':is(.select2-selection--single,.select2-selection--multiple)')},${dropdown}`,`color:${f.color}!important;background:${f.background}!important;border:1px solid ${f.border}!important;border-radius:${f.radius}px!important;font-family:${font}!important;box-shadow:none!important;text-shadow:none!important`);
  add(select2(':is(.select2-selection__rendered,.select2-selection__clear,.select2-selection__choice__remove,.select2-results__option)'),`color:${f.color}!important`);
  add(select2(':is(.select2-selection__placeholder,.select2-results__option--disabled)'),`color:${t.muted}!important`);
- add(select2(':is(.select2-selection__choice,.select2-selection__choice__remove)'),`background:${b.background}!important;border-color:${f.border}!important`);
+ add(select2(':is(.select2-selection__choice,.select2-selection__choice__remove)'),`background:${buttonBackground(b.background,b.opacity)}!important;border-color:${f.border}!important`);
  add(select2('.select2-search__field'),`color:${f.color}!important;background:${f.background}!important;border-color:${f.border}!important;font-family:${font}!important`);
  add(select2('.select2-results__option--selectable'),`background:${f.background}!important;opacity:1!important`);
  add(select2(':is(.select2-results__option--highlighted,.select2-results__option--selected)'),`background:${b.hover}!important`);
@@ -106,5 +107,6 @@ export function commonStyleRules(config,{preview=false,family='',rootScope='',dr
  if(preview)rules.push(`@container(max-width:700px){${mobileFields}}`);
  return rules.join('\n');
 }
+
 
 

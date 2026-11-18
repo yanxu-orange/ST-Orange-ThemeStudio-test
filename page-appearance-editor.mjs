@@ -128,6 +128,8 @@ export function createPageAppearanceEditor({
         ['hover', '按钮悬停底色'],
       ])
         control(field(label, key, 'color'));
+      control(field('按钮底色不透明度','opacity','range',{min:0,max:1,step:0.01}));
+      control(field('按钮悬停底色不透明度','hoverOpacity','range',{min:0,max:1,step:0.01}));
       control(
         field('按钮圆角', 'radius', 'range', { min: 0, max: 32, unit: 'px' }),
       );

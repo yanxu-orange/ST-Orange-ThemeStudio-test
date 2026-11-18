@@ -505,3 +505,9 @@ test('glass-only updates avoid message layout and preserve native nodes; stop re
  assert.equal(reads,0);assert.equal(document.querySelector('.name_text'),native);assert.equal(document.querySelector('.avatar img'),image);assert.ok(document.querySelector('[data-otl-glass=live]'));assert.ok(renders.every(r=>r.updated===0));
  c.glassStyle.global.opacity=.4;adapter.update(c);await settle();assert.equal(reads,0);adapter.stop();assert.equal(document.querySelector('[data-otl-glass=live]'),null);
 });
+
+test('button opacity and hover opacity remain CSS-only with native event identity',async()=>{
+ const renders=[],{document,adapter,settle}=environment({onRender:r=>renders.push(r)}),c=config();const panel=document.createElement('div');panel.id='WorldInfo';panel.className='drawer-content';const b=document.createElement('button');b.className='menu_button';panel.append(b);document.body.append(panel);let clicks=0;b.addEventListener('click',()=>clicks++);
+ c.commonStyle={button:{opacity:1,hoverOpacity:1}};adapter.start(c);await settle();renders.length=0;let reads=0;for(const el of document.querySelectorAll('.mes,.mes_block,.avatar'))el.getBoundingClientRect=()=>{reads++;return {width:300,height:100,left:0,top:0};};
+ c.commonStyle.button.opacity=.22;c.commonStyle.button.hoverOpacity=.4;adapter.update(c);await settle();assert.equal(reads,0);assert.ok(renders.every(r=>r.updated===0));assert.equal(document.querySelector('#WorldInfo button'),b);b.click();assert.equal(clicks,1);adapter.stop();b.click();assert.equal(clicks,2);
+});

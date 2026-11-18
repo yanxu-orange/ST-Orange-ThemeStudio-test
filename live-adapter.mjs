@@ -113,7 +113,7 @@ function normalizeLiveConfig(config){
   Object.assign(next,normalizeGlassConfig(next));if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
 }
 const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','bodyLeftBorderColor','glass','hideScrollbars','canvasBackground','canvasWallpaper','canvasWallpaperAsset','glassStyle']);
-const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity']);
+const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity','hoverOpacity']);
 const cssChromeFields=new Set(['color','borderColor','textColor','alpha','blur']);
 const nativeRoles = new Set(['ai', 'user']);
 const nativeStatNames = new Set(['floor', 'time', 'tokens']);
