@@ -78,6 +78,16 @@ ${nativeStatRules(q,c,families)}
 ${swipeExtraRules(q,c,families)}
 `;
 }
+// The host hides the More hint while its tray is expanded. Preserve its last
+// visible footprint so the independent Edit anchor does not jump on that toggle.
+const moreHintFootprints=new WeakMap();
+function moreHintFootprint(node,measured,style,size,font){
+ if(!node)return measured;
+ const key=[style.mode,style.text,style.imageSize,style.size,size,font].join('|'),cached=moreHintFootprints.get(node);
+ if(measured.width&&measured.height){moreHintFootprints.set(node,{key,box:measured});return measured;}
+ if(cached?.key===key)return cached.box;
+ return measured;
+}
 function box(node){if(!node||node.hidden)return {width:0,height:0};const css=node.ownerDocument.defaultView?.getComputedStyle?.(node);if(css?.display==='none'||css?.visibility==='hidden')return {width:0,height:0};const r=node.getBoundingClientRect();return {width:r.width||0,height:r.height||0};}
 const exists=d=>d.width>0&&d.height>0;
 function swipeContentBox(node){
@@ -114,7 +124,8 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  set('--on-head-height','0px');
  const widths=yield()=>({header:header.getBoundingClientRect().width,tools:s.actions.more.position==='footer'?block.getBoundingClientRect().width:null});
  const regionWidth=widths.header||Math.max(1,c.cardWidth-cardPadding(c)*2);set('--on-region-width',regionWidth+'px');set('--on-tools-max-width',((widths.tools??widths.header)||regionWidth)+'px');
- const {moreD,moreHintD,editD,editingD,sd,ld,rightD,counterD}=yield()=>({moreD:box(normal),moreHintD:box(normal?.querySelector('.extraMesButtonsHint')),editD:box(edit),editingD:box(editing),sd:stats.map(n=>n?.textContent.trim()?box(n):{width:0,height:0}),ld:box(left),rightD:splitCounter?box(rightArrow):swipeContentBox(right),counterD:splitCounter?box(counter):{width:0,height:0}});
+ const {moreD,moreHintD,editD,editingD,toolsD,sd,ld,rightD,counterD}=yield()=>({toolsD:box(extra),moreD:box(normal),moreHintD:box(normal?.querySelector('.extraMesButtonsHint')),editD:box(edit),editingD:box(editing),sd:stats.map(n=>n?.textContent.trim()?box(n):{width:0,height:0}),ld:box(left),rightD:splitCounter?box(rightArrow):swipeContentBox(right),counterD:splitCounter?box(counter):{width:0,height:0}});
+ const anchorHintD=moreHintFootprint(normal?.querySelector('.extraMesButtonsHint'),moreHintD,s.actions.more,s.actions.size,c.font);
  const ed=exists(editingD)?editingD:editD;
  const controls=[{key:'more',style:s.actions.more,d:moreD},{key:'edit',style:s.actions.edit,d:ed},...statKeys.map((key,i)=>({key,style:s.stats[key],d:sd[i]})),{key:'swipe',style:s.swipe,d:{width:ld.width+rightD.width+(exists(ld)&&exists(rightD)?s.swipe.gap:0),height:Math.max(ld.height,rightD.height)}}];
  // All controls share a stable area origin, never stacked group cursors. Negative
@@ -126,7 +137,9 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  const oldHead=header.querySelector(':scope > .otl-native-head');if(oldHead)remove(oldHead);
  set('--on-head-top','0px');
  const captionFooter=block.querySelector(':scope > .otl-footer');
- const footerHeight=yield()=>{if(!footerControls.length)return 0;const slotRect=footer.getBoundingClientRect(),footerRect=captionFooter?.getBoundingClientRect()||slotRect;return Math.max(0,...footerControls.map(v=>footerRect.top+v.style.y+v.d.height-slotRect.top));};
+ const footerHeight=yield()=>{if(!footerControls.length)return 0;const slotRect=footer.getBoundingClientRect(),footerRect=captionFooter?.getBoundingClientRect()||slotRect;
+  const trayBottom=s.actions.more.position==='footer'&&exists(toolsD)?Math.max(s.actions.more.y+(exists(moreHintD)?moreHintD.height:moreD.height),s.actions.edit.position==='footer'&&exists(ed)?s.actions.edit.y+ed.height:-Infinity)+6+toolsD.height:0;
+  return Math.max(0,footerRect.top+trayBottom-slotRect.top,...footerControls.map(v=>footerRect.top+v.style.y+v.d.height-slotRect.top));};
  set('--on-footer-height',(footerHeight>0?Math.ceil(footerHeight+8):0)+'px');
  // Footer heights can move later messages. Read all viewport origins after every
  // message has reserved its flow space, then write only absolute positions.
@@ -134,7 +147,7 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  const headerRect=header.getBoundingClientRect(),slotRect=footer?.getBoundingClientRect()||headerRect,footerRect=captionFooter?.getBoundingClientRect()||slotRect;
  const target=(key,baseline=0)=>{const {style:v,d}=controls.find(v=>v.key===key),isAction=key==='more'||key==='edit',r=v.position==='footer'?footerRect:headerRect;
   let x=baseline,y=0;
-  if(key==='edit'&&v.position==='footer'&&s.actions.more.position==='footer'&&exists(moreD))x=(exists(moreHintD)?moreHintD.width:moreD.width)+6;
+  if(key==='edit'&&v.position==='footer'&&s.actions.more.position==='footer'&&exists(moreD))x=(exists(anchorHintD)?anchorHintD.width:moreD.width)+6;
   if(isAction&&v.position==='header'){x=regionWidth-(key==='more'&&exists(moreHintD)?moreHintD.width:d.width)-(key==='more'&&s.actions.edit.position==='header'&&exists(ed)?ed.width+6:0);y=Math.max(0,headerRect.height-(key==='more'&&exists(moreHintD)?moreHintD.height:d.height))*({top:0,center:.5,bottom:1}[v.anchor]);}
   else if(v.position==='header')y=Math.max(0,headerRect.height-d.height-8);
   if(key==='counter')x=Math.max(0,(r.width||regionWidth)-d.width)*({left:0,center:.5,right:1}[v.anchor]);
@@ -151,7 +164,7 @@ export function* nativeLayout(msg,c,{createNode,removeNode,attribute,variable,la
  write(placements);
  // Edit and More's tray retain their native parent, whose position just changed.
  const nested=yield()=>{
-   const toolsD=box(extra),toolsWidth=moreRegion.width||regionWidth,points=[[extra,'tools',{left:Math.max(moreRegion.left,Math.min(mp.left,moreRegion.left+toolsWidth-toolsD.width)),top:mp.top+(exists(moreHintD)?moreHintD.height:moreD.height)+6}],[edit,'edit',ep]],origins=new Map(),placements=[];
+   const toolsWidth=moreRegion.width||regionWidth,toolsTop=Math.max(mp.top+(exists(moreHintD)?moreHintD.height:moreD.height),s.actions.edit.position===s.actions.more.position&&exists(ed)?ep.top+ed.height:-Infinity)+6,points=[[extra,'tools',{left:Math.max(moreRegion.left,Math.min(mp.left,moreRegion.left+toolsWidth-toolsD.width)),top:toolsTop}],[edit,'edit',ep]],origins=new Map(),placements=[];
    if(cp&&counter)points.push([counter,'counter',cp]);
    for(const [node,key,point]of points){if(!node)continue;const offset=node.offsetParent||(key==='counter'?right:normal)||header;let r=origins.get(offset);if(!r){r=offset.getBoundingClientRect();origins.set(offset,r);}placements.push({key,x:point.left-r.left-(offset.clientLeft||0)+(offset.scrollLeft||0),y:point.top-r.top-(offset.clientTop||0)+(offset.scrollTop||0)});}
    return placements;
