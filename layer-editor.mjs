@@ -1,9 +1,11 @@
+import {activateEditedRegion} from './edit-activation.mjs';
+import {prepareCropSource,cropOutputSize} from './crop-source.mjs';
+import {renderImageSizing} from './image-sizing-editor.mjs';
 import { isLineShape, lineThicknessTarget } from './shape-assets.mjs';
 import { LAYER_LIMIT, newLayer, clone, cropRect } from './layers.mjs';
 import { uniqueId } from './unique-id.mjs';
 import { matchingLayers } from './workbench-ui.mjs';
 import { builtinAssetGroups, ASSETS } from './catalog.mjs';
-import { inspectImageBlob, dataUrlToBlob } from './image-processing.mjs';
 import { MAX_IMAGE_DATA_LENGTH } from './image-sources.mjs';
 import {
   regionEntries,
@@ -120,6 +122,8 @@ export function createLayerEditor({
           notify('裁剪已应用，可撤销；保存后记住。');
         } catch (error) {
           if (valid()) feedbackStatus(report, 0, uploadFailure(error));
+        } finally {
+          if(valid())renderFields('decoration');
         }
       });
       commands.append(crop);
@@ -323,8 +327,11 @@ export function createLayerEditor({
       'opacity',
     ];
     fields.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+    const sizingEpoch=getEditEpoch(),sizingRegion=getUi().region;
+    if(layer.kind!=='shape')renderImageSizing({container,layer,document,make,remember,apply,renderFields,notify,shadow,scope:getPhotoScope(),isCurrent:()=>isActive()&&getEditEpoch()===sizingEpoch&&getUi().region===sizingRegion&&getSelectedLayerId()===layer.id&&getConfig().layers.includes(layer)});
     let availability;
     for (const f of fields) {
+      if(layer.kind!=='shape'&&['widthUnit','width','heightPercent'].includes(f.key))continue;
       if (
         f.key === 'z' ||
         (layer.kind === 'shape' &&
@@ -400,7 +407,10 @@ export function createLayerEditor({
           tracking = true;
         }
         layer[f.key] = value;
-        if (layer.anchor === 'input') layer.scope = 'both';
+        if (layer.anchor === 'input') {
+          layer.scope = 'both';
+          if (f.key === 'anchor') activateEditedRegion(getConfig(), {region:'input'});
+        }
         if (number) number.value = value;
         input.value = String(value);
         apply();
@@ -456,20 +466,13 @@ export function createLayerEditor({
     }
   }
   async function cropImage(source, mime, valid = () => isActive()) {
-    let animated = mime === 'image/gif';
-    if (source.startsWith('data:')) {
-      animated = (await inspectImageBlob(dataUrlToBlob(source))).animated;
-    }
-    if (animated) {
-      notify('动画素材保持原样，暂不支持动画裁剪。');
-      return null;
-    }
-    const image = new Image();
-    image.src = source;
-    await image.decode();
+    const prepared = await prepareCropSource(source);
     if (!valid()) return null;
-    if (image.naturalWidth * image.naturalHeight > 40000000)
-      throw Error('图片像素过大');
+    if (prepared.animated) { notify('动画素材保持原样，暂不支持动画裁剪。'); return null; }
+    const image = new Image(), objectUrl = URL.createObjectURL(prepared.blob);
+    try { image.src=objectUrl; await image.decode(); }
+    catch(error){ URL.revokeObjectURL(objectUrl); throw Error('图片未能解码，原图未改变。'); }
+    if (!valid()) { URL.revokeObjectURL(objectUrl); return null; }
     return new Promise((resolve) => {
       const dialog = make('dialog', 'crop-dialog');
       const canvas = make('canvas');
@@ -588,6 +591,7 @@ export function createLayerEditor({
         if (getCancelCrop() === cancel) setCancelCrop(null);
         dialog.close();
         dialog.remove();
+        URL.revokeObjectURL(objectUrl);
         resolve(valid() ? value : null);
       };
       setCancelCrop(cancel);
@@ -598,7 +602,14 @@ export function createLayerEditor({
         [
           '使用裁剪图',
           () => {
-            const output = canvas.toDataURL('image/png');
+            let output;
+            try {
+              const rect=cropRect(image.naturalWidth,image.naturalHeight,ratio,zoom,panX,panY),size=cropOutputSize(rect),full=make('canvas');
+              full.width=size.width;full.height=size.height;
+              full.getContext('2d').drawImage(image,rect.x,rect.y,rect.width,rect.height,0,0,size.width,size.height);
+              output=full.toDataURL('image/png');
+              full.width=full.height=1;
+            } catch(error) { notice.textContent='裁剪失败，原图未改变：'+error.message; return; }
             if (output.length > MAX_IMAGE_DATA_LENGTH) {
               notice.textContent = '裁剪图片过大，请缩小取景或保持原图。';
               return;
@@ -623,8 +634,7 @@ export function createLayerEditor({
         finish(null);
       });
       shadow.append(dialog);
-      draw();
-      dialog.showModal();
+      try { draw(); dialog.showModal(); } catch(error) { notify('裁剪预览失败，原图未改变：'+error.message); finish(null); }
     });
   }
 
@@ -711,3 +721,4 @@ export function createLayerEditor({
 
   return { renderLayers, renderRegionLayers, cropImage };
 }
+

@@ -1,3 +1,4 @@
+import {imageSizeStyle,imageDimensions} from './image-sizing.mjs';
 // A complete editor gesture is one change; cancellation writes no config.
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function localDelta(dx,dy,m=[1,0,0,1]){
@@ -34,6 +35,13 @@ function pinchShape(layer,ratio,dx,dy,width,height,renderedWidth,renderedHeight,
 }
 export function pinchLayer(layer,ratio,dx,dy,width,height,renderedWidth,renderedHeight,m=[1,0,0,1],parentHeightForWidth=null){
  if(!(ratio>0&&layer.width>0&&renderedWidth>0&&renderedHeight>0))return null;
+ if(layer.imageSizing){
+  const v=layer.imageSizing,proxy={...layer,kind:'shape',height:v.height,heightUnit:v.heightUnit};
+  if(v.mode==='cover'||v.lockRatio){proxy.width=renderedWidth/(layer.widthUnit==='percent'?width/100:1);proxy.height=renderedHeight/(v.heightUnit==='percent'?height/100:1);}
+  const next=pinchShape(proxy,ratio,dx,dy,width,height,renderedWidth,renderedHeight,m,parentHeightForWidth?((w,h)=>parentHeightForWidth(w,h,{...v,mode:'manual',driver:'width',height:h})):null);
+  if(!next)return null;const {height:nextHeight,...rest}=next;
+  return {...rest,imageSizing:{...v,mode:'manual',height:nextHeight,driver:'width',ratio:v.mode==='cover'?renderedWidth/renderedHeight:v.ratio}};
+ }
  if(layer.kind==='shape')return pinchShape(layer,ratio,dx,dy,width,height,renderedWidth,renderedHeight,m,parentHeightForWidth);
  let max=500/layer.width;
  if(layer.heightPercent>0){
@@ -71,7 +79,7 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
  function cancel(){const s=session;session=null;if(!s)return;for(const [key,r]of s.writes)if(s.node.style.getPropertyValue(key)===r.last){if(r.old)s.node.style.setProperty(key,r.old,r.priority);else s.node.style.removeProperty(key);}if(s.oldStyle===null&&!s.node.getAttribute('style'))s.node.removeAttribute('style');for(const id of s.points.keys())try{s.node.releasePointerCapture?.(id);}catch{}if(s.changed)suppressUntil=Date.now()+400;}
  function rememberStyle(s,key){if(!s.writes.has(key))s.writes.set(key,{old:s.node.style.getPropertyValue(key),priority:typeof s.node.style.getPropertyPriority==='function'?s.node.style.getPropertyPriority(key):'',last:null});return s.writes.get(key);}
  function write(s,key,value,priority=''){const r=rememberStyle(s,key);s.node.style.setProperty(key,value,priority);r.last=s.node.style.getPropertyValue(key);}
- function rebase(s){const values=[...s.points.values()];s.base={...s.target.item,...s.next};if(s.target.parentHeightForWidth)s.height=s.target.parentHeightForWidth(s.base.width,s.base.height);s.origin=values.length===2?{x:(values[0].x+values[1].x)/2,y:(values[0].y+values[1].y)/2,distance:Math.hypot(values[1].x-values[0].x,values[1].y-values[0].y)}:{...values[0]};s.renderedWidth=s.initialWidth*(s.base.width/s.target.item.width||1);s.renderedHeight=s.initialHeight*(s.base.width/s.target.item.width||1);}
+ function rebase(s){const values=[...s.points.values()];s.base={...s.target.item,...s.next};if(s.target.parentHeightForWidth)s.height=s.target.parentHeightForWidth(s.base.width,s.base.imageSizing?.height??s.base.height,s.base.imageSizing);s.origin=values.length===2?{x:(values[0].x+values[1].x)/2,y:(values[0].y+values[1].y)/2,distance:Math.hypot(values[1].x-values[0].x,values[1].y-values[0].y)}:{...values[0]};if(s.base.imageSizing){const d=imageDimensions(s.base,{width:s.width,height:s.height});s.renderedWidth=d.width;s.renderedHeight=d.height;}else{s.renderedWidth=s.initialWidth*(s.base.width/s.target.item.width||1);s.renderedHeight=s.initialHeight*(s.base.width/s.target.item.width||1);}}
  function capture(s,id){try{s.node.setPointerCapture?.(id);return true;}catch{cancel();return false;}}
  function down(e){if(!session)suppressUntil=0;if(e.button!==undefined&&e.button!==0)return;const node=e.target.closest?.(selector);
   if(session){const s=session;if(s.points.has(e.pointerId))return;if(!s.target.image||s.points.size>=2||node!==s.node){cancel();return;}s.points.set(e.pointerId,{x:e.clientX,y:e.clientY});if(capture(s,e.pointerId))rebase(s);return;}
@@ -84,9 +92,9 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
   if(values.length===2){const distance=Math.hypot(values[1].x-values[0].x,values[1].y-values[0].y);if(s.origin.distance<4)return;const dx=(values[0].x+values[1].x)/2-s.origin.x,dy=(values[0].y+values[1].y)/2-s.origin.y;if(Math.abs(distance-s.origin.distance)<4&&Math.hypot(dx,dy)<4&&!s.changed)return;next=pinchLayer(s.base,distance/s.origin.distance,dx,dy,s.width,s.height,s.renderedWidth,s.renderedHeight,s.matrix,s.target.parentHeightForWidth);}
   else {const dx=e.clientX-s.origin.x,dy=e.clientY-s.origin.y;if(Math.hypot(dx,dy)<4&&!s.changed)return;next=s.target.image?dragPosition(s.base,dx,dy,s.width,s.height,s.matrix):textDragPosition(s.base,dx,dy,s.width,s.matrix,s.target);}
   if(!next)return;e.preventDefault();s.changed=true;s.next={...s.next,...next};
-  if(s.target.image){const unit=s.base.offsetUnit==='percent'?'%':'px',parentHeight=s.target.parentHeightForWidth?.(s.next.width??s.base.width,s.next.height??s.base.height);let y=next.y;
+  if(s.target.image){const unit=s.base.offsetUnit==='percent'?'%':'px',parentHeight=s.target.parentHeightForWidth?.(s.next.width??s.base.width,s.next.imageSizing?.height??s.next.height??s.base.imageSizing?.height??s.base.height,s.next.imageSizing??s.base.imageSizing);let y=next.y;
    if(parentHeight){const pixels=y*(unit==='%'?parentHeight/100:1)-(s.base.vertical==='bottom'?parentHeight-s.initialParentHeight:0);y=pixels*(unit==='%'?100/s.initialParentHeight:1);}
-   write(s,s.base.side,next.x+unit);write(s,s.base.vertical,y+unit);if(next.width!==undefined)write(s,'width',next.width+(s.base.widthUnit==='percent'?'%':'px'));if(s.base.kind==='shape'&&s.next.height!==undefined)write(s,'height',s.base.heightUnit==='percent'?(parentHeight?(parentHeight*s.next.height/100)+'px':s.next.height+'%'):s.next.height+'px');else if(s.next.heightPercent!==undefined)write(s,'height',parentHeight?(parentHeight*s.next.heightPercent/100)+'px':s.next.heightPercent+'%');if(s.target.onPreview){const clip=rememberStyle(s,'clip-path');s.target.onPreview();clip.last=s.node.style.getPropertyValue('clip-path');}}
+   write(s,s.base.side,next.x+unit);write(s,s.base.vertical,y+unit);if(next.width!==undefined)write(s,'width',next.width+(s.base.widthUnit==='percent'?'%':'px'));if(s.base.kind==='shape'&&s.next.height!==undefined)write(s,'height',s.base.heightUnit==='percent'?(parentHeight?(parentHeight*s.next.height/100)+'px':s.next.height+'%'):s.next.height+'px');else if(s.next.heightPercent!==undefined)write(s,'height',parentHeight?(parentHeight*s.next.heightPercent/100)+'px':s.next.heightPercent+'%');if(s.next.imageSizing){const styles=imageSizeStyle({...s.base,...s.next});for(const [key,value]of Object.entries(styles))write(s,key.replace(/[A-Z]/g,c=>'-'+c.toLowerCase()),value);}if(s.target.onPreview){const clip=rememberStyle(s,'clip-path');s.target.onPreview();clip.last=s.node.style.getPropertyValue('clip-path');}}
   else {const dx=(next.x-s.target.item.x)*(s.target.percentX===false?1:s.width/100),dy=next.y-s.target.item.y;write(s,'translate',`${dx}px ${dy}px`,'important');write(s,'--sc-drag-x',dx+'px');write(s,'--sc-drag-y',dy+'px');}
  }
  function up(e){const s=session;if(!s||!s.points.has(e.pointerId))return;if(!valid(s)){cancel();return;}s.points.delete(e.pointerId);try{s.node.releasePointerCapture?.(e.pointerId);}catch{}
@@ -98,4 +106,5 @@ export function createLayerDrag({document,getState,getTextTarget=()=>null,getLay
  document.defaultView?.addEventListener?.('blur',cancel);document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel();});
  return {refresh,cancel,reset,get dragging(){return !!session;}};
 }
+
 

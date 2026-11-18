@@ -1,3 +1,4 @@
+import {imageDimensions} from './image-sizing.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {layerSizeStyle} from './shape-assets.mjs';
 import {regionZ,imageKey} from './region-layers.mjs';
@@ -48,13 +49,13 @@ export function renderFooter(message,c,{createNode,removeNode,resolveArtwork,onI
  const oldImages=new Map([...art.children].map(n=>[n.dataset.layerId,n]));
  for(const l of layers){const src=resolveArtwork(l);if(!src)continue;let node=oldImages.get(l.id);oldImages.delete(l.id);if(!node){node=create('img','otl-footer-image'+(interactive?' otl-decoration':''),art);node.dataset.layerId=l.id;node.alt=interactive?l.name:'';node.addEventListener('load',onImageLoad);node.addEventListener('error',onImageLoad);if(interactive){node.dataset.pick='decoration';node.tabIndex=0;node.setAttribute('role','button');}else node.setAttribute('aria-hidden','true');}
   if(interactive){node.alt=l.name;node.setAttribute('aria-label','选择素材：'+l.name);}if(node.getAttribute('src')!==src)node.src=src;
-  Object.assign(node.style,{...layerSizeStyle(l),objectPosition:l.side+' '+l.vertical,left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:regionZ(c,'footer',imageKey(l.id))});art.append(node);
+  Object.assign(node.style,{...layerSizeStyle(l),left:'auto',right:'auto',top:'auto',bottom:'auto',[l.side]:l.x+(l.offsetUnit==='percent'?'%':'px'),[l.vertical]:l.y+(l.offsetUnit==='percent'?'%':'px'),opacity:l.opacity,transform:`rotate(${l.rotation}deg)`,zIndex:regionZ(c,'footer',imageKey(l.id))});art.append(node);
  }
  for(const node of oldImages.values())remove(node);
  return root;
 }
 export function footerBaseHeight(flowHeight,width,layers,images){
- return Math.max(0,flowHeight,...layers.filter(l=>images.some(n=>n.dataset.layerId===l.id)).map(l=>{const n=images.find(n=>n.dataset.layerId===l.id),ratio=n?.naturalWidth>0&&n?.naturalHeight>0?n.naturalHeight/n.naturalWidth:1;const resolvedWidth=l.widthUnit==='percent'?width*l.width/100:l.width;return l.kind==='shape'?(l.heightUnit==='px'?l.height:resolvedWidth):resolvedWidth*ratio;}));
+ return Math.max(0,flowHeight,...layers.filter(l=>images.some(n=>n.dataset.layerId===l.id)).map(l=>{const n=images.find(n=>n.dataset.layerId===l.id),ratio=n?.naturalWidth>0&&n?.naturalHeight>0?n.naturalHeight/n.naturalWidth:1;const resolvedWidth=l.widthUnit==='percent'?width*l.width/100:l.width;if(l.imageSizing){const s=l.imageSizing;if(s.mode==='cover'||s.heightUnit==='percent'&&(!s.lockRatio||s.driver==='height'))return s.footerBase??resolvedWidth*ratio;return imageDimensions(l,{width,height:Math.max(flowHeight,resolvedWidth*ratio),ratio:1/ratio}).height;}return l.kind==='shape'?(l.heightUnit==='px'?l.height:resolvedWidth):resolvedWidth*ratio;}));
 }
 export function footerUnion(origin,nodes){let top=0,bottom=0;for(const n of nodes){const r=n.getBoundingClientRect();if(!r.width||!r.height)continue;top=Math.min(top,r.top-origin);bottom=Math.max(bottom,r.bottom-origin);}return {top:Math.max(0,Math.ceil(-top)),height:Math.max(0,Math.ceil(bottom))+Math.max(0,Math.ceil(-top))};}
 export function nativeFooterClearance(message){
@@ -72,3 +73,4 @@ export function* footerLayout(message,c){
  const base=yield()=>footerBaseHeight(flow.getBoundingClientRect().height,width,footerLayers(c,message.getAttribute('is_user')==='true'),images);set(scene,'height',base+'px');
  const {bounds,clearance}=yield()=>({bounds:footerUnion(scene.getBoundingClientRect().top,[...flow.children,...images]),clearance:c.nativeStyle?0:nativeFooterClearance(message)});set(scene,'top',bounds.top+'px');set(root,'height',(bounds.height+clearance)+'px');
 }
+

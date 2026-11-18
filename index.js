@@ -522,10 +522,12 @@ await (async () => {
         node.naturalWidth > 0 && node.naturalHeight > 0
           ? node.naturalHeight / node.naturalWidth
           : 1;
-    const parentHeightForWidth = (nextWidth, nextHeight) =>
+    const parentHeightForWidth = (nextWidth, nextHeight, sizing=item.imageSizing) =>
       Math.max(
         fixed,
-        item.kind === 'shape'
+        item.imageSizing
+          ? footerBaseHeight(flow.getBoundingClientRect().height,width,[{...item,width:nextWidth,imageSizing:{...sizing,...(nextHeight===undefined?{}:{height:nextHeight})}}],images)
+          : item.kind === 'shape'
           ? item.heightUnit === 'px'
             ? (nextHeight ?? item.height)
             : item.widthUnit === 'percent'

@@ -34,18 +34,18 @@ test('built-in artwork and raster image layers retain their image schema and siz
   assert.deepEqual(validateLayers(layers),layers);
   for(const layer of layers){
     assert.equal(SHAPE_KEYS.some(key=>Object.hasOwn(layer,key)),false);
-    assert.deepEqual(layerSizeStyle(layer),{width:'90px',height:'auto',objectFit:'contain'});
+    assert.deepEqual(layerSizeStyle(layer),{width:'90px',height:'auto',objectFit:'contain',aspectRatio:'auto',objectPosition:'right top'});
     assert.equal(shapeDataUrl(layer),'');
     assert.throws(()=>validateLayers([{...layer,color:'#ffffff'}]));
   }
-  assert.deepEqual(layerSizeStyle(newLayer('custom',{image,width:50,widthUnit:'percent',heightPercent:80})),{width:'50%',height:'80%',objectFit:'contain'});
+  assert.deepEqual(layerSizeStyle(newLayer('custom',{image,width:50,widthUnit:'percent',heightPercent:80})),{width:'50%',height:'80%',objectFit:'contain',aspectRatio:'auto',objectPosition:'right top'});
   assert.throws(()=>validateLayers([newLayer('custom',{image:'data:image/svg+xml,<svg onload="bad"/>'})]));
 });
 
 test('real independent dimensions are used for shape leaves in both unit modes',()=>{
-  assert.deepEqual(layerSizeStyle(newLayer('shape',{width:230,height:48})),{width:'230px',height:'48px',objectFit:'fill'});
-  assert.deepEqual(layerSizeStyle(newLayer('shape',{width:75,widthUnit:'percent',height:30,heightUnit:'percent'})),{width:'75%',height:'30%',objectFit:'fill'});
-  assert.deepEqual(layerSizeStyle(newLayer('shape',{width:75,widthUnit:'percent',height:30,heightUnit:'px'})),{width:'75%',height:'30px',objectFit:'fill'});
+  assert.deepEqual(layerSizeStyle(newLayer('shape',{width:230,height:48})),{width:'230px',height:'48px',objectFit:'fill',aspectRatio:'auto',objectPosition:'right top'});
+  assert.deepEqual(layerSizeStyle(newLayer('shape',{width:75,widthUnit:'percent',height:30,heightUnit:'percent'})),{width:'75%',height:'30%',objectFit:'fill',aspectRatio:'auto',objectPosition:'right top'});
+  assert.deepEqual(layerSizeStyle(newLayer('shape',{width:75,widthUnit:'percent',height:30,heightUnit:'px'})),{width:'75%',height:'30px',objectFit:'fill',aspectRatio:'auto',objectPosition:'right top'});
 });
 
 test('rectangle SVG uses actual dimensions and bounded round corners with no foreign markup',()=>{

@@ -35,3 +35,12 @@ test('page scene target resolver commits only the active page and cancels when i
  const event=(type,x,y)=>{const e=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:1,clientX:x,clientY:y,button:0,isPrimary:true});node.dispatchEvent(e);};
  event('pointerdown',0,0);event('pointermove',20,30);event('pointerup',20,30);assert.deepEqual(commits,[{x:30,y:50}]);event('pointerdown',0,0);event('pointermove',20,30);state.page='worldbook';drag.refresh();assert.equal(drag.dragging,false);event('pointerup',20,30);assert.equal(commits.length,1);drag.reset();assert.equal(node.hasAttribute('data-preview-draggable'),false);
 });
+
+
+test('height-driven image pinch rebases actual dimensions when fingers leave and rejoin',async()=>{
+ const {newLayer}=await import('./layers.mjs');const item=newLayer('custom',{id:'a',width:90,imageSizing:{mode:'manual',fit:'contain',height:200,heightUnit:'px',lockRatio:true,ratio:2,driver:'height',focalX:50,focalY:50}});
+ const {document,window}=parseHTML('<html><body><div data-orange-lab-fixture><div><img data-layer-id="a"></div></div></body></html>');window.getComputedStyle=()=>({transform:'none',zoom:'1'});const n=document.querySelector('img');Object.assign(n,{offsetWidth:400,offsetHeight:200});Object.defineProperties(n.parentElement,{clientWidth:{value:600},clientHeight:{value:400}});
+ const commits=[],drag=createLayerDrag({document,getState:()=>({active:true,page:'chat',mode:'edit',region:'header',kind:'image',object:'a',layers:[item],regionFor:()=> 'header'}),onCommit:(_,v)=>commits.push(v)});drag.refresh();
+ const event=(type,x,id)=>{const e=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:id,clientX:x,clientY:0,button:0,isPrimary:true});n.dispatchEvent(e);};
+ event('pointerdown',0,1);event('pointerdown',100,2);event('pointermove',110,2);assert.ok(Math.abs(parseFloat(n.style.width)-440)<.001);event('pointerup',110,2);event('pointerdown',110,2);event('pointermove',121,2);assert.ok(Math.abs(parseFloat(n.style.width)-484)<.001);event('pointerup',121,2);event('pointerup',0,1);assert.equal(commits.length,1);assert.ok(Math.abs(commits[0].width-484)<.001);assert.equal(item.width,90);drag.reset();
+});

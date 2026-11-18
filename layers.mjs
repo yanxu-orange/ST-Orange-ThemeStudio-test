@@ -1,3 +1,4 @@
+import {validateImageSizing} from './image-sizing.mjs';
 import {uniqueId} from './unique-id.mjs';
 export const LAYER_LIMIT = 20;
 import {ASSETS} from './catalog.mjs';
@@ -30,7 +31,7 @@ export function validateLayers(raw) {
     if (typeof layer.id !== 'string' || !/^[\w-]{1,80}$/.test(layer.id) || ids.has(layer.id)) throw Error('装饰标识无效或重复');
     ids.add(layer.id);
     const out = newLayer(layer.kind, {id:layer.id});
-    if(Object.keys(layer).some(key=>!Object.hasOwn(out,key)))throw Error('装饰包含未知参数');
+    if(Object.keys(layer).some(key=>!Object.hasOwn(out,key)&&key!=='imageSizing'))throw Error('装饰包含未知参数');
     if (typeof layer.name !== 'string' || layer.name.length > 80) throw Error('装饰名称过长');
     out.name = layer.name;
     for (const [key, min, max] of [['width',1,500],['x',-300,600],['y',-300,600],['opacity',0,1],['rotation',-180,180],['z',0,20]]) {
@@ -53,6 +54,7 @@ export function validateLayers(raw) {
     if(layer.kind==='asset'&&!out.asset)throw Error('未指定内置素材');
     if (layer.image && !validImage(layer.image)) throw Error('装饰图片格式不支持');
     out.image = layer.image || '';
+    if(layer.imageSizing!==undefined){if(layer.kind==='shape')throw Error('形状不能包含图片尺寸');out.imageSizing=validateImageSizing(layer.imageSizing);}
     if(layer.kind==='shape'){
       if(out.image||out.asset||out.heightPercent!==0)throw Error('形状不能包含图片或图片区域高度');
       Object.assign(out,validateShapeSettings(layer));
@@ -68,3 +70,4 @@ export function cropRect(width, height, ratio, zoom = 1, panX = 50, panY = 50) {
   const h = w / ratio;
   return {x:(width-w)*panX/100, y:(height-h)*panY/100, width:w, height:h};
 }
+

@@ -511,3 +511,15 @@ test('button opacity and hover opacity remain CSS-only with native event identit
  c.commonStyle={button:{opacity:1,hoverOpacity:1}};adapter.start(c);await settle();renders.length=0;let reads=0;for(const el of document.querySelectorAll('.mes,.mes_block,.avatar'))el.getBoundingClientRect=()=>{reads++;return {width:300,height:100,left:0,top:0};};
  c.commonStyle.button.opacity=.22;c.commonStyle.button.hoverOpacity=.4;adapter.update(c);await settle();assert.equal(reads,0);assert.ok(renders.every(r=>r.updated===0));assert.equal(document.querySelector('#WorldInfo button'),b);b.click();assert.equal(clicks,1);adapter.stop();b.click();assert.equal(clicks,2);
 });
+
+test('imageSizing reaches actual live leaves and restores legacy fitting on undo',async()=>{
+ const {coverImage,editImageSize}=await import('./image-sizing.mjs');const {document,adapter,settle}=environment(),c=config();
+ const initial=newLayer('custom',{id:'sizing-actual',image:'https://example.com/a.png',width:100,side:'left',vertical:'bottom'});
+ for(const anchor of ['header','avatar','message','reasoning-entry','reasoning-body','footer']){
+  c.layers=[coverImage({...initial,anchor},{width:400,height:200,ratio:2})];adapter.start(c);await settle();
+  let node=document.querySelector('[data-layer-id="sizing-actual"]');assert.ok(node,anchor);assert.equal(node.style.objectFit,'cover',anchor);assert.equal(node.style.width,'100%');assert.equal(node.style.height,'100%');
+  c.layers=[editImageSize(c.layers[0],'focalX',15,{width:400,height:200,ratio:2})];adapter.update(c);await settle();node=document.querySelector('[data-layer-id="sizing-actual"]');assert.equal(node.style.objectPosition,'15% 50%');
+  c.layers=[{...initial,anchor}];adapter.update(c);await settle();node=document.querySelector('[data-layer-id="sizing-actual"]');assert.equal(node.style.objectFit,'contain');assert.equal(node.style.height,'auto');assert.equal(node.style.aspectRatio,'auto');assert.equal(node.style.objectPosition,'left bottom');
+ }
+ adapter.stop();assert.equal(document.querySelector('[data-layer-id="sizing-actual"]'),null);
+});

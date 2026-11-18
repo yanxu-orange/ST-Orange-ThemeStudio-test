@@ -1,3 +1,4 @@
+import {imageSizeStyle} from './image-sizing.mjs';
 /** Recolorable vector layers. All SVG content is generated from validated values. */
 export const SHAPES = Object.freeze(['rectangle','star','heart','line','dashed','dotted','wave']);
 export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心',line:'实线',dashed:'虚线',dotted:'点线',wave:'波浪线'});
@@ -27,10 +28,10 @@ export function validateShapeSettings(layer){
 
 /** Same dimension declarations in all preview and live artwork destinations. */
 export function layerSizeStyle(layer){
-  return {
+  return imageSizeStyle(layer)||{
     width:layer.width+(layer.widthUnit==='percent'?'%':'px'),
     height:layer.kind==='shape'?layer.height+(layer.heightUnit==='percent'?'%':'px'):layer.heightPercent?layer.heightPercent+'%':'auto',
-    objectFit:layer.kind==='shape'?'fill':'contain',
+    objectFit:layer.kind==='shape'?'fill':'contain',aspectRatio:'auto',objectPosition:layer.side+' '+layer.vertical,
   };
 }
 
