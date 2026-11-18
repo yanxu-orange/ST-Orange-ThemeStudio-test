@@ -740,6 +740,7 @@ await (async () => {
       hidden: ui.libraryExpanded,
       preserveTopbar: collapsed,
     });
+    liveAdapter.syncIsland();
   }
 
   function beginUploadFeedback(source, target, files) {
@@ -1666,6 +1667,7 @@ await (async () => {
       renderFields,
     });
   const { renderChromeFields } = createChromeEditor({
+    resetIslandPosition: liveAdapter.resetIslandPosition,
     renderGlassFields,
     getConfig: () => config,
     getUi: () => ui,

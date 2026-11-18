@@ -458,7 +458,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(!snapshot)return start(config);
     pendingConfig=validated?snapshotDraft(config):normalizeLiveConfig(config);requestFlush();return {messages:states.size};
   }
-  return {start,update,stop,reconcile,fontStatus:key=>fontSession?.status(key)||'idle',retryFonts:()=>fontSession?.retry(),get active(){return !!snapshot;},get messageCount(){return states.size;}};
+  return {start,update,stop,reconcile,syncIsland:chrome.syncIsland,resetIslandPosition:chrome.resetIslandPosition,fontStatus:key=>fontSession?.status(key)||'idle',retryFonts:()=>fontSession?.retry(),get active(){return !!snapshot;},get messageCount(){return states.size;}};
 }
 
 

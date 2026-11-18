@@ -3,8 +3,10 @@ import {regionZ,imageKey} from './region-layers.mjs';
 import {layerSizeStyle} from './shape-assets.mjs';
 import {DRAWERS,INPUT_ICONS,LIVE_CHROME_SELECTORS,chromeRules,chromeSourceUrl,chromeTopMetrics} from './chrome.mjs';
 import {interfaceFont} from './reasoning.mjs';
+import {createTopbarIsland} from './topbar-island.mjs';
 /** Owns only added pictures, private markers and a stylesheet. Never moves host controls or snapshots drafts. */
 export function createChromeAdapter({document,resolveArtwork,fitInput,MutationObserver:Observe,ResizeObserver:Resize}={}){
+ const island=createTopbarIsland(document);
  const owned=new Set(),attrs=new Map(),variables=new Map(),failed=new Map();let style=null,observer=null,stateObserver=null,config=null,families={},epoch=0,lastFit='',pending=false,resizer=null,observed=new Set(),lastWidth=0;
  const make=(tag,cls,parent,before=null)=>{const n=document.createElement(tag);n.className=cls;n.setAttribute('data-oc-owned','');owned.add(n);parent.insertBefore(n,before);return n;};
  function mark(node,key,value){let map=attrs.get(node);if(!map){map=new Map();attrs.set(node,map);}if(!map.has(key))map.set(key,{old:node.getAttribute(key),last:null});const r=map.get(key);r.last=value;if(value===null)node.removeAttribute(key);else if(node.getAttribute(key)!==value)node.setAttribute(key,value);}
@@ -65,7 +67,8 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
   if(!config)return;
   for(const n of [...owned])if(!n.isConnected){owned.delete(n);n.remove();}for(const [n,map]of attrs)if(!n.isConnected){restore(n,map);attrs.delete(n);}
   if(!config.chromeStyle.topbar.enabled)clearZone('topbar');if(!config.chromeStyle.input.enabled)clearZone('input');
-  const holder=document.querySelector('#top-settings-holder');let topSize=config.chromeStyle.topbar.iconSize;if(config.chromeStyle.topbar.enabled&&holder){const m=chromeTopMetrics(holder.clientWidth||holder.getBoundingClientRect().width||390,config.chromeStyle.topbar);topSize=m.icon;for(const [key,value]of Object.entries(m))variable(holder,'--oc-top-'+key,value+'px');}
+  const islandGeometry=island.update(config);
+  const holder=document.querySelector('#top-settings-holder');let topSize=config.chromeStyle.topbar.iconSize;if(config.chromeStyle.topbar.enabled&&holder){const m=chromeTopMetrics(holder.clientWidth||holder.getBoundingClientRect().width||390,config.chromeStyle.topbar);if(islandGeometry)m.icon=Math.min(topSize,Math.max(8,islandGeometry.slot-6));topSize=m.icon;for(const [key,value]of Object.entries(m))variable(holder,'--oc-top-'+key,value+'px');}
   if(config.chromeStyle.topbar.enabled)for(const [id]of DRAWERS)icon(document.getElementById(id)?.querySelector(':scope > .drawer-toggle .drawer-icon'),config.chromeStyle.topbar.icons[id],topSize,'topbar');
   if(config.chromeStyle.input.enabled)for(const [id]of INPUT_ICONS)icon(document.getElementById(id),config.chromeStyle.input.icons[id],config.chromeStyle.input.iconSize,'input');
   artwork();emptyText();const form=document.querySelector('#send_form'),width=form?.getBoundingClientRect().width||0;if(config.chromeStyle.input.enabled&&width!==lastWidth){lastWidth=width;fit();}
@@ -73,7 +76,7 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
  }
  function update(next,nextFamilies={}, {cssOnly=false}={}){
   config=next;families=nextFamilies;if(!style){style=make('style','',document.head);style.id='orange-theme-chrome-style';}const text=chromeRules(config,LIVE_CHROME_SELECTORS,families,interfaceFont(document));if(style.textContent!==text)style.textContent=text;
-  if(cssOnly&&observer)return;
+  if(cssOnly&&observer){island.update(config);return;}
   render();const key=config.chromeStyle.input.enabled?JSON.stringify([config.chromeStyle.input,families['chrome-input'],interfaceFont(document),config.font]):'';if(key!==lastFit){const was=lastFit;lastFit=key;if(key||was)fit();}
   if(!observer){const Observer=Observe||document.defaultView?.MutationObserver;if(Observer){
    observer=new Observer(records=>{
@@ -93,8 +96,8 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
    stateObserver=new Observer(records=>{if(!config||pending||!records.some(r=>!r.target.closest?.('[data-oc-owned]')&&r.target.matches?.('#send_form,#send_textarea,#mes_stop,#form_sheld')))return;pending=true;const token=epoch;queueMicrotask(()=>{pending=false;if(config&&token===epoch)render();});});stateObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','style','placeholder','connected_text','disabled','readonly','hidden']});
   }}
  }
- function stop(){const hadInput=config?.chromeStyle.input.enabled;config=null;epoch++;observer?.disconnect();observer=null;stateObserver?.disconnect();stateObserver=null;resizer?.disconnect();resizer=null;observed.clear();pending=false;clearZone('topbar');clearZone('input');failed.clear();for(const [node,map]of attrs)restore(node,map);attrs.clear();for(const node of owned)node.remove();owned.clear();style=null;lastFit='';if(hadInput)fit();}
- return {update,stop,render,refreshInput:()=>{if(config?.chromeStyle.input.enabled)fit();}};
+ function stop(){const hadInput=config?.chromeStyle.input.enabled;config=null;island.stop();epoch++;observer?.disconnect();observer=null;stateObserver?.disconnect();stateObserver=null;resizer?.disconnect();resizer=null;observed.clear();pending=false;clearZone('topbar');clearZone('input');failed.clear();for(const [node,map]of attrs)restore(node,map);attrs.clear();for(const node of owned)node.remove();owned.clear();style=null;lastFit='';if(hadInput)fit();}
+ return {update,stop,render,syncIsland:island.sync,resetIslandPosition:island.resetPosition,refreshInput:()=>{if(config?.chromeStyle.input.enabled)fit();}};
 }
 
 // Evaluate visibility at the lazy bridge boundary, after synchronous editor transitions finish.

@@ -1,5 +1,6 @@
 import { ICONS } from './icon-catalog.mjs';
 import { ASSETS } from './catalog.mjs';
+import { newTopbarIsland } from './chrome.mjs';
 export function createChromeEditor({
   getConfig,
   renderGlassFields,
@@ -16,6 +17,7 @@ export function createChromeEditor({
   notify,
   renderMaterialControl,
   renderIconAppearance,
+  resetIslandPosition,
 }) {
   function renderChromeFields(container) {
     const config = getConfig(),
@@ -32,7 +34,7 @@ export function createChromeEditor({
             notice: '页面美化已更新，尚未保存',
           }),
           target,
-          key === 'fontMode' ? () => renderFields() : undefined,
+          ['fontMode', 'colorMode'].includes(key) ? () => renderFields() : undefined,
         );
     };
     const range = (label, key, min, max, unit = 'px', step = 1) => [
@@ -62,7 +64,27 @@ export function createChromeEditor({
           range('左右内距', 'padX', 0, 32),
           range('上下内距', 'padY', 0, 32),
         ]);
+      } else {
+        editorControl(
+          container,
+          field('顶栏排版', 'layout', 'select', {
+            options: [['bar', '横栏'], ['island', '灵动岛']],
+            beforeApply: () => { v.enabled = true; },
+          }),
+          {
+            get layout() { return v.layout ?? 'bar'; },
+            set layout(value) {
+              if (value === 'bar') delete v.layout;
+              else {
+                v.layout = value;
+                v.island ??= newTopbarIsland();
+              }
+            },
+          },
+          () => renderFields(),
+        );
       }
+      if (!isInput && v.layout === 'island') propertyHeading(container, '展开的顶栏');
       propertyHeading(container, '背景');
       const glassActive=renderGlassFields?.(container,{region:zone});
       if(!glassActive)controls(v, [
@@ -85,7 +107,7 @@ export function createChromeEditor({
         ],
         ['区域边框颜色', 'borderColor', 'color'],
         range('区域边框粗细', 'borderWidth', 0, 6, 'px', 0.25),
-        range('区域圆角', 'radius', 0, 40),
+        ...(isInput || v.layout !== 'island' ? [range('区域圆角', 'radius', 0, 40)] : []),
       ]);
       if (!isInput) {
         propertyHeading(container, '图标与按钮尺寸');
@@ -95,6 +117,24 @@ export function createChromeEditor({
           range('顶栏按钮间距', 'gap', 0, 16),
           range('顶栏上下内距', 'padY', 0, 16),
         ]);
+        if (v.layout === 'island') {
+          propertyHeading(container, '收起的小球');
+          controls(v.island, [
+            ['小球底色来源', 'colorMode', 'select', { options: [['inherit', '跟随顶栏'], ['custom', '单独设置']] }],
+            ...(v.island.colorMode === 'custom' ? [['小球底色', 'color', 'color']] : []),
+            ['小球图标', 'icon', 'select', { options: [['', '省略号'], ...Object.entries(ICONS).map(([id, item]) => [id, item.name])] }],
+            ['小球默认位置', 'position', 'select', {
+              options: [['top-right', '右上角'], ['top-left', '左上角'], ['bottom-right', '右下角'], ['bottom-left', '左下角']],
+            }],
+          ]);
+          const reset = make('button', '', '恢复小球默认位置');
+          reset.type = 'button';
+          reset.addEventListener('click', () => {
+            resetIslandPosition?.();
+            notify('已恢复小球默认位置');
+          });
+          container.append(reset);
+        }
       }
     } else if (ui.kind === 'text') {
       propertyHeading(container, '字体设计');
