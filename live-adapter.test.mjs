@@ -495,3 +495,13 @@ test('body and native editors share baseline font scale without changing saved s
  }
  adapter.stop();
 });
+
+
+test('glass-only updates avoid message layout and preserve native nodes; stop removes SVG',async()=>{
+ const {newGlassStyle}=await import('./glass-model.mjs');const renders=[],{document,adapter,settle}=environment({onRender:r=>renders.push(r)});
+ const c=config();adapter.start(c);await settle();const native=document.querySelector('.name_text'),image=document.querySelector('.avatar img');renders.length=0;
+ let reads=0;for(const el of document.querySelectorAll('.mes,.mes_block,.avatar'))el.getBoundingClientRect=()=>{reads++;return {width:300,height:100,left:0,top:0};};
+ c.glassStyle=newGlassStyle();c.glassStyle.global.mode='liquid';adapter.update(c);await settle();
+ assert.equal(reads,0);assert.equal(document.querySelector('.name_text'),native);assert.equal(document.querySelector('.avatar img'),image);assert.ok(document.querySelector('[data-otl-glass=live]'));assert.ok(renders.every(r=>r.updated===0));
+ c.glassStyle.global.opacity=.4;adapter.update(c);await settle();assert.equal(reads,0);adapter.stop();assert.equal(document.querySelector('[data-otl-glass=live]'),null);
+});

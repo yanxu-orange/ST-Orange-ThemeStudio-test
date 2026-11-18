@@ -1,3 +1,4 @@
+import {GLASS_DEFAULTS,resolveGlass,ensureGlassStyle,normalizeGlassMaterial} from './glass-model.mjs';
 import { newPageHeaderImage, newPageHeaderText } from './page-header-scene.mjs';
 import { regionForImage, regionOrder, syncRegionOrder } from './region-layers.mjs';
 import { resolveMetadata, metadataItem } from './native-metadata.mjs';
@@ -88,6 +89,7 @@ export function captureCombination(config,region,pageId) {
   }
   if(region==='input')result.chrome=resolvedInput(config);
   if(region==='topbar')result.chrome=clone(config.chromeStyle.topbar);
+  if(['input','topbar'].includes(region)&&config.glassStyle)result.glass=resolveGlass(config,region);
   return clone(result);
 }
 function checked(combination) {
@@ -177,7 +179,11 @@ export function applyCombination(config,combination,pageId,{moveNative=false}={}
   if(region==='footer')out.footerCaptions=clone(combo.captions);
   if(['header','footer'].includes(region))applyNative(out,combo,config);
   if(['home','page'].includes(region)){const page=region==='home'?'home':pageId??combo.pageId;out.pageHeaders[page]=pageHeaderForTarget(out,combo,page);}
-  if(['input','topbar'].includes(region))out.chromeStyle[region]=clone(combo.chrome);
+  if(['input','topbar'].includes(region)){
+    out.chromeStyle[region]=clone(combo.chrome);
+    if(combo.glass!==undefined){const material=normalizeGlassMaterial(combo.glass);ensureGlassStyle(out).regions[region]={source:'custom',material};}
+    else if(out.glassStyle){const v=combo.chrome;out.glassStyle.regions[region]=v.blur>0?{source:'custom',material:{...GLASS_DEFAULTS,mode:'frosted',color:v.color,opacity:v.alpha,blur:v.blur,highlight:0}}:{source:'none'};}
+  }
   return syncRegionOrder(out);
 }
 

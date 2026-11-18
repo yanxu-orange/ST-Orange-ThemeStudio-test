@@ -1,3 +1,4 @@
+import {createGlassEditor} from './glass-editor.mjs';
 import { avatarCombinationScheme } from './default-layout.mjs';
 import { activateEditedRegion } from './edit-activation.mjs';
 import { createCombinationLibrary } from './combination-library.mjs';
@@ -1572,7 +1573,9 @@ await (async () => {
     },
     invalidateEditing,
   });
+  const {renderGlassFields}=createGlassEditor({getConfig:()=>config,make,field,editorControl,propertyHeading,remember,apply,renderFields,notify});
   const { renderCommonFields, renderPageFields } = createPageAppearanceEditor({
+    renderGlassFields,
     getUi: () => ui,
     make,
     workbench,
@@ -1661,6 +1664,7 @@ await (async () => {
       renderFields,
     });
   const { renderChromeFields } = createChromeEditor({
+    renderGlassFields,
     getConfig: () => config,
     getUi: () => ui,
     propertyHeading,
@@ -1807,7 +1811,7 @@ await (async () => {
       )
         ui.region = 'page-common';
       if (ui.region === 'page-common') {
-        kinds = COMMON_PARTS;
+        kinds = [...COMMON_PARTS,['glass','玻璃效果']];
         title = PAGE_NAMES[ui.page] + ' / 页面基础';
       } else if (ui.region === 'page-bai') {
         kinds = [
@@ -1843,7 +1847,7 @@ await (async () => {
               : '设置分组';
       }
     } else if (commonEditing) {
-      kinds = COMMON_PARTS;
+      kinds = [...COMMON_PARTS,['glass','玻璃效果']];
       title = '全局基础 / 界面共用';
     } else if (unavailable)
       title =
@@ -2240,12 +2244,8 @@ await (async () => {
           container.append(notice, migrate);
         }
         propertyHeading(container, '配色与透明');
-        renderConfigFields(container, [
-          'surface',
-          'accent',
-          'surfaceOpacity',
-          'glass',
-        ]);
+        const glassActive=renderGlassFields(container,{region:'message'});
+        renderConfigFields(container, glassActive?['accent']:['surface','accent','surfaceOpacity',...(config.glassStyle?[]:['glass'])]);
       }
       if (ui.region === 'header' && ui.kind === 'region') {
         renderHeaderHeightFields(container);
@@ -2874,3 +2874,4 @@ await (async () => {
     }
   }
 })();
+

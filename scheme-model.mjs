@@ -1,3 +1,4 @@
+import {newGlassStyle,normalizeGlassStyle} from './glass-model.mjs';
 import { defaultReadingScheme } from './default-layout.mjs';
 import {
   TEXT_DEFAULTS,
@@ -433,6 +434,7 @@ export function createSchemeModel() {
         throw Error('排版值无效');
       result.layout = raw.layout;
     }
+    if(raw.glassStyle!==undefined)result.glassStyle=normalizeGlassStyle(raw.glassStyle);
     result.metadata = validateMetadata(raw.metadata);
     result.pageHeaders = normalizePageHeaders(raw).pageHeaders;
     result.pageStyle = normalizePageConfig(raw).pageStyle;
@@ -476,5 +478,6 @@ export function createSchemeModel() {
   }
 
   templates.blank = validate(defaultReadingScheme(validate(templates.blank)));
+  templates.blank.glassStyle = newGlassStyle();
   return { fonts, base, templates, field, groups, validate };
 }

@@ -71,8 +71,9 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
   artwork();emptyText();const form=document.querySelector('#send_form'),width=form?.getBoundingClientRect().width||0;if(config.chromeStyle.input.enabled&&width!==lastWidth){lastWidth=width;fit();}
   const ResizeObserver=Resize||document.defaultView?.ResizeObserver;if(!resizer&&ResizeObserver)resizer=new ResizeObserver(()=>render());if(resizer){const wanted=new Set([holder,form,document.querySelector('#send_textarea')].filter(Boolean));for(const n of observed)if(!wanted.has(n)){resizer.unobserve(n);observed.delete(n);}for(const n of wanted)if(!observed.has(n)){resizer.observe(n);observed.add(n);}}
  }
- function update(next,nextFamilies={}){
+ function update(next,nextFamilies={}, {cssOnly=false}={}){
   config=next;families=nextFamilies;if(!style){style=make('style','',document.head);style.id='orange-theme-chrome-style';}const text=chromeRules(config,LIVE_CHROME_SELECTORS,families,interfaceFont(document));if(style.textContent!==text)style.textContent=text;
+  if(cssOnly&&observer)return;
   render();const key=config.chromeStyle.input.enabled?JSON.stringify([config.chromeStyle.input,families['chrome-input'],interfaceFont(document),config.font]):'';if(key!==lastFit){const was=lastFit;lastFit=key;if(key||was)fit();}
   if(!observer){const Observer=Observe||document.defaultView?.MutationObserver;if(Observer){
    observer=new Observer(records=>{
@@ -98,4 +99,5 @@ export function createChromeAdapter({document,resolveArtwork,fitInput,MutationOb
 
 // Evaluate visibility at the lazy bridge boundary, after synchronous editor transitions finish.
 export function createInputFitBridge({document,load}={}){let loaded;return ()=>{loaded??=Promise.resolve().then(load);return loaded.then(fit=>{if(document.documentElement.hasAttribute('data-orange-lab'))return;if(typeof fit!=='function')throw Error('未找到1.18原生输入增高导出');fit();});};}
+
 

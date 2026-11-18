@@ -1,3 +1,4 @@
+import {resolveGlass} from './glass-model.mjs';
 import { WORLD_ENTRY_DEFAULTS } from './world-entry-style.mjs';
 import { assetUrl } from './catalog.mjs';
 import { clone } from './layers.mjs';
@@ -5,6 +6,7 @@ import { COMMON_PARTS, PAGE_NAMES } from './workbench-ui.mjs';
 
 export function createPageAppearanceEditor({
   getUi,
+  renderGlassFields,
   make,
   workbench,
   getConfig,
@@ -21,6 +23,7 @@ export function createPageAppearanceEditor({
   notify,
 }) {
   function renderCommonFields(container) {
+    if(getUi().commonPart==='glass'){renderGlassFields(container,{global:true});propertyHeading(container,'首页最近聊天卡片');renderGlassFields(container,{region:'home'});return;}
     if (getUi().page === 'chat') {
       const row = make('div', 'actions');
       for (const [page, label] of [
@@ -306,6 +309,7 @@ export function createPageAppearanceEditor({
     for(const [key,label] of [['deleteColor','删除图标颜色'],['deleteBackground','删除按钮底色'],['deleteBorder','删除按钮边框']])control(field(label,key,'color'));
   }
   function renderPageFields(container) {
+    if(getUi().region==='page-common'&&getUi().commonPart==='glass'){renderGlassFields(container,{region:getUi().page});return;}
     const bai = getUi().page === 'presets' && getUi().region === 'page-bai';
     if (bai)
       container.append(
@@ -388,6 +392,7 @@ export function createPageAppearanceEditor({
       renderSharedStyleFields(container, basePart, item, {
         fontKey: 'page-' + page,
         notice: PAGE_NAMES[page] + '外观已更新，尚未保存',
+        ...(!specific&&basePart==='panel'&&resolveGlass(getConfig(),page)?.mode&&resolveGlass(getConfig(),page).mode!=='none'?{keys:['border','width','radius']}:{}),
       });
     else if (part === 'entryHeading' && !pageConfig.heading)
       container.append(

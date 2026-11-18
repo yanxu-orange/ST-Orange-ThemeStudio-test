@@ -2,6 +2,7 @@ import { ICONS } from './icon-catalog.mjs';
 import { ASSETS } from './catalog.mjs';
 export function createChromeEditor({
   getConfig,
+  renderGlassFields,
   getUi,
   propertyHeading,
   editorControl,
@@ -63,10 +64,11 @@ export function createChromeEditor({
         ]);
       }
       propertyHeading(container, '背景');
-      controls(v, [
+      const glassActive=renderGlassFields?.(container,{region:zone});
+      if(!glassActive)controls(v, [
         ['区域底色', 'color', 'color'],
         range('背景不透明度', 'alpha', 0, 1, '', 0.05),
-        range('背景模糊', 'blur', 0, 24),
+        ...(config.glassStyle?[]:[range('背景模糊', 'blur', 0, 24)]),
       ]);
       propertyHeading(container, '边框与圆角');
       controls(v, [
@@ -246,3 +248,4 @@ export function createChromeEditor({
 
   return { renderChromeFields };
 }
+
