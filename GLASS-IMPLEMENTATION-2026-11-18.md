@@ -29,3 +29,21 @@ These are single-run cloud measurements, not mobile frame-rate claims. Filters h
 Independent review found no P0/P1 data/inheritance blocker for dev/test trial. Fixed its highlight-zero finding. Underlying solid or image backgrounds remain intentionally preserved; a solid chat canvas can hide wallpaper texture. Dark text on dark wallpaper requires the existing text-color controls; glass does not silently recolor text.
 
 Existing production export UI exports scheme JSON, not standalone CSS/native theme. Glass round-trips in JSON with the plugin. portable CSS helpers are preparatory only; standalone liquid CSS export is not implemented or claimed. SVG backdrop URL rendering was checked in this Chrome host; other engines have not been verified. No public release push in this task.
+
+## Idle retest and refraction evidence (2026-11-18, follow-up)
+Browser access recovered. Same isolated host, 31 message nodes, 18,487px scroll extent and 5-second scroll sweep; no concurrent automated test suite.
+
+| mode/run | median | p95 | max | >50ms | long tasks |
+|---|---:|---:|---:|---:|---:|
+| liquid 1 | 16.7ms | 33.4ms | 66.7ms | 1 | 1 / 58ms |
+| liquid 2 | 16.7ms | 33.4ms | 66.6ms | 2 | 1 / 50ms |
+| none 1 | 16.7ms | 16.8ms | 66.6ms | 1 | 1 / 66ms |
+| none 2 | 16.7ms | 16.7ms | 33.4ms | 0 | 1 / 75ms |
+
+Liquid rendering cost remains in idle runs; performance is NOT claimed fixed. Subsequent frosted runs coincided with browser/transport stalls (p95 949.8ms and 183.3ms), so they are not a reliable isolated material comparison. One later experimental 100% SVG-filter-region sweep had a 6315ms frame and is excluded. The next 100% and original 140% region sweeps both had p95 49.9ms, providing no demonstrated optimization benefit. No production region or visual-default change was made.
+
+Actual same-position refraction 0 versus 15 screenshots are in glass-evidence/. Card rectangle was identical (left305, top-20.6875, width570, height631.5625). Wallpaper mountain ridges/lakeshore shift slightly inside the card while text positions stay fixed. Mean absolute RGB difference was 3.31/255 for the whole card and 1.48/255 for a texture-only inner strip, versus 0.21/255 outside (outside includes pointer movement). JPEG screenshot noise means numbers alone are not proof; side-by-side observed texture displacement supports actual backdrop refraction, not merely a CSS property being present.
+
+Manual coverage: chat, topbar, input, world book and presets; other mapped native pages have code/unit coverage, not exhaustive manual page testing. Real persistence check: apply/save then full page reload restores filter. JSON import/export/undo/reopen predominantly automated coverage. Independent CSS export is not a shipped UI feature.
+
+Next optimization work: profile compositor/raster time separately, test bounded filter regions on multiple card sizes/rounded edges before changing production, and run ordered interleaved none/frosted/liquid repeats in a stable renderer. Keep current visual defaults until a measured improvement preserves refraction and edge rendering. Do not hide cost by silently changing liquid to blur or removing refraction. No public repository push.
