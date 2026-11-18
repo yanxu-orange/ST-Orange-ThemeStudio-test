@@ -1,3 +1,4 @@
+import './topbar-ball-demo.mjs';
 import {createGlassEditor} from './glass-editor.mjs';
 import { avatarCombinationScheme } from './default-layout.mjs';
 import { activateEditedRegion } from './edit-activation.mjs';

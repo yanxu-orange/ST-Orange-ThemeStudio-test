@@ -220,3 +220,9 @@ https://github.com/yanxu-orange/ST-Orange-ThemeStudio-test
 - `layer-editor.mjs`：素材属性、区域叠放顺序与图片裁剪。
 
 属性编辑器通过工厂接入当前会话；配置与选择使用 getter，保存、撤销、素材回填和预览仍由入口统一协调。修改对应模块后运行 `npm test`。
+
+## 顶栏小球试用
+
+已装绘境测试版时，用管理员账号打开「扩展程序 → 管理扩展程序 → 绘境测试版 → 切换分支」，选 `origin/demo/topbar-ball` 或本地同名分支，确认后刷新。新安装时，把测试仓地址填进「安装扩展程序」，在「分支或标签名」填 `demo/topbar-ball`。
+
+安装后，在手机浏览器的酒馆地址末尾加上 `?topbar-ball-demo=1`。地址已有查询参数时，用 `&topbar-ball-demo=1` 加在后面。点右上角「•••」展开，点「×」收起。退出试用时删掉该参数并打开原地址。
