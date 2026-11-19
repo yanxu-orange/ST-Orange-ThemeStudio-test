@@ -162,12 +162,12 @@ export function createLayerEditor({
     }
     if (layer.kind === 'shape') {
       propertyHeading(container, '形状与尺寸');
-      editorControl(
+      if(!pixels)editorControl(
         container,
         field('宽度单位', 'widthUnit', 'select', {
           options: [
             ['px', '像素'],
-            ...(pixels?[]:[['percent', '相对区域百分比']]),
+            ['percent', '相对区域百分比'],
           ],
         }),
         layer,

@@ -23,5 +23,5 @@ test('visible workshop branding keeps existing controls and technical identity',
  assert.equal(document.querySelector('#stop-and-close').textContent,'停用美化并退出');
  const manifest=JSON.parse(readFileSync(new URL('./manifest.json',import.meta.url),'utf8'));
  assert.equal(manifest.display_name,'绘境·美化工坊 · 头像效果测试');
- assert.equal(manifest.js,'index.js');assert.equal(manifest.version,'0.28.0-test.2');
+ assert.equal(manifest.js,'index.js');assert.equal(manifest.version,'0.28.0-test.3');
 });

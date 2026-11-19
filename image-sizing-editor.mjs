@@ -37,14 +37,14 @@ export function renderImageSizing({container,layer,document,make,remember,apply,
   }catch(error){if(current())notify(error.message);}
  };
  function select(label,value,options,key){const row=make('label','field'),title=make('span','field-title',label),input=make('select');input.setAttribute('aria-label',label);for(const [v,t]of options){const o=make('option','',t);o.value=v;input.append(o);}input.value=String(value);input.addEventListener('change',()=>change(key,key==='lockRatio'?input.value==='true':input.value));row.append(title,input);container.append(row);}
- function number(label,value,key,max=limit){const row=make('label','field'),title=make('span','field-title',label),input=make('input');input.type='number';input.min=key.startsWith('focal')?'0':'1';input.max=String(max);input.step='0.01';input.value=String(value);input.setAttribute('aria-label',label);input.addEventListener('input',()=>{if(input.value!=='')change(key,Number(input.value),false);});input.addEventListener('change',()=>{if(input.value!=='')change(key,Number(input.value));});row.append(title,input);container.append(row);return input;}
+ function number(label,value,key,max=limit){const row=make('label','field'),title=make('span','field-title',label),input=make('input');input.type='number';input.min=key.startsWith('focal')?'0':'1';input.max=String(max);input.step='0.01';input.value=String(value);input.setAttribute('aria-label',label);input.addEventListener('input',()=>{if(input.value!=='')change(key,Number(input.value),false);});input.addEventListener('change',()=>{if(input.value!=='')change(key,Number(input.value));});if(pixels&&['width','height'].includes(key)){const value=make('div','image-size-value'),unit=make('span','unit','px');value.style.display='flex';value.style.alignItems='center';value.style.gap='8px';input.style.flex='1';unit.style.fontSize='12px';unit.style.color='var(--muted)';value.append(input,unit);row.append(title,value);}else row.append(title,input);container.append(row);return input;}
  const s=layer.imageSizing;
  select('锁定图片比例',s?.lockRatio??true,[['true','锁定'],['false','自由变形']],'lockRatio');
- select('宽度单位',layer.widthUnit,pixels?[['px','像素']]:[['px','像素'],['percent','区域百分比']],'widthUnit');
+ if(!pixels)select('宽度单位',layer.widthUnit,[['px','像素'],['percent','区域百分比']],'widthUnit');
  let width=layer.width,height=s?.height??'';
  try{const region=imageRegionForLayer(document,layer,{shadow,scope,config}),d=imageDimensions(layer,region);width=d.width/(layer.widthUnit==='percent'?region.width/100:1);height=d.height/(s?.heightUnit==='percent'?region.height/100:1);}catch{}
  number('素材宽度',Math.round(width*100)/100,'width');
- select('图片高度单位',s?.heightUnit??'px',pixels?[['px','像素']]:[['px','像素'],['percent','区域百分比']],'heightUnit');
+ if(!pixels)select('图片高度单位',s?.heightUnit??'px',[['px','像素'],['percent','区域百分比']],'heightUnit');
  const heightInput=number('图片高度',height===''?'':Math.round(height*100)/100,'height');
  if(height===''&&typeof Image!=='undefined'){
   const probe=new Image(),source=layer.image||assetUrl(layer.asset);

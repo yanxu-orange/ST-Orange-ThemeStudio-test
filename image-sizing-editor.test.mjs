@@ -8,6 +8,19 @@ function setup(){const {document}=parseHTML('<html><body><div class="mes" data-o
 test('region resolver selects role and input, refuses hidden or zero real region',()=>{const document=setup(),l=newLayer('custom',{id:'x',scope:'both'});assert.equal(imageRegionForLayer(document,l,{scope:'user'}).height,200);assert.equal(imageRegionForLayer(document,l,{scope:'ai'}).height,100);assert.equal(imageRegionForLayer(document,{...l,id:'input',anchor:'input'}).height,300);document.querySelector('img').offsetHeight=0;assert.equal(imageRegionForLayer(document,l,{scope:'ai'}).reference,'用户消息');assert.throws(()=>imageRegionForLayer(document,{...l,scope:'ai'},{scope:'ai'}));});
 test('absolute pixel editing can work without a visible chat, percentages cannot',()=>{const l=newLayer('custom',{width:100});const n=editImagePixels(l,'height',80,2);assert.equal(n.imageSizing.driver,'height');assert.equal(n.imageSizing.height,80);assert.throws(()=>editImagePixels({...l,widthUnit:'percent'},'width',50,2));assert.equal(l.imageSizing,undefined);});
 
+test('canvas image dimensions show px beside numbers without one-option unit selects; legacy units remain real choices',async()=>{
+ const {renderImageSizing}=await import('./image-sizing-editor.mjs');
+ for(const canvas of [true,false]){
+  const document=setup(),window=document.defaultView,layer=newLayer('custom',{id:'x',width:100,scope:'ai',anchor:'avatar'}),before=structuredClone(layer),container=document.createElement('div');document.body.append(container);let writes=0;
+  const descriptor=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:descriptor.get,set(value){for(const option of this.options)option.toggleAttribute('selected',option.value===String(value));},configurable:true});
+  const make=(tag,cls='',text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=text;return n;};
+  renderImageSizing({container,layer,document,make,config:canvas?{version:11,headerCanvas:{width:600}}:{version:10},remember:()=>writes++,apply(){},renderFields(){},notify:m=>{throw Error(m);}});
+  for(const name of ['宽度单位','图片高度单位']){const select=container.querySelector(`[aria-label="${name}"]`);if(canvas)assert.equal(select,null);else assert.deepEqual([...select.options].map(o=>o.value),['px','percent']);}
+  for(const name of ['素材宽度','图片高度']){const input=container.querySelector(`[aria-label="${name}"]`);assert.ok(input);if(canvas)assert.equal(input.parentElement.querySelector('.unit').textContent,'px');}
+  assert.deepEqual([...container.querySelector('[aria-label="锁定图片比例"]').options].map(o=>o.value),['true','false']);assert.deepEqual(layer,before);assert.equal(writes,0);
+ }
+});
+
 test('visible image editor changes units without jumping and exposes cover focal controls',async()=>{
  const {renderImageSizing}=await import('./image-sizing-editor.mjs');const document=setup(),window=document.defaultView;
  const d=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:d.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});

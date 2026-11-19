@@ -106,13 +106,19 @@ export function createAvatarEditor({
     );
     if (fill.enabled) {
     } else {
-      propertyHeading(container, '形状与尺寸');
+      propertyHeading(container, '头像窗口');
+      const syncPhoto = () => {
+        if (getConfig().avatarDesign === 'unified')
+          getConfig().photos[getPhotoScope() === 'ai' ? 'user' : 'ai'] =
+            clone(p);
+      };
+      if(!canvasEnabled(getConfig())){
       const unitLabel = make('label', 'field', '头像宽度单位'),
         unitSelect = make('select');
       unitSelect.setAttribute('aria-label', '头像宽度单位');
       for (const [value, text] of [
         ['px', '像素'],
-        ...(canvasEnabled(getConfig())?[]:[['percent', '相对区域百分比']]),
+        ['percent', '相对区域百分比'],
       ]) {
         const option = make('option', '', text);
         option.value = value;
@@ -121,11 +127,6 @@ export function createAvatarEditor({
       unitSelect.value = p.widthUnit || 'px';
       unitLabel.append(unitSelect);
       container.append(unitLabel);
-      const syncPhoto = () => {
-        if (getConfig().avatarDesign === 'unified')
-          getConfig().photos[getPhotoScope() === 'ai' ? 'user' : 'ai'] =
-            clone(p);
-      };
       unitSelect.addEventListener('change', () => {
         remember();
         p.widthUnit = unitSelect.value;
@@ -137,18 +138,19 @@ export function createAvatarEditor({
         apply();
         renderFields();
       });
+      }
       editorControl(
         container,
-        field('头像宽度', 'size', 'range', {
+        field('头像窗口宽度', 'size', 'range', {
           min: p.widthUnit === 'percent' || canvasEnabled(getConfig()) ? 1 : 40,
           max: p.widthUnit === 'percent' ? 100 : canvasEnabled(getConfig())?2000:600,
           unit: p.widthUnit === 'percent' ? '%' : 'px',
         }),
         p,
       );
-      const heightLabel = make('label', 'field', '头像高度'),
+      const heightLabel = make('label', 'field', '头像窗口高度'),
         heightMode = make('select');
-      heightMode.setAttribute('aria-label', '头像高度');
+      heightMode.setAttribute('aria-label', '头像窗口高度');
       for (const [value, text] of [
         ['auto', '按比例'],
         ['fixed', '固定高度'],
@@ -196,7 +198,7 @@ export function createAvatarEditor({
       else
         editorControl(
           container,
-          field('头像固定高度', 'height', 'range', {
+          field('窗口高度', 'height', 'range', {
             min: 1,
             max: canvasEnabled(getConfig())?2000:600,
             unit: 'px',
