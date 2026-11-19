@@ -49,7 +49,6 @@ export function createLiveCanvas({document,onPage=()=>{}}={}){
   // Tavern and chromeRules own the topbar's block size. The canvas only positions
   // it, and reserves the exact same CSS size regardless of style insertion order.
   const toolbar='var(--topBarBlockSize, 48px)',bodyTop=preserveTopbar?`max(${top}px, ${toolbar})`:`calc(${top}px + ${toolbar})`,bodyHeight=`max(1px, calc(${top+height}px - ${bodyTop}))`;
-  const islandReserve='var(--oc-island-height, 0px) + var(--oc-island-inset, 0px)';
   const scope='html[data-orange-editor]';
   const css=`
 ${scope}{--otl-canvas-left:${left}px;--otl-canvas-width:${width}px;--otl-canvas-top:${top}px;--otl-canvas-height:${height}px;--otl-canvas-island-visibility:${hidden?'hidden':'visible'}}
@@ -60,7 +59,7 @@ ${scope} #form_sheld{flex:0 0 auto;max-height:60%;overflow:auto}
 ${preserveTopbar?'':`${scope} #top-bar,${scope} #top-settings-holder{position:fixed!important;left:${left}px!important;right:auto!important;top:${top}px!important;width:${width}px!important;max-width:${width}px!important;min-width:0!important;margin:0!important;transform:none!important;z-index:10010!important}
 ${scope} #top-settings-holder{align-items:center!important;overflow:visible!important}`}
 ${scope} body :is(.drawer-content,#WorldInfo,#floatingPrompt){position:fixed!important;left:${left}px!important;right:auto!important;top:${bodyTop}!important;bottom:auto!important;width:${width}px!important;min-width:0!important;max-width:${width}px!important;max-height:${bodyHeight}!important;margin:0!important;transform:none!important;overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
-${scope}[data-oc-island] body :is(.drawer-content,#WorldInfo,#floatingPrompt){top:calc(${top}px + ${islandReserve})!important;max-height:max(1px, calc(${height}px - (${islandReserve})))!important}
+${scope}[data-oc-island] body :is(.drawer-content,#WorldInfo,#floatingPrompt){top:var(--oc-island-drawer-top)!important;bottom:var(--oc-island-drawer-bottom)!important;max-height:var(--oc-island-drawer-height)!important;transform:var(--oc-island-drawer-transform)!important}
 ${scope} body :is(.drawer-content.openDrawer,.drawer-content.open,#WorldInfo.open,#floatingPrompt.open){overflow-y:auto!important}
 ${scope} #movingDivs{position:relative;z-index:10020}
 ${scope} #completion_prompt_manager_popup{z-index:10030!important}

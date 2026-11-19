@@ -13,20 +13,18 @@ ${scope} {
 ${scope} body #top-bar,
 ${scope} body ${holderSelector} {
   position: fixed !important;
-  top: calc(var(--otl-canvas-top, 0px) + var(--oc-island-inset)) !important;
+  left: var(--oc-island-left) !important;
+  right: auto !important;
+  top: var(--oc-island-top) !important;
+  width: var(--oc-island-width) !important;
   height: var(--oc-island-height) !important;
+  max-width: var(--oc-island-area-width) !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  z-index: 10010 !important;
   pointer-events: none;
 }
-${scope}:not([data-orange-editor]) body ${holderSelector} {
-  left: 0 !important;
-  right: 0 !important;
-  margin-inline: auto !important;
-}
 ${scope} body #top-bar {
-  left: calc(var(--otl-canvas-left, 0px) + (var(--otl-canvas-width, 100%) - var(--oc-island-width)) / 2) !important;
-  right: auto !important;
-  width: var(--oc-island-width) !important;
-  min-width: 0 !important;
   border-radius: var(--oc-island-radius) !important;
   visibility: hidden !important;
 }
@@ -64,14 +62,28 @@ ${scope}:not([data-orange-editor]) body #sheld {
 ${scope}:not([data-orange-editor]) body #chat {
   max-height: none;
 }
-${scope}:not([data-orange-editor]) body:not(.movingUI) #WorldInfo {
-  top: calc(var(--oc-island-inset) + var(--oc-island-height)) !important;
-  max-height: calc(100dvh - var(--oc-island-inset) - var(--oc-island-height)) !important;
+${scope} body:not(.movingUI) :is(${holderSelector} > .drawer > .drawer-content,#WorldInfo,#floatingPrompt) {
+  position: fixed !important;
+  width: min(var(--sheldWidth, 550px), var(--oc-island-area-width)) !important;
+  max-width: var(--oc-island-area-width) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  left: clamp(var(--oc-island-area-left), var(--oc-island-left), calc(var(--oc-island-area-right) - min(var(--sheldWidth, 550px), var(--oc-island-area-width)))) !important;
+  right: auto !important;
+  top: var(--oc-island-drawer-top) !important;
+  bottom: var(--oc-island-drawer-bottom) !important;
+  max-height: var(--oc-island-drawer-height) !important;
+  margin: 0 !important;
+  transform: var(--oc-island-drawer-transform) !important;
+}
+${scope}[data-orange-editor] body :is(${holderSelector} > .drawer > .drawer-content,#WorldInfo,#floatingPrompt) {
+  left: var(--oc-island-area-left) !important;
+  width: var(--oc-island-area-width) !important;
 }
 @media (max-width: 1000px) {
-  ${scope}:not([data-orange-editor]) body ${holderSelector} > .drawer > .drawer-content {
-    top: calc(var(--oc-island-inset) + var(--oc-island-height)) !important;
-    max-height: calc(100dvh - var(--oc-island-inset) - var(--oc-island-height)) !important;
+  ${scope} body:not(.movingUI) :is(${holderSelector} > .drawer > .drawer-content,#WorldInfo,#floatingPrompt) {
+    left: var(--oc-island-area-left) !important;
+    width: var(--oc-island-area-width) !important;
   }
 }
 ${scope} button[data-topbar-island-toggle] {
@@ -121,21 +133,50 @@ function foreground(color) {
 }
 
 export function topbarIslandGeometry(width, topbar) {
-  const columns = width < 520 ? 5 : 9;
-  const rows = Math.ceil(9 / columns);
   const gap = Math.min(topbar.gap, 8);
   const padding = Math.max(8, topbar.padY);
-  const slot = Math.min(Math.max(44,topbar.slot), Math.max(1, (width-112-2*padding-(columns-1)*gap)/columns));
+  const slot = Math.max(44,topbar.slot);
+  const columns = Math.max(1,Math.min(9,Math.floor((width-2*padding+gap)/(slot+gap))));
+  const rows = Math.ceil(9 / columns);
   return {
-    columns, gap, slot, height:rows * slot + (rows-1)*gap + topbar.padY*2,
+    columns, gap, slot, height:rows * slot + (rows-1)*gap + padding*2,
     width:columns * slot + (columns-1)*gap + 2*padding, radius:rows===1?'999px':'26px',
   };
+}
+
+const clamp=(value,min,max)=>Math.min(Math.max(value,min),Math.max(min,max));
+/** Menu and drawer share the safe visible area, never their own rendered width. */
+export function topbarIslandPlacement(anchor,topbar) {
+  const a=anchor.area,gap=8,leftRoom=anchor.left-a.left-gap,rightRoom=a.right-anchor.left-anchor.width-gap;
+  const horizontal=Math.max(leftRoom,rightRoom)>=44+Math.max(8,topbar.padY)*2;
+  const geometry=topbarIslandGeometry(horizontal?Math.max(leftRoom,rightRoom):a.right-a.left,topbar);
+  const side=leftRoom>=rightRoom?'left':'right';
+  let left=horizontal?(side==='left'?anchor.left-gap-geometry.width:anchor.left+anchor.width+gap):anchor.left+(anchor.width-geometry.width)/2;
+  let top=horizontal?anchor.top+(anchor.height-geometry.height)/2:(a.bottom-anchor.top-anchor.height>=anchor.top-a.top?anchor.top+anchor.height+gap:anchor.top-gap-geometry.height);
+  left=clamp(left,a.left,a.right-geometry.width);top=clamp(top,a.top,a.bottom-geometry.height);
+  const below=a.bottom-top-geometry.height-gap,above=top-gap-a.top,drawerBelow=below>=above;
+  return {...geometry,left,top,area:a,drawerBelow,drawerEdge:drawerBelow?top+geometry.height+gap:top-gap,drawerHeight:Math.max(1,drawerBelow?below:above)};
 }
 
 export function createTopbarIsland(document) {
   const root = document.documentElement;
   const win = document.defaultView;
-  let style,button,mark,drag,current,opened=false,icon='';
+  let style,button,mark,drag,current,opened=false,icon='',anchor;
+  const variables=new Set();
+  function variable(key,value){variables.add(key);if(root.style.getPropertyValue('--oc-island-'+key)!==value)root.style.setProperty('--oc-island-'+key,value);}
+  function positionPanel(next=anchor){
+    if(!current||!next)return null;anchor=next;
+    const geometry=topbarIslandPlacement(next,current);
+    for(const key of ['columns','gap','slot','height','width','radius','left','top'])variable(key,key==='columns'||key==='radius'?String(geometry[key]):geometry[key]+'px');
+    const a=geometry.area;
+    for(const [key,value]of Object.entries({'area-left':a.left,'area-right':a.right,'area-width':a.right-a.left,'drawer-height':geometry.drawerHeight}))variable(key,value+'px');
+    // The host's transformed zero-height html is a fixed containing block: bottom
+    // cannot be viewport-relative here. Translate only the drawer's own height.
+    variable('drawer-top',geometry.drawerEdge+'px');
+    variable('drawer-bottom','auto');
+    variable('drawer-transform',geometry.drawerBelow?'none':'translateY(-100%)');
+    return geometry;
+  }
 
   function show(open) {
     opened=open;
@@ -175,6 +216,7 @@ export function createTopbarIsland(document) {
     drag=installLauncherDrag({
       launcher:button,key:TOPBAR_ISLAND_POSITION_KEY,defaultPosition:dragDefault(initial.position),
       region:()=>root.hasAttribute('data-orange-editor')?document.querySelector('#sheld')?.getBoundingClientRect():null,
+      onPosition:positionPanel,
     });
     button.addEventListener('click',onClick);
     button.addEventListener('mousedown',stopBubble);
@@ -182,16 +224,10 @@ export function createTopbarIsland(document) {
     document.addEventListener('keydown',onKey);
     show(false);
   }
-  function sync(holder=document.querySelector(holderSelector)) {
-    if(!current || !holder)return null;
-    const width=holder.clientWidth||holder.getBoundingClientRect().width||win?.innerWidth||390;
-    const geometry=topbarIslandGeometry(width,current);
-    for(const [key,value] of Object.entries(geometry)){
-      const cssValue=key==='columns'||key==='radius'?String(value):value+'px';
-      if(root.style.getPropertyValue('--oc-island-'+key)!==cssValue)root.style.setProperty('--oc-island-'+key,cssValue);
-    }
+  function sync() {
+    if(!current||!drag)return null;
     drag.sync();
-    return geometry;
+    return positionPanel();
   }
   function update(config) {
     const topbar=config.chromeStyle.topbar;
@@ -217,11 +253,11 @@ export function createTopbarIsland(document) {
     document.removeEventListener('keydown',onKey);
     button.remove();
     style.remove();
-    button=style=mark=drag=current=null;
+    button=style=mark=drag=current=anchor=null;
     icon='';
     root.removeAttribute('data-oc-island');
     root.removeAttribute('data-oc-island-open');
-    for(const key of ['columns','gap','slot','height','width','radius'])root.style.removeProperty('--oc-island-'+key);
+    for(const key of variables)root.style.removeProperty('--oc-island-'+key);variables.clear();
   }
   return {update,sync,stop,resetPosition:()=>drag?.reset()};
 }

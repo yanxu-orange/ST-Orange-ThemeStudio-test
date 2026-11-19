@@ -26,7 +26,7 @@ export function validateReasoningStyle(raw){
  const out=structuredClone(raw);out.entry.secondary={...sub};for(const part of ['entry','body'])out[part].fontLink=validateTextItems({name:{weight:raw[part].weight,fontLink:raw[part].fontLink}}).name.fontLink;return out;
 }
 export function normalizeReasoningConfig(raw){
- if(!raw||![1,2,3,4,5,6,7,8,9,10].includes(raw.version))throw Error('方案版本不支持');
+ if(!raw||![1,2,3,4,5,6,7,8,9,10,11,12].includes(raw.version))throw Error('方案版本不支持');
  let style;
  if(raw.version>=5){if(REASONING_LEGACY.some(k=>Object.hasOwn(raw,k)))throw Error('新版方案不能包含旧思维镜像');style=validateReasoningStyle(raw.reasoningStyle);}
  else{

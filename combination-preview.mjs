@@ -1,3 +1,7 @@
+import {effectSettings,maskSource} from './avatar-effects.mjs';
+import {canvasEnabled,projectHeaderConfig} from './header-canvas.mjs';
+import {resolveMetadata} from './native-metadata.mjs';
+import {avatarArtworkFrameStyle} from './avatar-art.mjs';
 import { assetUrl } from './catalog.mjs';
 import { shapeSvg, layerSizeStyle } from './shape-assets.mjs';
 import { createPageHeaderScene } from './page-header-scene.mjs';
@@ -14,6 +18,7 @@ const source = layer => layer.kind === 'shape' ? 'data:image/svg+xml,' + encodeU
 
 // A scaled layout sample uses placeholder identity, never a saved character name.
 export function createCombinationPreview(document, config, { region, pageId = 'settings' }) {
+  const designCanvas=region==='header'&&canvasEnabled(config);if(designCanvas)config=projectHeaderConfig(config,W);
   const page = region === 'home' ? 'home' : pageId;
   const header = config.pageHeaders?.[page];
   const height = region === 'header' ? config.headerHeight : ['home', 'page'].includes(region) ? Math.max(80, header?.height || 160) : region === 'footer' ? Math.max(100, ...(config.footerCaptions || []).map(v => v.y + v.size * 2)) : region === 'input' ? Math.max(80, config.chromeStyle.input.minHeight + 32) : 70;
@@ -30,7 +35,7 @@ export function createCombinationPreview(document, config, { region, pageId = 's
   function text(v, content, x = v.x * W / 100, y = v.y, z = 1) {
     if (v.visible === false) return;
     const n = node('div', content);
-    n.style.cssText = `position:absolute;left:${x}px;top:${y}px;max-width:100%;width:${v.width === 'auto' || v.width === undefined ? 'max-content' : v.width + '%'};font-family:${v.font || 'sans-serif'};font-size:${v.size || 14}px;font-weight:${v.weight === 'auto' ? 400 : v.weight || 400};color:${v.color || config.text};line-height:${v.lineHeight || 1.4};white-space:pre-wrap;overflow-wrap:anywhere;transform:scaleX(${v.scaleX || 1});transform-origin:left top;z-index:${z};`;
+    n.style.cssText = `position:absolute;left:${x}px;top:${y}px;max-width:100%;width:${v.width === 'auto' || v.width === undefined ? 'max-content' : v.widthPixels!=null?v.widthPixels+'px':v.width + '%'};font-family:${v.font || 'sans-serif'};font-size:${v.size || 14}px;font-weight:${v.weight === 'auto' ? 400 : v.weight || 400};color:${v.color || config.text};line-height:${v.lineHeight || 1.4};white-space:pre-wrap;overflow-wrap:anywhere;transform:scaleX(${v.scaleX || 1});transform-origin:left top;z-index:${z};`;
     canvas.append(n); return n;
   }
   function image(v, z, host = canvas) {
@@ -42,19 +47,22 @@ export function createCombinationPreview(document, config, { region, pageId = 's
   if (region === 'header' || region === 'footer') {
     const padding = cardPadding(config), inner = W - padding * 2;
     const geometry = sceneGeometry(config, inner, config.photos.ai);
+    let artHost=canvas,avatarHost=canvas;if(designCanvas){artHost=node('div');artHost.style.cssText=`position:absolute;left:${padding}px;top:${padding}px;width:${inner}px;height:${height-padding}px`;canvas.append(artHost);}
     for (const [z, entry] of regionEntries(config, region).entries()) {
-      if (entry.kind === 'image') { if (entry.item.scope !== 'user') image(entry.item, z); continue; }
+      if (entry.kind === 'image') { if (entry.item.scope !== 'user'){let host=designCanvas?artHost:canvas;if((designCanvas||config.avatarEffects)&&entry.item.anchor==='avatar'){host=node('div');Object.assign(host.style,avatarArtworkFrameStyle(config,false,{...geometry,reserveTop:0},z));canvas.append(host);}image(entry.item,z,host);} continue; }
       if (entry.kind === 'avatar') {
-        const p = config.photos.ai;
+        const p = config.photos.ai,filled=config.avatarFill.ai.enabled,effects=effectSettings(config),mask=maskSource(effects.mask);
         const n = node('div', '头像');
-        n.style.cssText = `position:absolute;display:grid;place-items:center;box-sizing:border-box;background:#e1e3e6;color:#696d73;font:13px sans-serif;width:${geometry.photoWidth}px;height:${geometry.photoHeight}px;border:${p.enabled ? p.frameWidth : 0}px solid ${p.frameColor};border-radius:${p.radius}px;left:${padding + p.x}px;top:${padding + geometry.photoTop - p.y}px;transform:rotate(${p.rotation}deg);z-index:${z};`;
+        n.style.cssText = `position:absolute;display:grid;place-items:center;box-sizing:border-box;background:#e1e3e6;color:#696d73;font:13px sans-serif;width:${geometry.photoWidth}px;height:${geometry.photoHeight}px;border:${p.enabled ? p.frameWidth : 0}px solid ${p.frameColor};border-radius:${p.radius}px;left:${filled?0:padding + p.x}px;top:${filled?0:padding + geometry.photoTop - p.y}px;transform:rotate(${p.rotation}deg) scale(${effects.scale/100});transform-origin:50% 100%;mask-image:${mask?`url("${mask}")`:'none'};mask-size:contain;mask-position:center;mask-repeat:no-repeat;z-index:${z};`;
         canvas.append(n); continue;
       }
-      const v = entry.item;
-      if (!v || v.scope === 'user') continue;
+      const actual=designCanvas&&['name','time'].includes(entry.key)?resolveMetadata(config)[entry.key]:null;
+      const v = actual?{...actual,...actual.style}:entry.item;
+      if (!v || actual?.region==='body-top'||v.scope === 'user') continue;
       const point = region === 'header' ? itemPoint(config, v, inner) : { x: v.x * inner / 100, y: v.y };
-      const style = entry.key === 'name' ? { ...v, size: config.nameSize, color: config.nameColor, font: config.nameFont } : entry.key === 'time' ? { ...v, size: config.timeSize, color: config.timeColor, font: config.timeFont === 'auto' ? config.font : config.timeFont } : v;
-      text(style, entry.key === 'name' ? '角色名字' : entry.key === 'time' ? '2026年11月17日 13:28' : v.content, padding + point.x, (region === 'header' ? padding : 0) + point.y, z);
+      const style = actual?v:entry.key === 'name' ? { ...v, size: config.nameSize, color: config.nameColor, font: config.nameFont } : entry.key === 'time' ? { ...v, size: config.timeSize, color: config.timeColor, font: config.timeFont === 'auto' ? config.font : config.timeFont } : v;
+      if(designCanvas&&style.width!=='auto')style.widthPixels=inner*style.width/100;
+      const drawn=text(style, entry.key === 'name' ? '角色名字' : entry.key === 'time' ? '2026年11月17日 13:28' : v.content, padding + point.x, (region === 'header' ? padding : 0) + point.y, z);if(drawn&&actual&&actual.anchor!=='left'){const factor=actual.anchor==='center'?.5:1;drawn.style.left=(padding+point.x+inner*factor)+'px';drawn.style.transform=`translateX(${-100*factor}%)`;}
     }
     const actions = resolveNativeActions(config.nativeStyle.actions), stats = resolveNativeStats(config.nativeStyle.stats);
     for (const [key, label] of [['edit', '编辑'], ['more', '更多']]) {
@@ -110,7 +118,7 @@ export function createCombinationPreview(document, config, { region, pageId = 's
     }
     if (region === 'input') {
       text({ size: c.size, color: c.textColor, font: c.font }, c.emptyText.enabled ? c.emptyText.idle : '输入消息', 14, 8);
-      for (const [z, entry] of regionEntries(config, 'input').entries()) image(entry.item, z);
+      for (const [z, entry] of regionEntries(config, 'input').entries()) image(entry.item, z,designCanvas?(entry.item.anchor==='avatar'?avatarHost:artHost):canvas);
     }
     canvas.append(icons);
   }

@@ -18,10 +18,10 @@ const range = (value,min,max) => Number.isFinite(value) && value>=min && value<=
 const decimal = value => String(Number(value.toFixed(6)));
 
 /** Missing shape settings are invalid, rather than silently migrating old artwork. */
-export function validateShapeSettings(layer){
+export function validateShapeSettings(layer,{limit=500}={}){
   if(!layer||typeof layer!=='object'||Array.isArray(layer)||layer.kind!=='shape'||!SHAPES.includes(layer.shape))throw Error('形状类型无效');
   if(!['solid','gradient'].includes(layer.fillMode)||!['px','percent'].includes(layer.heightUnit))throw Error('形状填色或高度单位无效');
-  if(!range(layer.height,1,500)||!range(layer.cornerRadius,0,250)||!range(layer.gradientAngle,0,360))throw Error('形状参数超出范围');
+  if(!range(layer.height,1,limit)||!range(layer.cornerRadius,0,250)||!range(layer.gradientAngle,0,360))throw Error('形状参数超出范围');
   if(!hex(layer.color)||!hex(layer.color2))throw Error('形状颜色无效');
   return Object.fromEntries(SHAPE_KEYS.map(key=>[key,layer[key]]));
 }
@@ -37,7 +37,7 @@ export function layerSizeStyle(layer){
 
 /** CSS angle convention: 0 points upward, 90 rightward, 180 downward. */
 export function gradientVector(angle,width=100,height=100){
-  if(!range(angle,0,360)||!range(width,1,500)||!range(height,1,500))throw Error('渐变方向或尺寸无效');
+  if(!range(angle,0,360)||!range(width,1,4000)||!range(height,1,4000))throw Error('渐变方向或尺寸无效');
   const radians=angle*Math.PI/180,dx=Math.sin(radians),dy=-Math.cos(radians);
   // Project all corners onto the gradient direction, matching CSS linear-gradient.
   const span=Math.abs(width*dx)+Math.abs(height*dy);
@@ -45,8 +45,8 @@ export function gradientVector(angle,width=100,height=100){
 }
 
 export function shapeSvg(layer){
-  const shape=validateShapeSettings(layer);
-  if(!range(layer.width,1,500))throw Error('形状宽度无效');
+  const shape=validateShapeSettings(layer,{limit:4000});
+  if(!range(layer.width,1,4000))throw Error('形状宽度无效');
   const width=layer.width,height=shape.height;
   let defs='',fill=shape.color;
   if(shape.fillMode==='gradient'){

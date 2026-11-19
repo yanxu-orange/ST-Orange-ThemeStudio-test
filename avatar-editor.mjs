@@ -1,3 +1,7 @@
+import {effectSettings,setAvatarEffects} from './avatar-effects.mjs';
+import {prepareAvatarMask} from './avatar-mask-upload.mjs';
+import {createAvatarCompositionList,COMPOSITION_LIST_CSS} from './avatar-composition-list.mjs';
+import {canvasEnabled,enableHeaderCanvas,designInnerWidth} from './header-canvas.mjs';
 import { clone } from './layers.mjs';
 import { sceneWidth } from './text-scene.mjs';
 import { photoDimensions } from './photos.mjs';
@@ -9,13 +13,26 @@ export function createAvatarEditor({
   getPhotoScope,
   apply,
   renderFields,
+  validate,
+  notify,
   setPhotoScope,
   getUi,
   propertyHeading,
-  editorControl,
+  editorControl: baseEditorControl,
   field,
+  renderCompositionLayer,
+  getSelectedLayerId,
+  setSelectedLayerId,
+  openCompositionPicker,
+  getEditEpoch,
+  isActive,
+  getNotice,
 }) {
+  let avatarTab='whole', uploadToken=0, pendingUpload=null, compositionList=null;
+  const editorControl=(container,f,target,onUpdate)=>baseEditorControl(container,{...f,nudge:false},target,onUpdate);
   function renderPhotoFields(container) {
+    compositionList?.dispose();compositionList=null;
+    ++uploadToken;
     const mode = make('label', 'field', 'AI 与用户'),
       select = make('select');
     select.setAttribute('aria-label', 'AI 与用户');
@@ -39,6 +56,7 @@ export function createAvatarEditor({
         getConfig().avatarFill[other] = clone(
           getConfig().avatarFill[getPhotoScope()],
         );
+        if(getConfig().avatarEffects)getConfig().avatarEffects[other]=clone(effectSettings(getConfig(),getPhotoScope()==='user'));
       }
       apply();
       renderFields();
@@ -67,6 +85,13 @@ export function createAvatarEditor({
     const p = getConfig().photos[getPhotoScope()],
       fill = getConfig().avatarFill[getPhotoScope()];
 
+    const tabs=make('div','kind-tabs');tabs.setAttribute('aria-label','头像组合设置');
+    for(const [id,text]of [['whole','整体设置'],['avatar','头像'],['materials','组合素材']]){const b=make('button','',text);b.type='button';b.dataset.avatarTab=id;b.setAttribute('aria-pressed',String(avatarTab===id));b.addEventListener('click',()=>{avatarTab=id;renderFields();});tabs.append(b);}container.append(tabs);
+    if(avatarTab==='materials'){renderCompositionFields(container);return;}
+    if(avatarTab==='avatar'){renderAvatarEffects(container,p,fill);return;}
+    const effects=effectSettings(getConfig(),getPhotoScope()==='user');
+    propertyHeading(container,'整体大小');
+    editorControl(container,{...field('组合缩放','scale','range',{min:25,max:300,unit:'%'}),beforeApply:()=>setAvatarEffects(getConfig(),getPhotoScope(),effects)},effects);
     propertyHeading(container, '显示方式');
     editorControl(
       container,
@@ -80,28 +105,6 @@ export function createAvatarEditor({
       () => renderFields(),
     );
     if (fill.enabled) {
-      editorControl(
-        container,
-        field('下缘渐隐', 'gradient', 'select', {
-          options: [
-            ['false', '关闭'],
-            ['true', '开启'],
-          ],
-        }),
-        fill,
-        () => renderFields(),
-      );
-      if (fill.gradient)
-        for (const f of [
-          field('过渡颜色', 'color', 'color'),
-          field('渐隐强度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
-          field('渐隐开始位置', 'start', 'range', {
-            min: 0,
-            max: 100,
-            unit: '%',
-          }),
-        ])
-          editorControl(container, f, fill);
     } else {
       propertyHeading(container, '形状与尺寸');
       const unitLabel = make('label', 'field', '头像宽度单位'),
@@ -109,7 +112,7 @@ export function createAvatarEditor({
       unitSelect.setAttribute('aria-label', '头像宽度单位');
       for (const [value, text] of [
         ['px', '像素'],
-        ['percent', '相对区域百分比'],
+        ...(canvasEnabled(getConfig())?[]:[['percent', '相对区域百分比']]),
       ]) {
         const option = make('option', '', text);
         option.value = value;
@@ -127,8 +130,8 @@ export function createAvatarEditor({
         remember();
         p.widthUnit = unitSelect.value;
         p.size = Math.min(
-          p.widthUnit === 'percent' ? 100 : 600,
-          Math.max(p.widthUnit === 'percent' ? 1 : 40, p.size),
+          p.widthUnit === 'percent' ? 100 : canvasEnabled(getConfig())?2000:600,
+          Math.max(p.widthUnit === 'percent' || canvasEnabled(getConfig()) ? 1 : 40, p.size),
         );
         syncPhoto();
         apply();
@@ -137,8 +140,8 @@ export function createAvatarEditor({
       editorControl(
         container,
         field('头像宽度', 'size', 'range', {
-          min: p.widthUnit === 'percent' ? 1 : 40,
-          max: p.widthUnit === 'percent' ? 100 : 600,
+          min: p.widthUnit === 'percent' || canvasEnabled(getConfig()) ? 1 : 40,
+          max: p.widthUnit === 'percent' ? 100 : canvasEnabled(getConfig())?2000:600,
           unit: p.widthUnit === 'percent' ? '%' : 'px',
         }),
         p,
@@ -172,7 +175,7 @@ export function createAvatarEditor({
         p.height =
           heightMode.value === 'auto'
             ? 'auto'
-            : Math.max(1, Math.min(600, photoDimensions(p, width).height));
+            : Math.max(1, Math.min(canvasEnabled(getConfig())?2000:600, photoDimensions(p, width).height));
         syncPhoto();
         apply();
         renderFields();
@@ -195,7 +198,7 @@ export function createAvatarEditor({
           container,
           field('头像固定高度', 'height', 'range', {
             min: 1,
-            max: 600,
+            max: canvasEnabled(getConfig())?2000:600,
             unit: 'px',
           }),
           p,
@@ -239,8 +242,8 @@ export function createAvatarEditor({
       );
       propertyHeading(container, '位置与旋转');
       for (const f of [
-        field('头像横向移动', 'x', 'range', { min: -80, max: 80, unit: 'px' }),
-        field('头像纵向移动', 'y', 'range', { min: -80, max: 80, unit: 'px' }),
+        field('头像横向移动', 'x', 'range', { min: canvasEnabled(getConfig())?-2000:-80, max: canvasEnabled(getConfig())?2000:80, unit: 'px' }),
+        field('头像纵向移动', 'y', 'range', { min: canvasEnabled(getConfig())?-2000:-80, max: canvasEnabled(getConfig())?2000:80, unit: 'px' }),
         field('头像旋转', 'rotation', 'range', {
           min: -20,
           max: 20,
@@ -250,16 +253,70 @@ export function createAvatarEditor({
       ])
         editorControl(container, f, p);
     }
-    propertyHeading(container, '取景');
-    for (const f of [
-      field('头像取景水平位置', 'x', 'range', { min: 0, max: 100, unit: '%' }),
-      field('头像取景垂直位置', 'y', 'range', { min: 0, max: 100, unit: '%' }),
-    ])
-      editorControl(container, f, fill);
+  }
+
+  function renderAvatarEffects(container,p,fill){
+    const scope=getPhotoScope(),c=getConfig(),effects=effectSettings(c,scope==='user');
+    const control=(label,key,min,max,unit='%')=>editorControl(container,{...field(label,key,'range',{min,max,unit}),beforeApply:()=>setAvatarEffects(getConfig(),scope,effects)},effects);
+    propertyHeading(container,'人物取景');control('取景缩放','zoom',100,300);
+    for(const f of [field('头像取景水平位置','x','range',{min:0,max:100,unit:'%'}),field('头像取景垂直位置','y','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
+    propertyHeading(container,'头像滤镜');control('亮度','brightness',0,200);control('饱和度','saturation',0,200);
+    propertyHeading(container,'头像遮罩');
+    editorControl(container,{...field('遮罩形状','kind','select',{options:[['none','无'],['circle','圆形'],['ellipse','椭圆'],['diamond','菱形'],...(effects.mask.image?[['custom','自定义遮罩']]:[])]}),beforeApply:()=>setAvatarEffects(getConfig(),scope,effects)},effects.mask,()=>renderFields());
+    const label=make('label','field','上传自定义遮罩'),input=make('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';input.id='avatar-mask-file';input.setAttribute('aria-label','上传自定义遮罩');label.append(input);container.append(label);
+    if(effects.mask.image){const thumb=make('img','page-art-preview');thumb.src=effects.mask.image;thumb.alt='自定义遮罩';thumb.style.background='#9ca79b';thumb.style.maxHeight='100px';thumb.style.objectFit='contain';container.append(thumb);}
+    input.addEventListener('change',async()=>{
+      const file=input.files?.[0];input.value='';if(!file)return;
+      const token=++uploadToken,epoch=getEditEpoch(),original=c,valid=()=>isActive()&&getEditEpoch()===epoch&&getConfig()===original&&getPhotoScope()===scope&&getUi().kind==='avatar'&&avatarTab==='avatar'&&uploadToken===token;
+      const operation={};pendingUpload=operation;input.disabled=true;notify('正在处理头像遮罩…');
+      try{const result=await prepareAvatarMask(file,{valid});if(!result||!valid())return;remember();effects.mask={kind:'custom',image:result.image};setAvatarEffects(c,scope,effects);apply();renderFields();notify('已添加头像遮罩，可撤销；保存后记住。');}
+      catch(error){if(valid())notify('未添加遮罩：'+error.message);}
+      finally{input.disabled=false;if(pendingUpload===operation){pendingUpload=null;if(getNotice()==='正在处理头像遮罩…')notify(isActive()?'已取消遮罩上传。':'');}}
+    });
+    if(fill.enabled){propertyHeading(container,'下缘颜色过渡');
+      editorControl(
+        container,
+        field('下缘渐隐', 'gradient', 'select', {
+          options: [
+            ['false', '关闭'],
+            ['true', '开启'],
+          ],
+        }),
+        fill,
+        () => renderFields(),
+      );
+      if (fill.gradient)
+        for (const f of [
+          field('过渡颜色', 'color', 'color'),
+          field('渐隐强度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
+          field('渐隐开始位置', 'start', 'range', {
+            min: 0,
+            max: 100,
+            unit: '%',
+          }),
+        ])
+          editorControl(container, f, fill);
+
+    }
+  }
+  function renderCompositionFields(container){
+    const c=getConfig(),scope=getPhotoScope(),epoch=getEditEpoch(),layers=c.layers.filter(l=>l.anchor==='avatar'&&(l.scope==='both'||l.scope===scope));
+    if(!layers.some(l=>l.id===getSelectedLayerId()))setSelectedLayerId(layers[0]?.id||'');
+    const style=make('style');style.textContent=COMPOSITION_LIST_CSS;container.append(style);
+    compositionList=createAvatarCompositionList({make,config:c,scope,selected:getSelectedLayerId(),
+      valid:()=>isActive()&&getConfig()===c&&getPhotoScope()===scope&&getEditEpoch()===epoch&&getUi().kind==='avatar'&&avatarTab==='materials',
+      onSelect:id=>{setSelectedLayerId(id);renderFields();},
+      onAdd:()=>openCompositionPicker(scope),
+      onCommit:(key,order)=>{remember();c.regionOrder.header=order;setSelectedLayerId(key.slice(6));apply();renderFields();},
+    });container.append(compositionList.element);
+    const layer=layers.find(l=>l.id===getSelectedLayerId());if(!layer)return;
+    propertyHeading(container,layer.name);renderCompositionLayer(container);
   }
 
   function renderHeaderHeightFields(container) {
     const c=getConfig(), separate=c.userHeaderHeight!=null;
+    if(!canvasEnabled(c)){const start=make('button','','启用等比制作画布');start.type='button';start.id='enable-header-canvas';start.addEventListener('click',()=>{let next;try{next=validate(enableHeaderCanvas(c));}catch(error){notify('未启用制作画布：'+error.message);return;}remember();Object.assign(c,next);apply();renderFields();});container.append(start);}else{propertyHeading(container,'制作画布');editorControl(container,field('制作宽度','width','range',{min:200,max:2000,unit:'px'}),c.headerCanvas);}
+
     const label=make('label','field','AI 与用户头像区高度'), select=make('select');
     select.setAttribute('aria-label','AI 与用户头像区高度');
     for(const [value,text]of [['unified','相同高度'],['separate','分开设置']]){const option=make('option','',text);option.value=value;select.append(option);}
@@ -268,5 +325,6 @@ export function createAvatarEditor({
     for(const [label,key]of separate?[['AI 头像区高度','headerHeight'],['用户头像区高度','userHeaderHeight']]:[['头像区总高度','headerHeight']])editorControl(container,field(label,key,'range',{min:60,max:1000,unit:'px'}),c);
   }
 
-  return { renderPhotoFields, renderHeaderHeightFields };
+  function selectCompositionLayer(id){avatarTab='materials';setSelectedLayerId(id);}
+  return { renderPhotoFields, renderHeaderHeightFields, selectCompositionLayer };
 }

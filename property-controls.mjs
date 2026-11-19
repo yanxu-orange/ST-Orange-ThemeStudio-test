@@ -204,7 +204,7 @@ export function createPropertyControls({
         input,
         number,
         f.unit || '',
-        ['x', 'y'].includes(f.key),
+        f.nudge ?? ['x', 'y'].includes(f.key),
       );
     }
     if (f.type === 'color') {

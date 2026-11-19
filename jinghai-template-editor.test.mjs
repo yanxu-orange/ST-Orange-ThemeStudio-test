@@ -1,3 +1,4 @@
+import {confirmExport} from './test-support/confirm-export.mjs';
 import {createSchemeModel} from './scheme-model.mjs';
 import {createCustomWorkStorage} from './custom-work-storage.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
@@ -17,7 +18,7 @@ test('Jinghai template selection saves, exports and reselects without shared mut
  assert.match(selected.canvasWallpaper,/^data:image\/png;base64,/);
  assert.ok(document.querySelector('#orange-theme-wallpaper'));
  let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:jinghai';};URL.revokeObjectURL=()=>{};
- click('#export');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()),selected);
+ click('#export');confirmExport();await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()),selected);
  URL.createObjectURL=create;URL.revokeObjectURL=revoke;
  click('[aria-label="打开工坊首页"]');click('[data-flow="blank"]');assert.equal((await save()).template,'blank');
  const works=createCustomWorkStorage();

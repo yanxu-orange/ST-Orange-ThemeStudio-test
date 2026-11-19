@@ -1,3 +1,5 @@
+import {compositionScale} from './avatar-effects.mjs';
+import {canvasEnabled,enableHeaderCanvas,designInnerWidth} from './header-canvas.mjs';
 import {cardPadding} from './body-card.mjs';
 import {photoDimensions} from './photos.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
@@ -9,17 +11,18 @@ export const TITLE_SIZE_MIN=8,TITLE_SIZE_MAX=200;
 export const HEAD_X_MIN=-100,HEAD_X_MAX=200,HEAD_Y_MIN=-400,HEAD_Y_MAX=1600;
 export const CARD_PADDING=24;
 export function seedTextPositions(c,{offsets=true}={}){
+ const originalCanvas=canvasEnabled(c)?c.headerCanvas:null;
  const out=clone(c),layout=out.layout||'top',x=layout==='collage'?49:layout==='left'?25:0,top=layout==='top'?(out.avatarSize||88)+30:layout==='collage'?40:8;
- const above=out.captions.filter(v=>v.position==='above'),below=out.captions.filter(v=>v.position!=='above');const place=(v,bx,by)=>{v.x=bx+(offsets?v.x:0);v.y=by+(offsets?v.y:0);};
+ const above=out.captions.filter(v=>v.position==='above'),below=out.captions.filter(v=>v.position!=='above');const place=(v,bx,by)=>{v.x=bx*(originalCanvas?designInnerWidth(c)/100:1)+(offsets?v.x:0);v.y=by+(offsets?v.y:0);};
  above.forEach((v,i)=>place(v,x,top+i*32));const nameY=top+above.length*32;place(out.textItems.name,x,nameY);place(out.textItems.time,x+(out.timePosition==='beside'?25:0),nameY+(out.timePosition==='beside'?0:32));below.forEach((v,i)=>place(v,x,nameY+64+i*32));
- for(const v of out.captions)delete v.position;delete out.timePosition;return out;
+ for(const v of out.captions)delete v.position;delete out.timePosition;if(originalCanvas)for(const group of [out.metadata?.unified,out.metadata?.roles.ai,out.metadata?.roles.user])for(const key of ['name','time'])if(group?.[key]?.region==='header'){group[key].x=out.textItems[key].x;group[key].y=out.textItems[key].y;}return out;
 }
 export function normalizeTextScene(c){
- if(!c||![4,5,6,7,8,9,10].includes(c.version))throw Error('文字场景版本无效');
+ if(!c||![4,5,6,7,8,9,10,11,12].includes(c.version))throw Error('文字场景版本无效');
  if(c.version>=8){if(Object.hasOwn(c,'timePosition')||c.captions.some(v=>Object.hasOwn(v,'position')))throw Error('新版方案不能包含旧文字排布镜像');return clone(c);}
  const out=seedTextPositions(c);for(const v of Object.values(out.textItems))v.width='auto';out.version=8;return out;
 }
-export function newSceneCaption(c,overrides={}){const v=newCaption({font:c.font,color:c.accent,...overrides});delete v.position;const last=Math.max(0,c.textItems.name.y,c.textItems.time.y,...c.captions.map(v=>v.y));return {...v,x:c.layout==='collage'?49:c.layout==='left'?25:0,y:Math.min(HEAD_Y_MAX,last+32),...overrides};}
+export function newSceneCaption(c,overrides={}){const v=newCaption({font:c.font,color:c.accent,...overrides});delete v.position;const last=Math.max(0,c.textItems.name.y,c.textItems.time.y,...c.captions.map(v=>v.y));return {...v,x:(c.layout==='collage'?49:c.layout==='left'?25:0)*(canvasEnabled(c)?designInnerWidth(c)/100:1),y:Math.min(HEAD_Y_MAX,last+32),...overrides};}
 export function resetSceneLayout(c,layout){return seedTextPositions({...clone(c),layout,timePosition:'below'},{offsets:false});}
 export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-cardPadding(c)*2);}
 export const headerHeightFor=(c,user=false)=>user&&(c.userHeaderHeight!=null)?c.userHeaderHeight:c.headerHeight;
@@ -37,10 +40,10 @@ export function sceneBounds(c,g){return {reserveTop:0,height:g.baseHeight};}
 /** Clip a transformed avatar to the fixed header without moving native DOM nodes. */
 export function avatarClipPolygon(c,g,p,user=false){
  const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
- const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:cardPadding(c)+p.x,y=fill?0:cardPadding(c)-p.y;
+ const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:cardPadding(c)+p.x,y=fill?0:cardPadding(c)-p.y,scale=compositionScale(c,user);
  return [[0,0],[g.width+cardPadding(c)*2,0],[g.width+cardPadding(c)*2,g.baseHeight],[0,g.baseHeight]].map(([px,py])=>{
   const dx=px-x-ox,dy=py-y-oy;
-  return `${Number((ox+(cos*dx+sin*dy)).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)).toFixed(4))}px`;
+  return `${Number((ox+(cos*dx+sin*dy)/scale).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)/scale).toFixed(4))}px`;
  }).join(',');
 }
 

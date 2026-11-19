@@ -1,12 +1,11 @@
 {
-  "display_name": "绘境·美化工坊 · 真实画布测试",
+  "display_name": "绘境·美化工坊 · 头像效果测试",
   "loading_order": 200,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.24.5",
+  "version": "0.28.0-test.2",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }
-

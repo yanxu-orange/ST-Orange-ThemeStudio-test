@@ -44,3 +44,12 @@ test('height-driven image pinch rebases actual dimensions when fingers leave and
  const event=(type,x,id)=>{const e=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:id,clientX:x,clientY:0,button:0,isPrimary:true});n.dispatchEvent(e);};
  event('pointerdown',0,1);event('pointerdown',100,2);event('pointermove',110,2);assert.ok(Math.abs(parseFloat(n.style.width)-440)<.001);event('pointerup',110,2);event('pointerdown',110,2);event('pointermove',121,2);assert.ok(Math.abs(parseFloat(n.style.width)-484)<.001);event('pointerup',121,2);event('pointerup',0,1);assert.equal(commits.length,1);assert.ok(Math.abs(commits[0].width-484)<.001);assert.equal(item.width,90);drag.reset();
 });
+
+
+test('design canvas pinch projects live size once while committing unscaled pixels beyond legacy limits',async()=>{
+ const {newLayer}=await import('./layers.mjs');const item=newLayer('custom',{id:'a',width:600,x:0,y:0,imageSizing:{mode:'manual',fit:'contain',height:600,heightUnit:'px',lockRatio:true,ratio:1,driver:'width',focalX:50,focalY:50}});
+ const {document,window}=parseHTML('<html><body><div data-orange-lab-fixture><div><img data-layer-id="a"></div></div></body></html>');window.getComputedStyle=()=>({transform:'none',zoom:'1'});const n=document.querySelector('img');Object.assign(n,{offsetWidth:1000,offsetHeight:1000});Object.defineProperties(n.parentElement,{clientWidth:{value:1000},clientHeight:{value:500}});
+ const commits=[],drag=createLayerDrag({document,getState:()=>({active:true,page:'chat',mode:'edit',region:'header',kind:'image',object:'a',layers:[item],regionFor:()=> 'header'}),getLayerTarget:()=>({canvasScale:5/3,maxSize:4000}),onCommit:(_,v)=>commits.push(v)});drag.refresh();
+ const event=(type,x,id)=>{const e=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:id,clientX:x,clientY:0,button:0,isPrimary:true});n.dispatchEvent(e);};
+ event('pointerdown',0,1);event('pointerdown',100,2);event('pointermove',120,2);assert.ok(Math.abs(parseFloat(n.style.width)-1200)<1e-6);event('pointerup',120,2);event('pointerup',0,1);assert.equal(commits.length,1);assert.ok(Math.abs(commits[0].width-720)<1e-6);assert.equal(item.width,600);drag.reset();
+});

@@ -1,3 +1,4 @@
+import {confirmExport} from './test-support/confirm-export.mjs';
 import {openEditor} from './test-support/open-editor.mjs';
 import {expectPortableExport} from './test-support/portable-export.mjs';
 import { settleSchemeApplication } from './test-support/editor-storage.mjs';
@@ -55,7 +56,7 @@ test('independent page editors preserve native controls, inheritance, all fields
   click(`[data-remove-page-artwork=${surface}]`);assert.equal((await save()).pageStyle[target].art[surface],null);click('#undo');assert.deepEqual((await save()).pageStyle[target].art[surface],withArt.pageStyle[target].art[surface]);
  }
  config=await save();for(const width of [390,1200,320]){window.innerWidth=width;window.dispatchEvent(new window.Event('resize'));assert.equal(sh.querySelector('#workspace-page').value,'worldbook');assert.equal(sh.querySelector('#region-select').value,'page-content');assert.equal(sh.querySelector('#mode-layers').disabled,true);assert.ok(sh.querySelector('[aria-label="样式来源"]'));}
- const portable=await expectPortableExport(config);const blobs=[],create=URL.createObjectURL;URL.createObjectURL=blob=>{blobs.push(blob);return create(blob);};try{click('#export');await new Promise(resolve=>setImmediate(resolve));}finally{URL.createObjectURL=create;}assert.equal(blobs.length,1);const json=await blobs[0].text();assert.deepEqual(JSON.parse(json),portable);
+ const portable=await expectPortableExport(config);const blobs=[],create=URL.createObjectURL;URL.createObjectURL=blob=>{blobs.push(blob);return create(blob);};try{click('#export');confirmExport();await new Promise(resolve=>setImmediate(resolve));}finally{URL.createObjectURL=create;}assert.equal(blobs.length,1);const json=await blobs[0].text();assert.deepEqual(JSON.parse(json),portable);
  const importJson=async value=>{const input=sh.querySelector('#import-file');Object.defineProperty(input,'files',{value:[{text:async()=>JSON.stringify(value)}],configurable:true});input.dispatchEvent(new window.Event('change'));await settleNativeCanvas();};
  field('面板圆角 数值',30);await importJson(config);assert.deepEqual(await save(),config);
  const previous=structuredClone(config);for(const page of Object.keys(PAGE_ROOTS))if(!['settings','worldbook'].includes(page))delete previous.pageStyle[page];await importJson(previous);const upgraded=await save();for(const page of Object.keys(PAGE_ROOTS))assert.deepEqual(upgraded.pageStyle[page],previous.pageStyle[page]||initial.pageStyle[page]);await importJson(config);

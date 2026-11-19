@@ -1,3 +1,4 @@
+import {canvasEnabled,designInnerWidth} from './header-canvas.mjs';
 import { footerKey, newFooterCaption } from './footer.mjs';
 import { captionKey, CAPTION_LIMIT } from './captions.mjs';
 import { newSceneCaption } from './text-scene.mjs';
@@ -50,6 +51,7 @@ export function createTextEditor({
       : newSceneCaption(getConfig(), overrides);
   }
   function renderCaptionWidth(container, cap, labelName = '文案') {
+    const pixels=canvasEnabled(getConfig())&&getUi().region==='header';
     const label = make('label', 'field', labelName + '宽度'),
       mode = make('select');
     mode.setAttribute('aria-label', labelName + '宽度模式');
@@ -64,7 +66,7 @@ export function createTextEditor({
     mode.value = cap.width === 'auto' ? 'auto' : 'custom';
     mode.addEventListener('change', () => {
       remember();
-      cap.width = mode.value === 'auto' ? 'auto' : 60;
+      cap.width = mode.value === 'auto' ? 'auto' : pixels?300:60;
       apply();
       renderFields();
     });
@@ -73,10 +75,10 @@ export function createTextEditor({
     if (cap.width !== 'auto')
       editorControl(
         container,
-        field(labelName + '宽度占比', 'width', 'range', {
-          min: 10,
-          max: 100,
-          unit: '%',
+        field(labelName + (pixels?'宽度':'宽度占比'), 'width', 'range', {
+          min: pixels?1:10,
+          max: pixels?4000:100,
+          unit: pixels?'px':'%',
           notice: '文案宽度已更新，尚未保存',
         }),
         cap,
@@ -227,6 +229,8 @@ export function createTextEditor({
       }
     }
     propertyHeading(container, '位置');
+    const pixels=canvasEnabled(getConfig())&&item.region==='header';
+    const regionProxy=new Proxy(item,{set(target,key,value){if(key==='region'&&value!==target.region&&canvasEnabled(getConfig())){const toPixels=value==='header',w=designInnerWidth(getConfig());target.x=target.x*(toPixels?w/100:100/w);if(target.width!=='auto')target.width=target.width*(toPixels?w/100:100/w);if(!toPixels){target.x=Math.max(-100,Math.min(200,target.x));if(target.width!=='auto')target.width=Math.max(10,Math.min(100,target.width));}}target[key]=value;return true;}});
     control(
       field('定位区域', 'region', 'select', {
         options: [
@@ -234,7 +238,7 @@ export function createTextEditor({
           ['body-top', '正文上沿'],
         ],
       }),
-      item,
+      regionProxy,
       () => renderFields(),
     );
     if (item.region === 'body-top')
@@ -257,9 +261,9 @@ export function createTextEditor({
     );
     for (const f of [
       field(labelName + ' 水平位置', 'x', 'range', {
-        min: -100,
-        max: 200,
-        unit: '%',
+        min: pixels?-4000:-100,
+        max: pixels?4000:200,
+        unit: pixels?'px':'%',
       }),
       field(labelName + ' 纵向位置', 'y', 'range', {
         min: -400,
@@ -284,17 +288,17 @@ export function createTextEditor({
     container.append(widthLabel);
     width.addEventListener('change', () => {
       remember();
-      item.width = width.value === 'auto' ? 'auto' : 60;
+      item.width = width.value === 'auto' ? 'auto' : pixels?300:60;
       commit();
       apply();
       renderFields();
     });
     if (item.width !== 'auto')
       control(
-        field(labelName + '宽度占比', 'width', 'range', {
-          min: 10,
-          max: 100,
-          unit: '%',
+        field(labelName + (pixels?'宽度':'宽度占比'), 'width', 'range', {
+          min: pixels?1:10,
+          max: pixels?4000:100,
+          unit: pixels?'px':'%',
         }),
       );
     propertyHeading(container, '字体设计');
@@ -449,7 +453,7 @@ export function createTextEditor({
         labelName + (getUi().region === 'footer' ? ' 左右移动' : ' 水平位置'),
         'x',
         'range',
-        { min: -100, max: getUi().region === 'footer' ? 100 : 200, unit: '%' },
+        { min: canvasEnabled(getConfig())&&getUi().region==='header'?-4000:-100, max: canvasEnabled(getConfig())&&getUi().region==='header'?4000:getUi().region === 'footer' ? 100 : 200, unit: canvasEnabled(getConfig())&&getUi().region==='header'?'px':'%' },
       ),
       field(
         labelName + (getUi().region === 'footer' ? ' 上下移动' : ' 纵向位置'),

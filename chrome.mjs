@@ -52,7 +52,7 @@ export function validateChromeStyle(raw){
  return out;
 }
 export function normalizeChromeConfig(raw){
- if(!raw||![1,2,3,4,5,6,7,8,9,10].includes(raw.version))throw Error('方案版本不支持');
+ if(!raw||![1,2,3,4,5,6,7,8,9,10,11,12].includes(raw.version))throw Error('方案版本不支持');
  if(raw.version<9&&(Object.hasOwn(raw,'chromeStyle')||raw.layers?.some(l=>l.anchor==='input')))throw Error('旧版本不能包含新页面区域');
  return {...raw,version:Math.max(9,raw.version),chromeStyle:raw.version>=9?validateChromeStyle(raw.chromeStyle):clone(CHROME_DEFAULTS)};
 }

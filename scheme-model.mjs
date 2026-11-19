@@ -1,3 +1,5 @@
+import {validateAvatarEffects} from './avatar-effects.mjs';
+import {validateHeaderCanvas} from './header-canvas.mjs';
 import {newGlassStyle,normalizeGlassStyle} from './glass-model.mjs';
 import { defaultReadingScheme } from './default-layout.mjs';
 import {
@@ -376,7 +378,7 @@ export function createSchemeModel() {
 
   groups.avatar.find((f) => f.key === 'headerHeight').max = 1000;
   function validate(raw) {
-    if (!raw || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(raw.version))
+    if (!raw || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(raw.version))
       throw Error('方案版本不支持');
     if (
       raw.version < 10 &&
@@ -435,7 +437,8 @@ export function createSchemeModel() {
       result.layout = raw.layout;
     }
     if(raw.glassStyle!==undefined)result.glassStyle=normalizeGlassStyle(raw.glassStyle);
-    result.metadata = validateMetadata(raw.metadata);
+    result.metadata = validateMetadata(raw.metadata,{pixels:raw.version===11||(raw.version===12&&!!raw.headerCanvas)});
+    const canvas=validateHeaderCanvas(raw);if(canvas)result.headerCanvas=canvas;
     result.pageHeaders = normalizePageHeaders(raw).pageHeaders;
     result.pageStyle = normalizePageConfig(raw).pageStyle;
     result.commonStyle = normalizeCommonConfig(raw).commonStyle;
@@ -447,7 +450,8 @@ export function createSchemeModel() {
     result.textItems = canonical.textItems;
     result.captions = canonical.captions;
     result.layers = migrateLayers(raw);
-    result.photos = validatePhotos(raw.photos);
+    result.photos = validatePhotos(raw.photos,{pixels:raw.version===11||(raw.version===12&&!!raw.headerCanvas)});
+    const effects=validateAvatarEffects(raw);if(effects)result.avatarEffects=effects;
     result.reasoningStyle = reasoning.reasoningStyle;
     result.footerCaptions = footer.footerCaptions;
     result.nativeStyle = native.nativeStyle;

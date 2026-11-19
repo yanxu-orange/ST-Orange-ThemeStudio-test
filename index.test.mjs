@@ -1,3 +1,4 @@
+import {confirmExport} from './test-support/confirm-export.mjs';
 import {createSchemeModel} from './scheme-model.mjs';
 import {navigateRegion} from './test-support/editor-navigation.mjs';
 import {imageFile} from './test-support/image-file.mjs';
@@ -40,7 +41,7 @@ test('editor independent controls validate links and preserve settings through s
   assert.equal(JSON.parse((await scheme.load())).captions[0].y,-60);assert.equal(JSON.parse((await scheme.load())).captions[0].width,80);
   let exported;const createURL=URL.createObjectURL,revokeURL=URL.revokeObjectURL;
   URL.createObjectURL=blob=>{exported=blob;return 'blob:fake-export';};URL.revokeObjectURL=()=>{};
-  shadow.querySelector('#export').click();await new Promise(resolve=>setImmediate(resolve));const exportedConfig=JSON.parse(await exported.text());assert.deepEqual(exportedConfig.textItems,JSON.parse((await scheme.load())).textItems);assert.equal(exportedConfig.captions[0].width,80);assert.equal(Object.hasOwn(exportedConfig,'caption'),false);assert.equal(Object.hasOwn(exportedConfig.textItems,'caption'),false);URL.createObjectURL=createURL;URL.revokeObjectURL=revokeURL;
+  shadow.querySelector('#export').click();confirmExport();await new Promise(resolve=>setImmediate(resolve));const exportedConfig=JSON.parse(await exported.text());assert.deepEqual(exportedConfig.textItems,JSON.parse((await scheme.load())).textItems);assert.equal(exportedConfig.captions[0].width,80);assert.equal(Object.hasOwn(exportedConfig,'caption'),false);assert.equal(Object.hasOwn(exportedConfig.textItems,'caption'),false);URL.createObjectURL=createURL;URL.revokeObjectURL=revokeURL;
   // UI navigation/sizing is independent of persisted theme data.
   const beforeNavigation=JSON.parse((await scheme.load()));
   const scope=shadow.querySelector('#workspace-page');assert.deepEqual([...scope.options].map(o=>o.value),['home','chat','presets','connection','worldbook','settings','backgrounds','extensions','personas','characters','formatting']);assert.ok(scope.closest('.panel-head'));assert.equal(shadow.querySelector('#page-scope'),null);assert.equal(shadow.querySelector('.preview-tools'),null);

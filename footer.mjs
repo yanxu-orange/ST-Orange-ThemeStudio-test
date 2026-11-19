@@ -14,7 +14,7 @@ export function validateFooterCaptions(raw,{large=false}={}){
  return validateCaptions(raw.map(c=>({...c,position:'below'})),{large}).map(c=>{delete c.position;return c;});
 }
 export function normalizeFooterConfig(raw){
- if(!raw||![1,2,3,4,5,6,7,8,9,10].includes(raw.version))throw Error('方案版本不支持');
+ if(!raw||![1,2,3,4,5,6,7,8,9,10,11,12].includes(raw.version))throw Error('方案版本不支持');
  if(raw.version<6&&Object.hasOwn(raw,'footerCaptions'))throw Error('旧版本不能包含新尾部文案');
  return {...raw,version:Math.max(6,raw.version),footerCaptions:raw.version>=6?validateFooterCaptions(raw.footerCaptions,{large:raw.version>=8}):[]};
 }

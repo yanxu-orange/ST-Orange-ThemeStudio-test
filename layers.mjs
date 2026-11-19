@@ -15,7 +15,7 @@ export function newLayer(kind = 'flower', overrides = {}) {
 }
 
 export function migrateLayers(raw) {
-  if (Array.isArray(raw.layers)) return validateLayers(raw.layers);
+  if (Array.isArray(raw.layers)) return validateLayers(raw.layers,{pixels:raw.version===11||(raw.version===12&&!!raw.headerCanvas)});
   if (raw.decoration === 'none') return [];
   return validateLayers([newLayer(raw.decoration || 'flower', {
     image:raw.image || '', width:raw.decorationWidth ?? 90, x:raw.decorationX ?? 8,
@@ -23,18 +23,19 @@ export function migrateLayers(raw) {
   })]);
 }
 
-export function validateLayers(raw) {
+export function validateLayers(raw,{pixels=false}={}) {
   if (!Array.isArray(raw) || raw.length > LAYER_LIMIT) throw Error(`最多放置 ${LAYER_LIMIT} 层装饰`);
   const ids = new Set();
   return raw.map(layer => {
     if (!layer || typeof layer!=='object' || Array.isArray(layer) || !KINDS.includes(layer.kind)) throw Error('装饰类型无效');
     if (typeof layer.id !== 'string' || !/^[\w-]{1,80}$/.test(layer.id) || ids.has(layer.id)) throw Error('装饰标识无效或重复');
     ids.add(layer.id);
+    const canvas=pixels&&['header','avatar'].includes(layer.anchor);
     const out = newLayer(layer.kind, {id:layer.id});
     if(Object.keys(layer).some(key=>!Object.hasOwn(out,key)&&key!=='imageSizing'))throw Error('装饰包含未知参数');
     if (typeof layer.name !== 'string' || layer.name.length > 80) throw Error('装饰名称过长');
     out.name = layer.name;
-    for (const [key, min, max] of [['width',1,500],['x',-300,600],['y',-300,600],['opacity',0,1],['rotation',-180,180],['z',0,20]]) {
+    for (const [key, min, max] of [['width',1,canvas?4000:500],['x',canvas?-4000:-300,canvas?4000:600],['y',canvas?-4000:-300,canvas?4000:600],['opacity',0,1],['rotation',-180,180],['z',0,20]]) {
       if (!Number.isFinite(layer[key]) || layer[key] < min || layer[key] > max) throw Error('装饰参数超出范围：'+key);
       out[key] = layer[key];
     }
@@ -54,10 +55,10 @@ export function validateLayers(raw) {
     if(layer.kind==='asset'&&!out.asset)throw Error('未指定内置素材');
     if (layer.image && !validImage(layer.image)) throw Error('装饰图片格式不支持');
     out.image = layer.image || '';
-    if(layer.imageSizing!==undefined){if(layer.kind==='shape')throw Error('形状不能包含图片尺寸');out.imageSizing=validateImageSizing(layer.imageSizing);}
+    if(layer.imageSizing!==undefined){if(layer.kind==='shape')throw Error('形状不能包含图片尺寸');out.imageSizing=validateImageSizing(layer.imageSizing,{limit:canvas?4000:500});}
     if(layer.kind==='shape'){
       if(out.image||out.asset||out.heightPercent!==0)throw Error('形状不能包含图片或图片区域高度');
-      Object.assign(out,validateShapeSettings(layer));
+      Object.assign(out,validateShapeSettings(layer,{limit:canvas?4000:500}));
     }
     return out;
   });

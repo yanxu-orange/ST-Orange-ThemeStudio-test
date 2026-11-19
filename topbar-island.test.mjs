@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { parseHTML } from 'linkedom';
 import { CHROME_DEFAULTS, newTopbarIsland, normalizeChromeConfig } from './chrome.mjs';
-import { createTopbarIsland, TOPBAR_ISLAND_POSITION_KEY, topbarIslandGeometry } from './topbar-island.mjs';
+import { createTopbarIsland, TOPBAR_ISLAND_POSITION_KEY, topbarIslandGeometry,topbarIslandPlacement } from './topbar-island.mjs';
 
 function fixture() {
   const { document, window } = parseHTML('<html data-orange-live><head></head><body><div id="top-bar"></div><div id="top-settings-holder"><div class="drawer"><button class="drawer-toggle">世界书</button><div class="drawer-content">世界书内容</div></div></div></body></html>');
@@ -30,13 +30,40 @@ test('legacy topbar stays portable and invalid island fields are rejected', () =
   }
 });
 
-test('island width leaves a side lane and chooses two rows at phone widths', () => {
-  for (const width of [320,360,412,720,1000]) {
+test('menu uses available space without reducing native click targets below44px', () => {
+  for (const width of [60,120,200,260,412,720,1000]) {
     const result=topbarIslandGeometry(width,CHROME_DEFAULTS.topbar);
-    assert.equal(result.columns,width<520?5:9);
-    assert.ok(result.width<=width-112+.001);
+    assert.ok(result.columns>=1&&result.columns<=9);
+    assert.ok(result.width<=width+.001);
+    assert.ok(result.slot>=44);
     assert.ok(result.height>=result.slot);
   }
+});
+
+test('four corners and middle edges place the menu by the ball, with drawers inside safe bounds',()=>{
+ for(const width of [320,360,1440])for(const left of [8,width-52])for(const top of [8,378,748]){
+  const area={left:8,top:8,right:width-8,bottom:792},ball={left,top,width:44,height:44,area},g=topbarIslandPlacement(ball,CHROME_DEFAULTS.topbar);
+  assert.ok(g.left>=area.left&&g.left+g.width<=area.right+.001);
+  assert.ok(g.top>=area.top&&g.top+g.height<=area.bottom+.001);
+  assert.ok(Math.abs((left===8?g.left-left-44:left-g.left-g.width)-8)<.001);
+  assert.ok(g.drawerHeight>0);
+  if(g.drawerBelow)assert.ok(g.drawerEdge+g.drawerHeight<=area.bottom+.001);
+  else assert.ok(g.drawerEdge-g.drawerHeight>=area.top-.001);
+ }
+ const a={left:128,top:300,width:44,height:44,area:{left:100,top:200,right:460,bottom:700}},g=topbarIslandPlacement(a,CHROME_DEFAULTS.topbar);
+ assert.ok(g.left>=100&&g.top>=200&&g.left+g.width<=460&&g.top+g.height<=700);
+});
+
+test('bottom anchor uses top pixels and self translation rather than viewport bottom on transformed hosts',()=>{
+ const {document,config,island}=fixture();Object.assign(config.chromeStyle.topbar,{enabled:true,layout:'island',island:{...newTopbarIsland(),position:'bottom-right'}});
+ island.update(config);const style=document.documentElement.style;
+ assert.equal(style.getPropertyValue('--oc-island-drawer-bottom'),'auto');
+ assert.equal(style.getPropertyValue('--oc-island-drawer-transform'),'translateY(-100%)');
+ assert.ok(parseFloat(style.getPropertyValue('--oc-island-drawer-top'))>0);
+ const css=document.querySelector('style[data-oc-owned]').textContent;
+ assert.match(css,/transform: var\(--oc-island-drawer-transform\)/);
+ assert.match(css,/@media \(max-width: 1000px\)[\s\S]*width: var\(--oc-island-area-width\)/);
+ island.stop();assert.equal(style.getPropertyValue('--oc-island-drawer-transform'),'');
 });
 
 test('layout owns only its added control, preserves native drawers and remembers drag independently', () => {

@@ -1,3 +1,5 @@
+import {transferHeaderLayer} from './header-layer-transfer.mjs';
+import {canvasEnabled} from './header-canvas.mjs';
 import {activateEditedRegion} from './edit-activation.mjs';
 import {prepareCropSource,cropOutputSize} from './crop-source.mjs';
 import {renderImageSizing} from './image-sizing-editor.mjs';
@@ -46,8 +48,9 @@ export function createLayerEditor({
   setTextItemKey,
   setConfig,
 }) {
-  function renderLayers(container) {
+  function renderLayers(container,{composition=false}={}) {
     const layer = getConfig().layers.find((l) => l.id === getSelectedLayerId());
+    const pixels=canvasEnabled(getConfig())&&['header','avatar'].includes(layer?.anchor);
     if (!layer) {
       container.append(
         make('p', 'hint', '这里还没有图片。点击“添加图片”选择来源。'),
@@ -65,8 +68,8 @@ export function createLayerEditor({
         ...clone(layer),
         id: uniqueId(),
         name: (layer.name + ' 副本').slice(0, 80),
-        x: Math.min(600, layer.x + 15),
-        y: Math.min(600, layer.y + 15),
+        x: Math.min(pixels?4000:600, layer.x + 15),
+        y: Math.min(pixels?4000:600, layer.y + 15),
       });
       getConfig().layers.push(copy);
       setSelectedLayerId(copy.id);
@@ -81,7 +84,7 @@ export function createLayerEditor({
       const region = getUi().region;
       getConfig().layers = getConfig().layers.filter((l) => l.id !== layer.id);
       setSelectedLayerId(matchingLayers(getConfig().layers, region)[0]?.id);
-      workbench.choose(region, 'image', getSelectedLayerId() || '');
+      if(!composition)workbench.choose(region, 'image', getSelectedLayerId() || '');
       apply();
       renderFields();
       notify('已移除素材，可撤销。');
@@ -164,7 +167,7 @@ export function createLayerEditor({
         field('宽度单位', 'widthUnit', 'select', {
           options: [
             ['px', '像素'],
-            ['percent', '相对区域百分比'],
+            ...(pixels?[]:[['percent', '相对区域百分比']]),
           ],
         }),
         layer,
@@ -175,7 +178,7 @@ export function createLayerEditor({
         dimensions,
         field(isLineShape(layer.shape) ? '长度' : '宽度', 'width', 'range', {
           min: 1,
-          max: 500,
+          max: pixels?4000:500,
           unit: layer.widthUnit === 'percent' ? '%' : 'px',
         }),
         layer,
@@ -272,12 +275,12 @@ export function createLayerEditor({
       field('宽度单位', 'widthUnit', 'select', {
         options: [
           ['px', '像素'],
-          ['percent', '相对区域百分比'],
+          ...(pixels?[]:[['percent', '相对区域百分比']]),
         ],
       }),
       field('素材宽度', 'width', 'range', {
         min: 1,
-        max: 500,
+        max: pixels?4000:500,
         unit: layer.widthUnit === 'percent' ? '%' : 'px',
       }),
       field('素材高度', 'heightPercent', 'range', {
@@ -288,17 +291,17 @@ export function createLayerEditor({
       field('距离单位', 'offsetUnit', 'select', {
         options: [
           ['px', '像素'],
-          ['percent', '相对区域百分比'],
+          ...(pixels?[]:[['percent', '相对区域百分比']]),
         ],
       }),
       field('侧边偏移', 'x', 'range', {
-        min: -300,
-        max: 600,
+        min: pixels?-4000:-300,
+        max: pixels?4000:600,
         unit: layer.offsetUnit === 'percent' ? '%' : 'px',
       }),
       field('垂直偏移', 'y', 'range', {
-        min: -300,
-        max: 600,
+        min: pixels?-4000:-300,
+        max: pixels?4000:600,
         unit: layer.offsetUnit === 'percent' ? '%' : 'px',
       }),
       field('旋转角度', 'rotation', 'range', {
@@ -328,9 +331,11 @@ export function createLayerEditor({
     ];
     fields.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
     const sizingEpoch=getEditEpoch(),sizingRegion=getUi().region;
-    if(layer.kind!=='shape')renderImageSizing({container,layer,document,make,remember,apply,renderFields,notify,shadow,scope:getPhotoScope(),isCurrent:()=>isActive()&&getEditEpoch()===sizingEpoch&&getUi().region===sizingRegion&&getSelectedLayerId()===layer.id&&getConfig().layers.includes(layer)});
+    if(layer.kind!=='shape')renderImageSizing({container,layer,document,make,remember,apply,renderFields,notify,shadow,config:getConfig(),scope:getPhotoScope(),isCurrent:()=>isActive()&&getEditEpoch()===sizingEpoch&&getUi().region===sizingRegion&&getSelectedLayerId()===layer.id&&getConfig().layers.includes(layer)});
     let availability;
     for (const f of fields) {
+      if(composition&&['scope','anchor'].includes(f.key))continue;
+      if(pixels&&['widthUnit','offsetUnit'].includes(f.key))continue;
       if(layer.kind!=='shape'&&['widthUnit','width','heightPercent'].includes(f.key))continue;
       if (
         f.key === 'z' ||
@@ -406,6 +411,7 @@ export function createLayerEditor({
           remember();
           tracking = true;
         }
+        if(f.key==='anchor'&&canvasEnabled(getConfig())){try{const moved=transferHeaderLayer(document,getConfig(),layer,value,getPhotoScope());Object.assign(layer,moved);}catch(error){notify(error.message);input.value=layer.anchor;return false;}}
         layer[f.key] = value;
         if (layer.anchor === 'input') {
           layer.scope = 'both';
@@ -457,7 +463,7 @@ export function createLayerEditor({
           input,
           number,
           f.unit || '',
-          ['x', 'y'].includes(f.key),
+          !composition && ['x', 'y'].includes(f.key),
         );
       }
       (['visible', 'scope'].includes(f.key) ? availability : container).append(

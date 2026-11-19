@@ -1,3 +1,4 @@
+import {confirmExport} from './test-support/confirm-export.mjs';
 import {openEditor} from './test-support/open-editor.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 import {editorStorage,saveEditorScheme} from './test-support/editor-storage.mjs';
@@ -13,6 +14,6 @@ test('title decoration edits, undo, save and export preserve native title bindin
  const configured=await save();assert.deepEqual(configured.pageHeaders.worldbook.titleDecoration,{shape:'dot',size:12,x:3,y:-2,color:'#aa2233'});
  await set('装饰形状','line');click('#undo');assert.equal(sh.querySelector('[aria-label="装饰形状"]').value,'dot');
  await set('显示标题装饰','false');assert.equal((await save()).pageHeaders.worldbook.titleDecoration,null);click('#undo');assert.deepEqual((await save()).pageHeaders.worldbook.titleDecoration,configured.pageHeaders.worldbook.titleDecoration);
- let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:decoration';};URL.revokeObjectURL=()=>{};click('#export');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()).pageHeaders.worldbook.titleDecoration,configured.pageHeaders.worldbook.titleDecoration);URL.createObjectURL=create;URL.revokeObjectURL=revoke;
+ let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:decoration';};URL.revokeObjectURL=()=>{};click('#export');confirmExport();await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()).pageHeaders.worldbook.titleDecoration,configured.pageHeaders.worldbook.titleDecoration);URL.createObjectURL=create;URL.revokeObjectURL=revoke;
  click('#close');openEditor(sh);await settleNativeCanvas();assert.deepEqual((await save()).pageHeaders.worldbook.titleDecoration,configured.pageHeaders.worldbook.titleDecoration);click('#close');
 });

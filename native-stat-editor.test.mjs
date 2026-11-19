@@ -1,3 +1,4 @@
+import {confirmExport} from './test-support/confirm-export.mjs';
 import {openEditor} from './test-support/open-editor.mjs';
 import {createLiveAdapter} from './live-adapter.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
@@ -21,7 +22,7 @@ test('stat objects independently style native values and labels, persist, restor
  const stat=document.querySelector('.tokenCounterDisplay');assert.equal(stat.textContent,'42');assert.equal(stat.dataset.otlStatLabel,'本期篇幅');assert.equal(stat.dataset.otlStatValue,'true');
  const saved=await saveEditorScheme(shadow,storage);assert.equal(saved.nativeStyle.stats.tokens.valueStyle.size,13);assert.equal(saved.nativeStyle.stats.tokens.valueStyle.weight,500);assert.equal(saved.nativeStyle.stats.tokens.label.style.size,9);assert.equal(saved.nativeStyle.stats.floor.x,12);assert.equal(saved.nativeStyle.stats.time.label.text,'生成 ');
  await set('数字旁的文字','');assert.equal(shadow.querySelector('[aria-label="标签样式"]'),null);shadow.querySelector('#restore').click();await settleNativeCanvas();assert.equal(stat.dataset.otlStatLabel,'本期篇幅');
- let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:stats';};URL.revokeObjectURL=()=>{};shadow.querySelector('#export').click();await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()),saved);URL.createObjectURL=create;URL.revokeObjectURL=revoke;
+ let blob;const create=URL.createObjectURL,revoke=URL.revokeObjectURL;URL.createObjectURL=b=>{blob=b;return 'blob:stats';};URL.revokeObjectURL=()=>{};shadow.querySelector('#export').click();confirmExport();await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(JSON.parse(await blob.text()),saved);URL.createObjectURL=create;URL.revokeObjectURL=revoke;
  shadow.querySelector('#close').click();assert.equal(stat.hasAttribute('data-otl-stat-label'),false);assert.equal(stat.textContent,'42');
  let observers=[];const queue=[];class Observer{constructor(cb){this.cb=cb;observers.push(this);}observe(){}disconnect(){}}
  const adapter=createLiveAdapter({document,resolveArtwork:()=>'',MutationObserver:Observer,requestFrame:fn=>{queue.push(fn);return queue.length;},cancelFrame:()=>{}});

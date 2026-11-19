@@ -1,3 +1,5 @@
+import {validateAvatarEffects,avatarEffectRules,hasAvatarEffects} from './avatar-effects.mjs';
+import {canvasEnabled,projectHeaderConfig,headerCanvasScale,headerCanvasRules,validateHeaderCanvas} from './header-canvas.mjs';
 import {normalizeGlassConfig} from './glass-model.mjs';
 import {glassRule} from './glass-style.mjs';
 import {glassPageRules} from './glass-targets.mjs';
@@ -98,11 +100,13 @@ ${meta} > .otl-live-caption-slot{position:static!important;display:contents!impo
 ${q} .otl-live-art.otl-scene-art{display:block!important}
 ${avatarDesignRules(q,config)}
 ${avatarFillRules(q,config)}
+${avatarEffectRules(q,config)}
 ${canvasBackgroundRules(config,'html[data-orange-live]')}
 ${commonStyleRules(config,{family:families.common||''})}
 ${pageStyleRules(config,{families})}
 ${glassRule(q,config,'message')}
 ${glassPageRules(config)}
+${headerCanvasRules(q,head,config)}
 
 `;
 }
@@ -110,7 +114,7 @@ ${glassPageRules(config)}
 function normalizeLiveConfig(config){
   const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
   Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
-  Object.assign(next,normalizeGlassConfig(next));if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);return next;
+  Object.assign(next,normalizeGlassConfig(next));if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata,{pixels:next.version===11||(next.version===12&&!!next.headerCanvas)});validateHeaderCanvas(next);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);const effects=validateAvatarEffects(next);if(effects)next.avatarEffects=effects;return next;
 }
 const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','bodyLeftBorderColor','glass','hideScrollbars','canvasBackground','canvasWallpaper','canvasWallpaperAsset','glassStyle']);
 const cssCommonFields=new Set(['color','muted','accent','background','border','hover','focus','opacity','hoverOpacity']);
@@ -141,6 +145,7 @@ function cssOnlyField(path,key){
   if(!path.length)return cssRootFields.has(key);
   const [root,group,part]=path;
   if(root==='nativeStyle'&&key==='color'&&cssOnlyNativeColor(path))return true;
+  if(root==='avatarEffects'&&path.length===2&&key!=='scale')return true;
   if(root==='metadata'&&path.at(-1)==='style'&&key==='color')return true;
   if(path.length===2){
     if(['captions','footerCaptions','nativeStyle','avatarFill'].includes(root))return key==='color';
@@ -261,7 +266,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     if(!header||!photo||!nativeImage||!name){const old=states.get(msg);if(old){releaseAvatarSource(old.avatarSource);old.avatarSource=null;}return false;}
     let state=states.get(msg);const nativeHidden=yield()=>{if(state)return state.nativeHidden;const knownHidden=document.body.classList.contains('hideChatAvatars')||document.body.classList.contains('documentstyle'),getStyle=win?.getComputedStyle;return !knownHidden&&typeof getStyle==='function'&&(getStyle.call(win,photo).display==='none'||getStyle.call(win,photo.parentElement).display==='none');};if(!state){state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden};states.set(msg,state);}
     releaseDetached(state,msg);
-    const c=snapshot,user=msg.getAttribute('is_user')==='true',p=c.photos[user?'user':'ai'],names=name.parentElement;
+    let c=snapshot,p;const user=msg.getAttribute('is_user')==='true',names=name.parentElement;p=c.photos[user?'user':'ai'];
     if(state.meta&&state.meta!==names){const hidden=state.nativeHidden;unobserveMessage(msg);clearState(state);state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden:hidden};states.set(msg,state);}state.meta=names;
     attribute(state,msg,FLAG,'');attribute(state,msg,'data-otl-live-layout',c.layout);attribute(state,names,'data-otl-live-meta','');
     const captionIds=new Set(c.captions.map(cap=>cap.id));
@@ -291,9 +296,10 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const documentMode=document.body.classList.contains('documentstyle');
     const photoHidden=state.nativeHidden||photo.hidden||photo.parentElement.hidden||photo.style.display==='none'||photo.parentElement.style.display==='none'||documentMode||document.body.classList.contains('hideChatAvatars');
     attribute(state,msg,'data-otl-live-avatar-hidden',photoHidden?'true':'false');
-    state.avatarSource=updateAvatarSource(state.avatarSource,nativeImage,(p.enabled||c.avatarFill[user?'user':'ai'].enabled)&&!photoHidden,document.baseURI||win?.location?.href);
+    state.avatarSource=updateAvatarSource(state.avatarSource,nativeImage,(p.enabled||c.avatarFill[user?'user':'ai'].enabled||hasAvatarEffects(c,user))&&!photoHidden,document.baseURI||win?.location?.href);
     const sceneNodes={name,time:names.querySelector('.timestamp'),...Object.fromEntries(c.captions.map(cap=>[captionKey(cap.id),[...state.nodes].find(n=>n.className==='otl-live-caption'&&n.dataset.captionId===cap.id)]))};
-    const width=yield()=>sceneWidth(msg,c);
+    const actualWidth=yield()=>msg.clientWidth||snapshot.cardWidth;c=projectHeaderConfig(snapshot,actualWidth);p=c.photos[user?'user':'ai'];
+    variable(state,msg,'--hc-scale',String(headerCanvasScale(snapshot,actualWidth)));const width=Math.max(1,actualWidth-cardPadding(c)*2);
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden,width);
     const {photoWidth,photoHeight,photoTop}=scene;
     for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg'}))variable(state,msg,'--ol-'+key,value);
@@ -303,7 +309,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       const layers=c.layers.filter(l=>l.visible&&l.anchor===anchor&&!(photoHidden&&anchor==='avatar')&&(l.scope==='both'||l.scope===(user?'user':'ai')));
       const existing=new Map([...container.querySelectorAll('[data-layer-id]')].map(e=>[e.getAttribute('data-layer-id'),e]));
       for(const layer of layers){
-        const src=resolveArtwork(layer);if(!src)continue;
+        const src=resolveArtwork(canvasEnabled(snapshot)?snapshot.layers.find(v=>v.id===layer.id)||layer:layer);if(!src)continue;
         let image=existing.get(layer.id);if(!image){let imageParent=container;if(anchor==='avatar'){imageParent=owned(state,'div','otl-avatar-art-frame',container);}image=owned(state,'img','',imageParent);image.setAttribute('data-layer-id',layer.id);if(anchor==='header')image.onload=()=>scheduleMessage(msg);if(anchor.startsWith('reasoning-'))image.setAttribute('data-otl-reason-owned','');image.alt='';image.setAttribute('aria-hidden','true');}
         existing.delete(layer.id);if(image.getAttribute('src')!==src)image.setAttribute('src',src);
         if(anchor==='avatar')Object.assign(image.parentElement.style,avatarArtworkFrameStyle(c,user,scene,regionZ(c,'header',imageKey(layer.id))));
@@ -311,8 +317,8 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
       }
       for(const image of existing.values()){const frame=image.parentElement;state.nodes.delete(image);image.remove();if(frame.classList.contains('otl-avatar-art-frame')){state.nodes.delete(frame);frame.remove();}}
     }
-    const footerSession=session;renderFooter(msg,c,{resolveArtwork,createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},onImageLoad:()=>{if(snapshot&&session===footerSession&&states.get(msg)===state&&msg.isConnected)scheduleMessage(msg);}});
-    return {msg,header,sceneNodes,scene,headerArtwork,state};
+    const footerSession=session;renderFooter(msg,snapshot,{resolveArtwork,createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},onImageLoad:()=>{if(snapshot&&session===footerSession&&states.get(msg)===state&&msg.isConnected)scheduleMessage(msg);}});
+    return {msg,header,sceneNodes,scene,headerArtwork,state,sceneConfig:c};
   }
   function nativeOptions(msg,state,isLatest){return {createNode:(tag,cls,parent)=>owned(state,tag,cls,parent),removeNode:node=>{for(const n of [...state.nodes])if(n===node||node.contains(n)){n.remove();state.nodes.delete(n);}node.remove();},attribute:(node,key,value)=>attribute(state,node,key,value),variable:(node,key,value)=>variable(state,node,key,value),latest:isLatest};}
   function isMessage(msg){return msg?.parentElement===chat&&msg.matches('.mes:not([data-orange-lab-fixture])')&&msg.getAttribute('is_system')!=='true'&&!msg.classList.contains('smallSysMes');}
@@ -357,9 +363,9 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const nativeOnly=[...nativeDirtyMessages].filter(msg=>isMessage(msg)&&states.has(msg)&&!dirtyMessages.has(msg));nativeDirtyMessages.clear();
     const pending=[...dirtyMessages].filter(isMessage);dirtyMessages.clear();
     const prepared=runLayoutPass(pending.map(prepareMessage)).filter(Boolean);
-    runLayoutPass(prepared.flatMap(({headerArtwork,scene})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-cardPadding(snapshot)),cardPadding(snapshot)))));
-    runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state})=>placeSceneLayout(msg,header,snapshot,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
-    runLayoutPass(prepared.map(({msg,header,sceneNodes})=>metadata.layout(msg,snapshot,{header,name:sceneNodes.name,time:sceneNodes.time})));
+    runLayoutPass(prepared.flatMap(({headerArtwork,scene,sceneConfig})=>headerArtwork.map(({image,layer})=>headerArtworkClipLayout(image,layer,scene.width,Math.max(0,scene.height-cardPadding(sceneConfig)),cardPadding(sceneConfig)))));
+    runLayoutPass(prepared.map(({msg,header,sceneNodes,scene,state,sceneConfig})=>placeSceneLayout(msg,header,sceneConfig,sceneNodes,scene,(node,key,value)=>variable(state,node,key,value))));
+    runLayoutPass(prepared.map(({msg,header,sceneNodes,sceneConfig})=>metadata.layout(msg,sceneConfig,{header,name:sceneNodes.name,time:sceneNodes.time})));
     runLayoutPass(prepared.map(({msg})=>footerLayout(msg,snapshot)));
     const updated=[...prepared.map(({msg})=>msg),...nativeOnly];
     runLayoutPass(updated.map(msg=>nativeLayout(msg,snapshot,nativeOptions(msg,states.get(msg),msg===latest))));

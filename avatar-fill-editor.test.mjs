@@ -8,7 +8,7 @@ test('workbench fill and gradient save, restore, undo and keep independent norma
  const desc=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');Object.defineProperty(window.HTMLSelectElement.prototype,'value',{get:desc.get,set(v){for(const o of this.options)o.toggleAttribute('selected',o.value===String(v));},configurable:true});
  const values=new Map();Object.assign(globalThis,{document,window,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},requestAnimationFrame:requestNativeFrame,cancelAnimationFrame:cancelNativeFrame,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}}});
  const scheme=await editorStorage(null);seedNativeChat(document);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot;
- const edit=(label,v)=>{const n=sh.querySelector(`[aria-label="${label}"]`);assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
+ const edit=(label,v)=>{let n=sh.querySelector(`[aria-label="${label}"]`);if(!n){sh.querySelector(`[data-avatar-tab="${/取景|渐隐|过渡颜色/.test(label)?'avatar':'whole'}"]`).click();n=sh.querySelector(`[aria-label="${label}"]`);}assert.ok(n,label);n.value=String(v);n.dispatchEvent(new window.Event('input'));n.dispatchEvent(new window.Event('change'));};
  const save=()=>saveEditorScheme(sh,scheme);
  openEditor(sh);navigateRegion(sh,'header');sh.querySelector('[data-kind="avatar"]').click();edit('AI 与用户','separate');
  const before=(await save());assert.equal(before.photos.ai.enabled,false);edit('铺满卡片顶部','true');edit('头像取景水平位置 数值',25);edit('下缘渐隐','true');edit('渐隐强度 数值',.7);

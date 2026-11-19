@@ -17,13 +17,13 @@ export function customTextLayout(settings) {return settings.textAlign!=='start'|
 
 export const TEXT_Z_MAX=21;
 export const TEXT_KEYS=['name','time','caption'];
-export function validateTextItems(raw={}, {stable=false}={}) {
+export function validateTextItems(raw={}, {stable=false,pixels=false}={}) {
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).some(k=>!TEXT_KEYS.includes(k)))throw Error('文字项无效');
   return Object.fromEntries(TEXT_KEYS.map(key=>{
     const input=raw[key]??{};
     if(typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['x','y','weight','z','fontLink',...(stable&&key!=='caption'?['width']:[])].includes(k)))throw Error('文字设置无效');
-    const item={x:0,y:0,weight:'auto',z:3,fontLink:null,...(stable&&key!=='caption'?{width:'auto'}:{}),...input};if(stable&&key!=='caption'&&item.width!=='auto'&&(!Number.isFinite(item.width)||item.width<10||item.width>100))throw Error('文字宽度无效');
-    for(const [k,min,max]of [['x',-100,stable?200:100],['y',-400,stable?1600:400],['z',0,TEXT_Z_MAX]])if(!Number.isFinite(item[k])||item[k]<min||item[k]>max||(k==='z'&&!Number.isInteger(item[k])))throw Error('文字位置超出范围');
+    const item={x:0,y:0,weight:'auto',z:3,fontLink:null,...(stable&&key!=='caption'?{width:'auto'}:{}),...input};if(stable&&key!=='caption'&&item.width!=='auto'&&(!Number.isFinite(item.width)||item.width<(pixels?1:10)||item.width>(pixels?4000:100)))throw Error('文字宽度无效');
+    for(const [k,min,max]of [['x',pixels?-4000:-100,pixels?4000:stable?200:100],['y',-400,stable?1600:400],['z',0,TEXT_Z_MAX]])if(!Number.isFinite(item[k])||item[k]<min||item[k]>max||(k==='z'&&!Number.isInteger(item[k])))throw Error('文字位置超出范围');
     if(item.weight!=='auto'&&(!Number.isInteger(item.weight)||item.weight<100||item.weight>900||item.weight%100))throw Error('文字字重无效');
     if(item.fontLink!==null){
       const link=item.fontLink;
