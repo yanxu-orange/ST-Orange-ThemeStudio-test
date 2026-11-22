@@ -25,7 +25,7 @@ test('builtin deletion cancels, preserves placed works, persists across pickers 
  remove().click();assert.equal(card(),null);assert.deepEqual(await save(),placed);assert.equal(assetUrl(id),url);
  navigateRegion(sh,'header');sh.querySelector('[data-kind=image]').click();sh.querySelector('#add-current-image').click();assert.equal(card(),null);const stale=sh.querySelector('[data-remove-builtin-asset]');sh.querySelector('#material-back').click();const n=count;stale.click();assert.equal(count,n);
  navigateRegion(sh,'native');sh.querySelector('#native-edit-pick').click();assert.equal(card(),null);sh.querySelector('#material-back').click();
- sh.querySelector('#close').click();sh.querySelector('.launcher').click();sh.querySelector('[data-flow=continue]').click();await tick();await show();assert.equal(card(),null);assert.equal(sh.querySelectorAll('[data-builtin-asset]').length,8);assert.deepEqual(await save(),placed);await show();
+ sh.querySelector('#close').click();sh.querySelector('.launcher').click();sh.querySelector('[data-flow=continue]').click();await tick();await show();assert.equal(card(),null);assert.equal(sh.querySelectorAll('[data-builtin-asset]').length,20);assert.deepEqual(await save(),placed);await show();
  for(const button of [...sh.querySelectorAll('[data-remove-builtin-asset]')]) {const active=sh.querySelector(`[data-remove-builtin-asset="${button.dataset.removeBuiltinAsset}"]`);active.click();}
  assert.equal(sh.querySelectorAll('[data-builtin-asset]').length,0);assert.match(sh.querySelector('.material-grid').textContent,/暂无内置素材/);assert.deepEqual(await save(),placed);sh.querySelector('#close').click();
 });

@@ -8,8 +8,8 @@ import {kittyLayers,defaultPhoto,validatePhotos} from './photos.mjs';
 test('shared catalog contains nine real images, grouped consistently, without template-only choices',()=>{
   assert.equal(Object.keys(SHARED_ASSETS).length,9);
   assert.equal(new Set(Object.values(SHARED_ASSETS).map(a=>a.name)).size,9);
-  assert.deepEqual(ASSET_CATEGORIES,['贴纸','花饰','邮戳','边框']);
-  assert.deepEqual(builtinAssetGroups().map(g=>[g.name,g.assets.length]),[['贴纸',4],['花饰',3],['邮戳',1],['边框',1]]);
+  assert.deepEqual(ASSET_CATEGORIES,['通用装饰','贴纸','花饰','邮戳','边框']);
+  assert.deepEqual(builtinAssetGroups().map(g=>[g.name,g.assets.length]),[['通用装饰',12],['贴纸',4],['花饰',3],['邮戳',1],['边框',1]]);
   for(const asset of Object.values(SHARED_ASSETS)){
     assert.match(asset.id,/^shared-/);assert.match(asset.path,/^shared\/[\w-]+\.webp$/);assert.ok(asset.theme);
     const bytes=readFileSync(new URL('./materials/'+asset.path,import.meta.url));
@@ -32,8 +32,8 @@ test('replacement options preserve only the actual current template-owned resour
   const groups=builtinAssetGroups('kitty-ai-window');
   assert.equal(groups[0].name,'当前小猫模板素材');
   assert.deepEqual(groups[0].assets,[ASSETS['kitty-ai-window']]);
-  assert.equal(groups.flatMap(g=>g.assets).length,10);
+  assert.equal(groups.flatMap(g=>g.assets).length,22);
   assert.equal(groups.flatMap(g=>g.assets).filter(a=>a.id.startsWith('kitty-')).length,1);
-  assert.equal(builtinAssetGroups('shared-mucha-iris').flatMap(g=>g.assets).length,9);
-  assert.equal(builtinAssetGroups('unknown').flatMap(g=>g.assets).length,9);
+  assert.equal(builtinAssetGroups('shared-mucha-iris').flatMap(g=>g.assets).length,21);
+  assert.equal(builtinAssetGroups('unknown').flatMap(g=>g.assets).length,21);
 });

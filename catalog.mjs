@@ -1,3 +1,4 @@
+import {NEUTRAL_DECOR} from './neutral-decor-catalog.mjs';
 // Active resources used by the kitty template and existing placed layers.
 // They are not offered as the general-purpose built-in library.
 const kittyEntries = [
@@ -26,7 +27,7 @@ const sharedEntries = [
   ['shared-mucha-gold-frame','月与星·慕夏 · 金线底饰','mucha-gold-frame.webp','边框','月与星·慕夏'],
 ];
 export const SHARED_ASSETS = Object.fromEntries(sharedEntries.map(([id,name,path,category,theme])=>[id,{id,name,path:'shared/'+path,category,theme}]));
-export const ASSET_CATEGORIES = ['贴纸','花饰','邮戳','边框'];
+export const ASSET_CATEGORIES = ['通用装饰','贴纸','花饰','邮戳','边框'];
 const springEntries = [
   [
     "spring-pageheaders-presets-scene-images-0",
@@ -149,13 +150,13 @@ const springEntries = [
     "spring/chromestyle-input-icons-mes_stop.png"
   ]
 ];
-export const ASSETS = {...Object.fromEntries(kittyEntries.map(([id,name,path])=>[id,{id,name,path}])),...SHARED_ASSETS,...Object.fromEntries(springEntries.map(([id,name,path])=>[id,{id,name,path}]))};
+export const ASSETS = {...NEUTRAL_DECOR,...Object.fromEntries(kittyEntries.map(([id,name,path])=>[id,{id,name,path}])),...SHARED_ASSETS,...Object.fromEntries(springEntries.map(([id,name,path])=>[id,{id,name,path}]))};
 
 // The current template-owned resource stays selected when editing an existing
 // layer; merely opening this list must not replace or rewrite the layer.
 export function builtinAssetGroups(currentId='') {
-  const groups=ASSET_CATEGORIES.map(name=>({name,assets:Object.values(SHARED_ASSETS).filter(asset=>asset.category===name)}));
-  if(currentId && ASSETS[currentId] && !SHARED_ASSETS[currentId])groups.unshift({name:currentId.startsWith('spring-')?'当前春日模板素材':'当前小猫模板素材',assets:[ASSETS[currentId]]});
+  const groups=ASSET_CATEGORIES.map(name=>({name,assets:Object.values({...NEUTRAL_DECOR,...SHARED_ASSETS}).filter(asset=>asset.category===name)}));
+  if(currentId && ASSETS[currentId] && !SHARED_ASSETS[currentId]&&!NEUTRAL_DECOR[currentId])groups.unshift({name:currentId.startsWith('spring-')?'当前春日模板素材':'当前小猫模板素材',assets:[ASSETS[currentId]]});
   return groups;
 }
 export function assetUrl(id) {

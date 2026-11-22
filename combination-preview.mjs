@@ -2,6 +2,7 @@ import {effectSettings,maskSource} from './avatar-effects.mjs';
 import {canvasEnabled,projectHeaderConfig} from './header-canvas.mjs';
 import {resolveMetadata} from './native-metadata.mjs';
 import {avatarArtworkFrameStyle} from './avatar-art.mjs';
+import {frameAssetUrl} from './avatar-frame-pairs.mjs';
 import { assetUrl } from './catalog.mjs';
 import { shapeSvg, layerSizeStyle } from './shape-assets.mjs';
 import { createPageHeaderScene } from './page-header-scene.mjs';
@@ -54,7 +55,10 @@ export function createCombinationPreview(document, config, { region, pageId = 's
         const p = config.photos.ai,filled=config.avatarFill.ai.enabled,effects=effectSettings(config),mask=maskSource(effects.mask);
         const n = node('div', '头像');
         n.style.cssText = `position:absolute;display:grid;place-items:center;box-sizing:border-box;background:#e1e3e6;color:#696d73;font:13px sans-serif;width:${geometry.photoWidth}px;height:${geometry.photoHeight}px;border:${p.enabled ? p.frameWidth : 0}px solid ${p.frameColor};border-radius:${p.radius}px;left:${filled?0:padding + p.x}px;top:${filled?0:padding + geometry.photoTop - p.y}px;transform:rotate(${p.rotation}deg) scale(${effects.scale/100});transform-origin:50% 100%;mask-image:${mask?`url("${mask}")`:'none'};mask-size:contain;mask-position:center;mask-repeat:no-repeat;z-index:${z};`;
-        canvas.append(n); continue;
+        if(effects.frame){n.style.border='0';n.style.borderRadius='0';}
+        canvas.append(n);
+        if(effects.frame){const frame=node('div');frame.style.cssText=n.style.cssText;Object.assign(frame.style,{background:effects.frame.color,border:'0',borderRadius:'0',maskImage:`url("${frameAssetUrl(effects.frame.id)}")`,maskSize:'contain',maskPosition:'center',maskRepeat:'no-repeat',pointerEvents:'none'});canvas.append(frame);}
+        continue;
       }
       const actual=designCanvas&&['name','time'].includes(entry.key)?resolveMetadata(config)[entry.key]:null;
       const v = actual?{...actual,...actual.style}:entry.item;

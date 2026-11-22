@@ -1,4 +1,5 @@
-import {effectSettings,setAvatarEffects} from './avatar-effects.mjs';
+import {effectSettings,setAvatarEffects,chooseAvatarFrame} from './avatar-effects.mjs';
+import {AVATAR_FRAME_PAIRS,framePair,frameAssetUrl} from './avatar-frame-pairs.mjs';
 import {prepareAvatarMask} from './avatar-mask-upload.mjs';
 import {createAvatarCompositionList,COMPOSITION_LIST_CSS} from './avatar-composition-list.mjs';
 import {canvasEnabled,enableHeaderCanvas,designInnerWidth} from './header-canvas.mjs';
@@ -263,10 +264,15 @@ export function createAvatarEditor({
     propertyHeading(container,'人物取景');control('取景缩放','zoom',100,300);
     for(const f of [field('头像取景水平位置','x','range',{min:0,max:100,unit:'%'}),field('头像取景垂直位置','y','range',{min:0,max:100,unit:'%'})])editorControl(container,f,fill);
     propertyHeading(container,'头像滤镜');control('亮度','brightness',0,200);control('饱和度','saturation',0,200);
+    propertyHeading(container,'头像框');
+    const frameLabel=make('label','field','选择头像框'),frameSelect=make('select');frameSelect.setAttribute('aria-label','选择头像框');
+    for(const [id,name]of [['','无'],...Object.values(AVATAR_FRAME_PAIRS).map(f=>[f.id,f.name])]){const o=make('option','',name);o.value=id;frameSelect.append(o);}frameSelect.value=effects.frame?.id||'';frameLabel.append(frameSelect);container.append(frameLabel);
+    frameSelect.addEventListener('change',()=>{remember();chooseAvatarFrame(c,scope,frameSelect.value);apply();renderFields();});
+    if(effects.frame){editorControl(container,{...field('头像框颜色','color','color'),beforeApply:()=>setAvatarEffects(c,scope,effects)},effects.frame);const thumb=make('img','page-art-preview');thumb.src=frameAssetUrl(effects.frame.id);thumb.alt=framePair(effects.frame.id).name;thumb.style.maxHeight='100px';thumb.style.objectFit='contain';container.append(thumb);}
     propertyHeading(container,'头像遮罩');
-    editorControl(container,{...field('遮罩形状','kind','select',{options:[['none','无'],['circle','圆形'],['ellipse','椭圆'],['diamond','菱形'],...(effects.mask.image?[['custom','自定义遮罩']]:[])]}),beforeApply:()=>setAvatarEffects(getConfig(),scope,effects)},effects.mask,()=>renderFields());
+    editorControl(container,{...field('遮罩形状','kind','select',{options:[['none','无'],...(effects.frame?[['frame','配套遮罩']]:[]),['circle','圆形'],['ellipse','椭圆'],['diamond','菱形'],...(effects.mask.image.startsWith('data:')?[['custom','自定义遮罩']]:[])]}),beforeApply:()=>{if(effects.mask.kind==='frame')effects.mask.image=effects.frame.id;else if(framePair(effects.mask.image))effects.mask.image='';setAvatarEffects(getConfig(),scope,effects);}},effects.mask,()=>renderFields());
     const label=make('label','field','上传自定义遮罩'),input=make('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';input.id='avatar-mask-file';input.setAttribute('aria-label','上传自定义遮罩');label.append(input);container.append(label);
-    if(effects.mask.image){const thumb=make('img','page-art-preview');thumb.src=effects.mask.image;thumb.alt='自定义遮罩';thumb.style.background='#9ca79b';thumb.style.maxHeight='100px';thumb.style.objectFit='contain';container.append(thumb);}
+    if(effects.mask.image.startsWith('data:')){const thumb=make('img','page-art-preview');thumb.src=effects.mask.image;thumb.alt='自定义遮罩';thumb.style.background='#9ca79b';thumb.style.maxHeight='100px';thumb.style.objectFit='contain';container.append(thumb);}
     input.addEventListener('change',async()=>{
       const file=input.files?.[0];input.value='';if(!file)return;
       const token=++uploadToken,epoch=getEditEpoch(),original=c,valid=()=>isActive()&&getEditEpoch()===epoch&&getConfig()===original&&getPhotoScope()===scope&&getUi().kind==='avatar'&&avatarTab==='avatar'&&uploadToken===token;

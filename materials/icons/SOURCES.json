@@ -308,5 +308,341 @@
     "variable": "b-stop-icon",
     "sourceFile": "🍊月与星·慕夏 v0.8.css",
     "sourceLine": 2527
+  },
+  {
+    "id": "neutral-outline-parameters",
+    "file": "materials/neutral-icons/outline-parameters.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-parameters"
+  },
+  {
+    "id": "neutral-outline-api",
+    "file": "materials/neutral-icons/outline-api.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-api"
+  },
+  {
+    "id": "neutral-outline-format",
+    "file": "materials/neutral-icons/outline-format.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-format"
+  },
+  {
+    "id": "neutral-outline-worldbook",
+    "file": "materials/neutral-icons/outline-worldbook.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-worldbook"
+  },
+  {
+    "id": "neutral-outline-settings",
+    "file": "materials/neutral-icons/outline-settings.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-settings"
+  },
+  {
+    "id": "neutral-outline-background",
+    "file": "materials/neutral-icons/outline-background.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-background"
+  },
+  {
+    "id": "neutral-outline-extensions",
+    "file": "materials/neutral-icons/outline-extensions.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-extensions"
+  },
+  {
+    "id": "neutral-outline-persona",
+    "file": "materials/neutral-icons/outline-persona.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-persona"
+  },
+  {
+    "id": "neutral-outline-characters",
+    "file": "materials/neutral-icons/outline-characters.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-characters"
+  },
+  {
+    "id": "neutral-outline-edit",
+    "file": "materials/neutral-icons/outline-edit.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-edit"
+  },
+  {
+    "id": "neutral-outline-more",
+    "file": "materials/neutral-icons/outline-more.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-more"
+  },
+  {
+    "id": "neutral-outline-send",
+    "file": "materials/neutral-icons/outline-send.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-send"
+  },
+  {
+    "id": "neutral-outline-stop",
+    "file": "materials/neutral-icons/outline-stop.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-stop"
+  },
+  {
+    "id": "neutral-outline-menu",
+    "file": "materials/neutral-icons/outline-menu.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-menu"
+  },
+  {
+    "id": "neutral-outline-wand",
+    "file": "materials/neutral-icons/outline-wand.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-wand"
+  },
+  {
+    "id": "neutral-outline-previous",
+    "file": "materials/neutral-icons/outline-previous.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-previous"
+  },
+  {
+    "id": "neutral-outline-next",
+    "file": "materials/neutral-icons/outline-next.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-next"
+  },
+  {
+    "id": "neutral-outline-close",
+    "file": "materials/neutral-icons/outline-close.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-close"
+  },
+  {
+    "id": "neutral-outline-check",
+    "file": "materials/neutral-icons/outline-check.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-check"
+  },
+  {
+    "id": "neutral-outline-sparkle",
+    "file": "materials/neutral-icons/outline-sparkle.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-sparkle"
+  },
+  {
+    "id": "neutral-outline-crescent",
+    "file": "materials/neutral-icons/outline-crescent.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-crescent"
+  },
+  {
+    "id": "neutral-outline-ring",
+    "file": "materials/neutral-icons/outline-ring.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-ring"
+  },
+  {
+    "id": "neutral-outline-leaf",
+    "file": "materials/neutral-icons/outline-leaf.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-leaf"
+  },
+  {
+    "id": "neutral-outline-bow",
+    "file": "materials/neutral-icons/outline-bow.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-bow"
+  },
+  {
+    "id": "neutral-outline-heart",
+    "file": "materials/neutral-icons/outline-heart.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-heart"
+  },
+  {
+    "id": "neutral-outline-flower",
+    "file": "materials/neutral-icons/outline-flower.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-flower"
+  },
+  {
+    "id": "neutral-outline-drop",
+    "file": "materials/neutral-icons/outline-drop.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-drop"
+  },
+  {
+    "id": "neutral-outline-diamond",
+    "file": "materials/neutral-icons/outline-diamond.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "outline-diamond"
+  },
+  {
+    "id": "neutral-solid-parameters",
+    "file": "materials/neutral-icons/solid-parameters.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-parameters"
+  },
+  {
+    "id": "neutral-solid-api",
+    "file": "materials/neutral-icons/solid-api.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-api"
+  },
+  {
+    "id": "neutral-solid-format",
+    "file": "materials/neutral-icons/solid-format.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-format"
+  },
+  {
+    "id": "neutral-solid-worldbook",
+    "file": "materials/neutral-icons/solid-worldbook.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-worldbook"
+  },
+  {
+    "id": "neutral-solid-settings",
+    "file": "materials/neutral-icons/solid-settings.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-settings"
+  },
+  {
+    "id": "neutral-solid-background",
+    "file": "materials/neutral-icons/solid-background.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-background"
+  },
+  {
+    "id": "neutral-solid-extensions",
+    "file": "materials/neutral-icons/solid-extensions.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-extensions"
+  },
+  {
+    "id": "neutral-solid-persona",
+    "file": "materials/neutral-icons/solid-persona.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-persona"
+  },
+  {
+    "id": "neutral-solid-characters",
+    "file": "materials/neutral-icons/solid-characters.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-characters"
+  },
+  {
+    "id": "neutral-solid-edit",
+    "file": "materials/neutral-icons/solid-edit.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-edit"
+  },
+  {
+    "id": "neutral-solid-more",
+    "file": "materials/neutral-icons/solid-more.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-more"
+  },
+  {
+    "id": "neutral-solid-send",
+    "file": "materials/neutral-icons/solid-send.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-send"
+  },
+  {
+    "id": "neutral-solid-stop",
+    "file": "materials/neutral-icons/solid-stop.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-stop"
+  },
+  {
+    "id": "neutral-solid-menu",
+    "file": "materials/neutral-icons/solid-menu.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-menu"
+  },
+  {
+    "id": "neutral-solid-wand",
+    "file": "materials/neutral-icons/solid-wand.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-wand"
+  },
+  {
+    "id": "neutral-solid-previous",
+    "file": "materials/neutral-icons/solid-previous.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-previous"
+  },
+  {
+    "id": "neutral-solid-next",
+    "file": "materials/neutral-icons/solid-next.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-next"
+  },
+  {
+    "id": "neutral-solid-close",
+    "file": "materials/neutral-icons/solid-close.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-close"
+  },
+  {
+    "id": "neutral-solid-check",
+    "file": "materials/neutral-icons/solid-check.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-check"
+  },
+  {
+    "id": "neutral-solid-sparkle",
+    "file": "materials/neutral-icons/solid-sparkle.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-sparkle"
+  },
+  {
+    "id": "neutral-solid-crescent",
+    "file": "materials/neutral-icons/solid-crescent.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-crescent"
+  },
+  {
+    "id": "neutral-solid-ring",
+    "file": "materials/neutral-icons/solid-ring.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-ring"
+  },
+  {
+    "id": "neutral-solid-leaf",
+    "file": "materials/neutral-icons/solid-leaf.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-leaf"
+  },
+  {
+    "id": "neutral-solid-bow",
+    "file": "materials/neutral-icons/solid-bow.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-bow"
+  },
+  {
+    "id": "neutral-solid-heart",
+    "file": "materials/neutral-icons/solid-heart.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-heart"
+  },
+  {
+    "id": "neutral-solid-flower",
+    "file": "materials/neutral-icons/solid-flower.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-flower"
+  },
+  {
+    "id": "neutral-solid-drop",
+    "file": "materials/neutral-icons/solid-drop.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-drop"
+  },
+  {
+    "id": "neutral-solid-diamond",
+    "file": "materials/neutral-icons/solid-diamond.svg",
+    "sourceFile": "绘境原创通用图标",
+    "variable": "solid-diamond"
   }
 ]
