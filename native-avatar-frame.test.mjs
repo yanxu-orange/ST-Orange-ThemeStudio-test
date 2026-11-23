@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
+import {createSchemeModel} from './scheme-model.mjs';import {chooseAvatarFrame,chooseAvatarFx,effectSettings,avatarEffectRules} from './avatar-effects.mjs';
+test('new frame and paired mask require original img, preserve native missing-avatar, and follow host image removal without observers',()=>{
+ const model=createSchemeModel(),c=model.validate(model.templates.blank);chooseAvatarFrame(c,'ai','frame-arch');
+ const{document}=parseHTML('<html><body><div class="mes" data-otl-live-avatar-hidden="false" is_user="false"><div class="mesAvatarWrapper"><div class="avatar"><img src="/original.png"></div></div></div><div class="mes" data-otl-live-avatar-hidden="false" is_user="true"><div class="mesAvatarWrapper"><div class="avatar"><div class="missing-avatar fa-solid fa-user-slash"></div></div></div></div></body></html>');
+ const ai=document.querySelector('[is_user=false]'),user=document.querySelector('[is_user=true]'),missing=user.querySelector('.missing-avatar'),original=ai.querySelector('img'),before=missing.outerHTML;
+ for(const withFx of[false,true]){if(withFx)chooseAvatarFx(c,'ai','sparkle');const css=avatarEffectRules('.mes',c),blocks=[...css.matchAll(/([^{}\n]+)\{([^{}]*)\}/g)].map(m=>({selector:m[1],body:m[2]}));const frames=blocks.filter(b=>b.selector.endsWith('::after')&&b.body.includes('frame-arch.png'));
+  assert.equal(frames.length,2);const matchesFrames=()=>frames.flatMap(b=>[...document.querySelectorAll(b.selector.replace(/::after$/,''))]);assert.equal(matchesFrames().length,1);assert.equal(matchesFrames()[0],ai.querySelector('.mesAvatarWrapper'));
+  const paired=blocks.filter(b=>!b.selector.includes('> .otl-avatar-fx')&&(b.body.includes('frame-arch-mask.png')||b.body.includes('mask-image:var(--otl-avatar-effect-mask)')));assert.ok(paired.length>=2);for(const b of paired){assert.ok(b.selector.includes(':has('),b.selector);assert.equal([...document.querySelectorAll(b.selector)].some(n=>n===user.querySelector('.avatar')||n===user.querySelector('.mesAvatarWrapper')),false);}
+  const owned=document.createElement('img');owned.setAttribute('data-otl-live-owned','');user.querySelector('.avatar').append(owned);assert.equal(matchesFrames().length,1);owned.remove();user.querySelector('.avatar').append(original);assert.equal(matchesFrames().length,1);assert.equal(matchesFrames()[0],user.querySelector('.mesAvatarWrapper'));ai.querySelector('.avatar').append(original);assert.equal(original.getAttribute('src'),'/original.png');
+ }
+ assert.equal(missing.outerHTML,before);assert.equal(user.querySelector('.missing-avatar'),missing);
+ // Existing custom-mask semantics remain unchanged when no new frame is selected.
+ chooseAvatarFrame(c,'ai','');effectSettings(c).mask={kind:'custom',image:'data:image/png;base64,AAAA'};const custom=avatarEffectRules('.mes',c);assert.match(custom,/\.avatar\{[^}]*mask-image:var\(--otl-avatar-effect-mask\)/);
+});

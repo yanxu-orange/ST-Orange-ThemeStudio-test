@@ -1,4 +1,7 @@
-import {validateAvatarEffects,avatarEffectRules,hasAvatarEffects} from './avatar-effects.mjs';
+import {avatarRectangleMask} from './avatar-mask-style.mjs';
+import {createAvatarFxRuntime} from './avatar-fx-runtime.mjs';
+import {createAvatarReflectionRuntime,reflectionGeometry} from './avatar-reflection.mjs';
+import {validateAvatarEffects,avatarEffectRules,hasAvatarEffects,effectSettings} from './avatar-effects.mjs';
 import {canvasEnabled,projectHeaderConfig,headerCanvasScale,headerCanvasRules,validateHeaderCanvas} from './header-canvas.mjs';
 import {normalizeGlassConfig} from './glass-model.mjs';
 import {glassRule} from './glass-style.mjs';
@@ -140,12 +143,20 @@ function cssOnlyNativeColor(path) {
   );
 }
 
-function cssOnlyField(path,key){
+function cssOnlyField(path,key,a,b){
   if(!path.length&&['pageStyle','pageHeaders'].includes(key))return true;
   if(!path.length)return cssRootFields.has(key);
   const [root,group,part]=path;
   if(root==='nativeStyle'&&key==='color'&&cssOnlyNativeColor(path))return true;
-  if(root==='avatarEffects'&&path.length===2&&key!=='scale')return true;
+  if(root==='avatarEffects'&&path.length===2&&key!=='scale'){
+    if(key==='reflection')return false;
+    const rectangle=(a?.mask?.kind==='none'||b?.mask?.kind==='none')&&(a?.maskFinish?.feather>0||b?.maskFinish?.feather>0);
+    return !rectangle||!['mask','maskFinish','frame'].includes(key);
+  }
+  if(root==='avatarEffects'&&path.length===3&&part==='maskFinish')return key!=='feather';
+  if(root==='avatarEffects'&&path.length===3&&part==='mask')return key!=='kind';
+  if(root==='avatarEffects'&&path.length===3&&part==='frame')return true;
+  if(root==='avatarEffects'&&path.length===3&&part==='reflection')return key==='strength';
   if(root==='metadata'&&path.at(-1)==='style'&&key==='color')return true;
   if(path.length===2){
     if(['captions','footerCaptions','nativeStyle','avatarFill'].includes(root))return key==='color';
@@ -202,6 +213,8 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   const scrollbarVisibility=createScrollbarVisibility({document});
   const wallpaper=createCanvasWallpaper(document);
   const glassRuntime=createGlassRuntime(document);
+  const avatarFx=createAvatarFxRuntime({document});
+  const avatarReflection=createAvatarReflectionRuntime({document});
   let pendingConfig=null,snapshot=null,style=null,observer=null,resizer=null,frame=null,theme=null,themeDisabled=false,rootOriginal=null,session=0,fontHandler=null,fontSession=null,stopInterfaceWatch=null,currentInterface='sans-serif';
   const states=new Map();
   const observedSizes=new Map(),dirtyMessages=new Set(),nativeDirtyMessages=new Set();
@@ -237,6 +250,8 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function owned(state,tag,cls,parent){const node=document.createElement(tag);node.className=cls;node.setAttribute(OWN,'');state.nodes.add(node);parent.append(node);return node;}
   function clearState(state){
+    avatarFx.remove(state.fxMessage);
+    avatarReflection.remove(state.fxMessage);
     releaseAvatarSource(state.avatarSource);state.avatarSource=null;
     clearNativeIconFailures(state.attributes.filter(r=>r.key==='data-otl-native-mode').map(r=>r.node));
     for(const node of state.nodes)node.remove();
@@ -263,7 +278,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function* prepareMessage(msg){
     const block=msg.querySelector(':scope > .mes_block'),header=block?.querySelector(':scope > .ch_name'),photo=msg.querySelector(':scope > .mesAvatarWrapper > .avatar'),nativeImage=photo?.querySelector(':scope > img:not([data-otl-live-owned])'),name=header?.querySelector('.name_text');
-    if(!header||!photo||!nativeImage||!name){const old=states.get(msg);if(old){releaseAvatarSource(old.avatarSource);old.avatarSource=null;}return false;}
+    if(!header||!photo||!nativeImage||!name){avatarFx.remove(msg);avatarReflection.remove(msg);const old=states.get(msg);if(old){old.avatarSceneReady=false;if(msg.style.getPropertyValue('--otl-reflection-reserve'))variable(old,msg,'--otl-reflection-reserve','0px');releaseAvatarSource(old.avatarSource);old.avatarSource=null;}return false;}
     let state=states.get(msg);const nativeHidden=yield()=>{if(state)return state.nativeHidden;const knownHidden=document.body.classList.contains('hideChatAvatars')||document.body.classList.contains('documentstyle'),getStyle=win?.getComputedStyle;return !knownHidden&&typeof getStyle==='function'&&(getStyle.call(win,photo).display==='none'||getStyle.call(win,photo.parentElement).display==='none');};if(!state){state={nodes:new Set(),attributes:[],variables:[],styleOrigins:new Map(),nativeHidden};states.set(msg,state);}
     releaseDetached(state,msg);
     let c=snapshot,p;const user=msg.getAttribute('is_user')==='true',names=name.parentElement;p=c.photos[user?'user':'ai'];
@@ -302,6 +317,13 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     variable(state,msg,'--hc-scale',String(headerCanvasScale(snapshot,actualWidth)));const width=Math.max(1,actualWidth-cardPadding(c)*2);
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden,width);
     const {photoWidth,photoHeight,photoTop}=scene;
+    state.avatarSceneReady=true;
+    const reflection=photoHidden?{reserve:0,clip:''}:reflectionGeometry(c,p,c.avatarFill[user?'user':'ai'],scene,effectSettings(c,user));
+    if(effectSettings(c,user).reflection||msg.style.getPropertyValue('--otl-reflection-reserve'))variable(state,msg,'--otl-reflection-reserve',reflection.reserve+'px');
+    if(reflection.clip||msg.style.getPropertyValue('--otl-reflection-clip'))variable(state,msg,'--otl-reflection-clip',reflection.clip||'');
+    for(const [key,value]of Object.entries({'top':reflection.top||0,'height':reflection.extent||0,'source-offset':reflection.offset||0}))if(effectSettings(c,user).reflection||msg.style.getPropertyValue('--otl-reflection-'+key))variable(state,msg,'--otl-reflection-'+key,value+'px');
+    if(effectSettings(c,user).maskFinish?.feather>0&&effectSettings(c,user).mask.kind==='none')variable(state,msg,'--otl-avatar-shape-mask',`url("${avatarRectangleMask(effectSettings(c,user),p,c.avatarFill[user?'user':'ai'],c.radius,scene)}")`);
+    else if(state.variables.some(v=>v.node===msg&&v.key==='--otl-avatar-shape-mask'))variable(state,msg,'--otl-avatar-shape-mask','none');
     for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg'}))variable(state,msg,'--ol-'+key,value);
     const headerArtwork=[],destinations={header,avatar:header,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
     for(const anchor of Object.keys(destinations)){
@@ -339,12 +361,12 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function flush(){
     if(!snapshot)return 0;
-    let chromeChanged=false;
+    let chromeChanged=false,fxChanged=false;
     if(pendingConfig){
       const next=pendingConfig;pendingConfig=null;
       const needsLayout=!sameLayout(snapshot,next);
       const skipUnchangedLayout = !needsLayout && !fullPending && onlyHeaderIndependentColors(snapshot, next);
-      snapshot=next;glassRuntime.update(snapshot);wallpaper.update(snapshot);scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
+      snapshot=next;fxChanged=true;glassRuntime.update(snapshot);wallpaper.update(snapshot);scrollbarVisibility.set(snapshot.hideScrollbars);fontSession?.update(fontEntries(snapshot));
       const families = fontSession?.families() || {};
       const css=styleText(snapshot,families,currentInterface);if(style.textContent!==css)style.textContent=css;
       pageHeaders.update(snapshot,{validated:true,skipUnchangedLayout});
@@ -369,6 +391,13 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     runLayoutPass(prepared.map(({msg})=>footerLayout(msg,snapshot)));
     const updated=[...prepared.map(({msg})=>msg),...nativeOnly];
     runLayoutPass(updated.map(msg=>nativeLayout(msg,snapshot,nativeOptions(msg,states.get(msg),msg===latest))));
+    const fxMessages=fxChanged&&(avatarFx.count||avatarReflection.count||snapshot.avatarEffects?.ai?.fx||snapshot.avatarEffects?.user?.fx||snapshot.avatarEffects?.ai?.reflection||snapshot.avatarEffects?.user?.reflection)?states:prepared.map(({msg,state})=>[msg,state]);
+    for(const [msg,state]of fxMessages){
+      state.fxMessage=msg;const avatar=msg.querySelector(':scope > .mesAvatarWrapper > .avatar');
+      const nativeImage=avatar?.querySelector('img:not([data-otl-live-owned])'),hidden=msg.getAttribute('data-otl-live-avatar-hidden')==='true'||!nativeImage||state.avatarSceneReady===false;
+      avatarFx.sync(msg,avatar?.parentElement,effectSettings(snapshot,msg.getAttribute('is_user')==='true').fx,hidden);
+      avatarReflection.sync(msg,avatar?.parentElement,nativeImage,effectSettings(snapshot,msg.getAttribute('is_user')==='true').reflection,hidden);
+    }
     for(const {msg}of prepared)observeMessage(msg);
     onRender?.({messages:states.size,updated:updated.length,nodes:updated,chromeChanged});
     return updated.length;
@@ -432,7 +461,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
   }
   function stop(){
     if(!snapshot)return;
-    glassRuntime.stop();wallpaper.stop();pageHeaders.stop();pageDropdowns.stop();metadata.stop();
+    avatarFx.stop();avatarReflection.stop();glassRuntime.stop();wallpaper.stop();pageHeaders.stop();pageDropdowns.stop();metadata.stop();
     imageDisplay.clear();scrollbarVisibility.stop();pendingConfig=null;snapshot=null;chrome.stop();session++;stopInterfaceWatch?.();stopInterfaceWatch=null;fontSession?.dispose();fontSession=null;observer?.disconnect();observer=null;resizer?.disconnect();resizer=null;observedSizes.clear();dirtyMessages.clear();nativeDirtyMessages.clear();messages=[];chat=null;latest=null;fullPending=false;structurePending=false;if(frame!==null)caf(frame);frame=null;
     if(fontHandler)document.fonts?.removeEventListener?.('loadingdone',fontHandler);fontHandler=null;
     for(const state of states.values())clearState(state);states.clear();style?.remove();style=null;

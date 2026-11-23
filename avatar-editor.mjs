@@ -1,4 +1,7 @@
-import {effectSettings,setAvatarEffects,chooseAvatarFrame} from './avatar-effects.mjs';
+import {MASK_FINISH_DEFAULTS} from './avatar-mask-style.mjs';
+import {AVATAR_FX} from './avatar-fx.mjs';
+import {REFLECTION_DEFAULTS} from './avatar-reflection.mjs';
+import {effectSettings,setAvatarEffects,chooseAvatarFx,chooseAvatarFrame} from './avatar-effects.mjs';
 import {AVATAR_FRAME_PAIRS,framePair,frameAssetUrl} from './avatar-frame-pairs.mjs';
 import {prepareAvatarMask} from './avatar-mask-upload.mjs';
 import {createAvatarCompositionList,COMPOSITION_LIST_CSS} from './avatar-composition-list.mjs';
@@ -269,8 +272,24 @@ export function createAvatarEditor({
     for(const [id,name]of [['','无'],...Object.values(AVATAR_FRAME_PAIRS).map(f=>[f.id,f.name])]){const o=make('option','',name);o.value=id;frameSelect.append(o);}frameSelect.value=effects.frame?.id||'';frameLabel.append(frameSelect);container.append(frameLabel);
     frameSelect.addEventListener('change',()=>{remember();chooseAvatarFrame(c,scope,frameSelect.value);apply();renderFields();});
     if(effects.frame){editorControl(container,{...field('头像框颜色','color','color'),beforeApply:()=>setAvatarEffects(c,scope,effects)},effects.frame);const thumb=make('img','page-art-preview');thumb.src=frameAssetUrl(effects.frame.id);thumb.alt=framePair(effects.frame.id).name;thumb.style.maxHeight='100px';thumb.style.objectFit='contain';container.append(thumb);}
+    propertyHeading(container,'头像特效');
+    const fxLabel=make('label','field','特效'),fxSelect=make('select');fxSelect.setAttribute('aria-label','头像特效');
+    for(const [id,name]of [['','无'],...Object.entries(AVATAR_FX)]){const o=make('option','',name);o.value=id;fxSelect.append(o);}fxSelect.value=effects.fx?.kind||'';fxLabel.append(fxSelect);container.append(fxLabel);
+    fxSelect.addEventListener('change',()=>{remember();chooseAvatarFx(c,scope,fxSelect.value);apply();renderFields();});
+    if(effects.fx){editorControl(container,{...field('特效播放','motion','select',{options:[['true','动态'],['false','静止']]}),beforeApply:()=>setAvatarEffects(c,scope,effects)},effects.fx);editorControl(container,{...field('特效颜色','color','color'),beforeApply:()=>setAvatarEffects(c,scope,effects)},effects.fx);}
+    if(effects.fx){const tuning={size:effects.fx.size??100,strength:effects.fx.strength??100};for(const [label,key,min,max]of [['特效大小','size',50,200],['特效强度','strength',25,200]])editorControl(container,{...field(label,key,'range',{min,max,unit:'%'}),beforeApply:()=>{effects.fx[key]=tuning[key];setAvatarEffects(c,scope,effects);}},tuning);}
+    if(effects.fx&&['snow','float'].includes(effects.fx.kind)){const tuning={density:effects.fx.density??6,speed:effects.fx.speed??100};for(const [label,key,min,max,unit]of [['粒子数量','density',3,12,''],['飘动速度','speed',50,200,'%']])editorControl(container,{...field(label,key,'range',{min,max,step:1,unit}),beforeApply:()=>{effects.fx[key]=tuning[key];setAvatarEffects(c,scope,effects);}},tuning);}
+    propertyHeading(container,'头像倒影');
+    const reflectionLabel=make('label','field','镜像倒影'),reflectionSelect=make('select');reflectionSelect.setAttribute('aria-label','镜像倒影');
+    for(const [id,name]of [['','关闭'],['true','开启']]){const option=make('option','',name);option.value=id;reflectionSelect.append(option);}reflectionSelect.value=effects.reflection?'true':'';reflectionLabel.append(reflectionSelect);container.append(reflectionLabel);
+    reflectionSelect.addEventListener('change',()=>{remember();if(reflectionSelect.value)effects.reflection={...REFLECTION_DEFAULTS};else delete effects.reflection;setAvatarEffects(c,scope,effects);apply();renderFields();});
+    if(effects.reflection)for(const [label,key,min,max,unit]of [['倒影高度','height',10,60,'%'],['倒影间距','gap',0,40,'px'],['倒影强度','strength',0,80,'%']])editorControl(container,{...field(label,key,'range',{min,max,unit}),beforeApply:()=>setAvatarEffects(c,scope,effects)},effects.reflection);
     propertyHeading(container,'头像遮罩');
     editorControl(container,{...field('遮罩形状','kind','select',{options:[['none','无'],...(effects.frame?[['frame','配套遮罩']]:[]),['circle','圆形'],['ellipse','椭圆'],['diamond','菱形'],...(effects.mask.image.startsWith('data:')?[['custom','自定义遮罩']]:[])]}),beforeApply:()=>{if(effects.mask.kind==='frame')effects.mask.image=effects.frame.id;else if(framePair(effects.mask.image))effects.mask.image='';setAvatarEffects(getConfig(),scope,effects);}},effects.mask,()=>renderFields());
+    const finish={...(effects.maskFinish||MASK_FINISH_DEFAULTS)},finishField=f=>({...f,beforeApply:()=>{effects.maskFinish={...finish};setAvatarEffects(getConfig(),scope,effects);}});
+    editorControl(container,finishField(field('边缘柔化','feather','range',{min:0,max:20,unit:'%'})),finish);
+    editorControl(container,finishField(field('渐隐方向','fade','select',{options:[['none','无'],['down','向下'],['left','向左'],['right','向右']]})),finish,()=>renderFields());
+    if(finish.fade!=='none')editorControl(container,finishField(field('开始位置','start','range',{min:0,max:100,unit:'%'})),finish);
     const label=make('label','field','上传自定义遮罩'),input=make('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';input.id='avatar-mask-file';input.setAttribute('aria-label','上传自定义遮罩');label.append(input);container.append(label);
     if(effects.mask.image.startsWith('data:')){const thumb=make('img','page-art-preview');thumb.src=effects.mask.image;thumb.alt='自定义遮罩';thumb.style.background='#9ca79b';thumb.style.maxHeight='100px';thumb.style.objectFit='contain';container.append(thumb);}
     input.addEventListener('change',async()=>{
@@ -284,7 +303,7 @@ export function createAvatarEditor({
     if(fill.enabled){propertyHeading(container,'下缘颜色过渡');
       editorControl(
         container,
-        field('下缘渐隐', 'gradient', 'select', {
+        field('颜色过渡', 'gradient', 'select', {
           options: [
             ['false', '关闭'],
             ['true', '开启'],
@@ -296,8 +315,8 @@ export function createAvatarEditor({
       if (fill.gradient)
         for (const f of [
           field('过渡颜色', 'color', 'color'),
-          field('渐隐强度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
-          field('渐隐开始位置', 'start', 'range', {
+          field('过渡强度', 'opacity', 'range', { min: 0, max: 1, step: 0.05 }),
+          field('过渡开始位置', 'start', 'range', {
             min: 0,
             max: 100,
             unit: '%',

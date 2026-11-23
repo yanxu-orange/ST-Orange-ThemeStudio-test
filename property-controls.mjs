@@ -98,6 +98,7 @@ export function createPropertyControls({
   }
   function editorControl(container, f, target, onUpdate) {
     const label = make('label', 'field');
+    if (f.key === 'x' || f.key === 'y') { label.dataset.positionControl = f.key; label._otlPositionTarget = target; label._otlPositionSource = f.positionSource; label._otlPositionBeforeApply = f.beforeApply; }
     label.append(make('span', 'field-title', f.label));
     const input = make(f.type === 'select' ? 'select' : 'input');
     input.setAttribute('aria-label', f.label);
@@ -165,6 +166,7 @@ export function createPropertyControls({
                 'showArrow',
                 'enabled',
                 'gradient',
+                'motion',
                 'borderEnabled',
                 'shadow',
                 'visible',

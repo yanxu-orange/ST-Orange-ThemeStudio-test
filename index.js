@@ -1,3 +1,4 @@
+import {createAlignmentGuides,renderAlignmentControls} from './editor-alignment.mjs';
 import {canvasEnabled,headerCanvasScale,projectHeaderConfig,designInnerWidth} from './header-canvas.mjs';
 import {requestExportName} from './export-name.mjs';
 import {createGlassEditor} from './glass-editor.mjs';
@@ -414,6 +415,7 @@ await (async () => {
             ? [document.querySelector('#send_form')].filter(Boolean)
             : []),
         ]);
+      refreshAlignmentControls();
     },
   });
   function previewTextTarget(node) {
@@ -442,7 +444,6 @@ await (async () => {
         user = msg?.getAttribute('is_user') === 'true',
         value = resolveMetadata(config, user)[key];
       if (value) {
-        metadataScope = user ? 'user' : 'ai';
         const pixels=canvasEnabled(config)&&value.region==='header',canvasScale=pixels?headerCanvasScale(config,msg.clientWidth):1;
         const parent =
           value.region === 'body-top'
@@ -549,7 +550,45 @@ await (async () => {
       parentHeightForWidth,
     };
   }
+  let snapEnabled=true,alignmentControlsPending=true;
+  const alignmentGuides=createAlignmentGuides(document);
+  function alignmentCandidate(node){
+    const msg=node.closest('.mes[data-otl-live]');if(!msg)return true;
+    const actor=msg.getAttribute('is_user')==='true'?'user':'ai';
+    if(ui.kind==='avatar')return actor===photoScope;
+    if(ui.kind==='text'&&['name','time'].includes(ui.object))return actor===metadataScope;
+    return true;
+  }
+  function alignmentRegion(node,target,parent){
+    if(ui.region==='page-header')return parent;
+    if(node.closest('#send_form'))return node.closest('#send_form');
+    if(target.image){
+      const anchor=target.item.anchor;
+      if(anchor==='avatar')return node.closest('.otl-avatar-art-frame');
+      if(anchor==='header')return node.closest('.mes').querySelector(':scope > .mes_block > .ch_name');
+      if(anchor==='message')return node.closest('.mes');
+      if(anchor==='footer')return node.closest('.otl-footer').querySelector('.otl-footer-scene');
+      if(anchor==='reasoning-entry')return node.closest('.mes_reasoning_header');
+      if(anchor==='reasoning-body')return node.closest('.mes_reasoning');
+      return null;
+    }
+    return target.parent||parent;
+  }
+  function refreshAlignmentControls(){
+    const container=shadow.querySelector('.fields');if(!alignmentControlsPending||!container||!active||ui.mode!=='edit')return;
+    const rendered=renderAlignmentControls({container,document,drag:ui.region==='page-header'?headerDrag:layerDrag,getSnap:()=>snapEnabled,setSnap:value=>{snapEnabled=value;alignmentGuides.clear();}});
+    if(rendered)alignmentControlsPending=false;
+  }
+  let alignmentRefreshQueued=false;
+  function invalidateAlignmentControls(){
+    if(!active||ui.mode!=='edit')return;
+    alignmentControlsPending=true;if(alignmentRefreshQueued)return;alignmentRefreshQueued=true;
+    queueMicrotask(()=>{alignmentRefreshQueued=false;refreshAlignmentControls();});
+  }
+  document.addEventListener('scroll',event=>{if(!event.composedPath?.().includes(shadow))invalidateAlignmentControls();},{capture:true,passive:true});
+  window.addEventListener('resize',invalidateAlignmentControls);
   const layerDrag = createLayerDrag({
+    getAlignmentRegion:alignmentRegion,alignmentCandidate,getSnapEnabled:()=>snapEnabled,guides:alignmentGuides,
     document,
     scopeSelector: '.mes[data-otl-live],#send_form',
     selector:
@@ -564,8 +603,9 @@ await (async () => {
     }),
     getTextTarget: previewTextTarget,
     getLayerTarget: previewLayerTarget,
-    onCommit: (item, next) => {
+    onCommit: (item, next, beforeCommit) => {
       remember();
+      beforeCommit?.();
       Object.assign(item, next);
       apply();
       renderFields();
@@ -626,6 +666,7 @@ await (async () => {
   }
 
   const headerDrag = createLayerDrag({
+    getAlignmentRegion:alignmentRegion,getSnapEnabled:()=>snapEnabled,guides:alignmentGuides,
     document,
     scopeSelector: '[data-otl-header-scene]',
     selector: '[data-otl-header-layer]',
@@ -656,8 +697,9 @@ await (async () => {
         height: parent.clientHeight || parent.getBoundingClientRect().height,
       };
     },
-    onCommit: (item, next) => {
+    onCommit: (item, next, beforeCommit) => {
       remember();
+      beforeCommit?.();
       Object.assign(item, next);
       apply();
       renderFields();
@@ -748,6 +790,7 @@ await (async () => {
       preserveTopbar: collapsed,
     });
     liveAdapter.syncIsland();
+    invalidateAlignmentControls();
   }
 
   function beginUploadFeedback(source, target, files) {
@@ -1771,6 +1814,7 @@ await (async () => {
     disposeFontLibrary?.();
     disposeFontLibrary = null;
     container.replaceChildren();
+    alignmentControlsPending=true;
     let kinds = [],
       objects = [],
       title = '',
@@ -2316,6 +2360,7 @@ await (async () => {
         id === 'undo' && !history.length;
     syncSaveState();
     updateWorkbenchLayout();
+    refreshAlignmentControls();
     const selection = JSON.stringify([
       active,
       ui.page,
@@ -2330,6 +2375,7 @@ await (async () => {
     }
   }
   function apply() {
+    alignmentControlsPending=true;
     if (pendingRegionEdit) {
       if (pendingRegionEdit.config === config) activateEditedRegion(config, pendingRegionEdit.ui);
       pendingRegionEdit = null;

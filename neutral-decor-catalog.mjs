@@ -1,4 +1,7 @@
 export const NEUTRAL_DECOR={
+  "neutral-snowflake": {"id":"neutral-snowflake","name":"细雪花","path":"neutral-decor/snowflake.png","category":"通用装饰","theme":"绘境原创"},
+  "neutral-snow-dot": {"id":"neutral-snow-dot","name":"雪点","path":"neutral-decor/snow-dot.png","category":"通用装饰","theme":"绘境原创"},
+  "neutral-glow-dot": {"id":"neutral-glow-dot","name":"柔光点","path":"neutral-decor/glow-dot.png","category":"通用装饰","theme":"绘境原创"},
   "neutral-line-fine": {
     "id": "neutral-line-fine",
     "name": "细线",

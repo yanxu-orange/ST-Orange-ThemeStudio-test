@@ -381,6 +381,7 @@ export function createLayerEditor({
       if (f.key === 'y')
         f.label = layer.vertical === 'top' ? '距顶部距离' : '距底部距离';
       const label = make('label', 'field');
+      if(f.key==='x'||f.key==='y'){label.dataset.positionControl=f.key;label._otlPositionTarget=layer;}
       label.append(make('span', 'field-title', f.label));
       const input = make(f.type === 'select' ? 'select' : 'input');
       input.setAttribute('aria-label', f.label);

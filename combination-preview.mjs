@@ -1,4 +1,7 @@
-import {effectSettings,maskSource} from './avatar-effects.mjs';
+import {avatarMaskCss,avatarRectangleMask} from './avatar-mask-style.mjs';
+import {createAvatarFxNode,styleStaticAvatarFx} from './avatar-fx.mjs';
+import {effectSettings} from './avatar-effects.mjs';
+import {reflectionGeometry,createAvatarReflectionNode,styleStaticAvatarReflection} from './avatar-reflection.mjs';
 import {canvasEnabled,projectHeaderConfig} from './header-canvas.mjs';
 import {resolveMetadata} from './native-metadata.mjs';
 import {avatarArtworkFrameStyle} from './avatar-art.mjs';
@@ -8,7 +11,7 @@ import { shapeSvg, layerSizeStyle } from './shape-assets.mjs';
 import { createPageHeaderScene } from './page-header-scene.mjs';
 import { PAGE_HEADER_PAGES } from './page-headers.mjs';
 import { regionEntries } from './region-layers.mjs';
-import { itemPoint, sceneGeometry } from './text-scene.mjs';
+import { itemPoint, sceneGeometry,avatarClipPolygon } from './text-scene.mjs';
 import { cardPadding } from './body-card.mjs';
 import { chromeSourceUrl } from './chrome.mjs';
 import { resolveNativeActions, nativeIconUrl } from './native.mjs';
@@ -23,14 +26,15 @@ export function createCombinationPreview(document, config, { region, pageId = 's
   const page = region === 'home' ? 'home' : pageId;
   const header = config.pageHeaders?.[page];
   const height = region === 'header' ? config.headerHeight : ['home', 'page'].includes(region) ? Math.max(80, header?.height || 160) : region === 'footer' ? Math.max(100, ...(config.footerCaptions || []).map(v => v.y + v.size * 2)) : region === 'input' ? Math.max(80, config.chromeStyle.input.minHeight + 32) : 70;
+  const reflectionReserve=region==='header'?reflectionGeometry(config,config.photos.ai,config.avatarFill.ai,sceneGeometry(config,W-cardPadding(config)*2,config.photos.ai),effectSettings(config)).reserve:0,displayHeight=height+reflectionReserve;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${height}`);
+  svg.setAttribute('viewBox', `0 0 ${W} ${displayHeight}`);
   svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', '组合布局预览');
   svg.style.cssText = 'display:block;width:100%;max-height:220px;background:#f2f3f4;pointer-events:none';
   const foreign = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-  foreign.setAttribute('width', String(W)); foreign.setAttribute('height', String(height)); svg.append(foreign);
+  foreign.setAttribute('width', String(W)); foreign.setAttribute('height', String(displayHeight)); svg.append(foreign);
   const canvas = document.createElement('div'); canvas.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-  canvas.style.cssText = `position:relative;isolation:isolate;box-sizing:border-box;width:${W}px;height:${height}px;overflow:hidden;background:${config.surface};color:${config.text};font:14px/1.4 sans-serif;`;
+  canvas.style.cssText = `position:relative;isolation:isolate;box-sizing:border-box;width:${W}px;height:${displayHeight}px;overflow:hidden;background:${config.surface};color:${config.text};font:14px/1.4 sans-serif;`;
   foreign.append(canvas);
   const node = (tag, text) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; return n; };
   function text(v, content, x = v.x * W / 100, y = v.y, z = 1) {
@@ -52,12 +56,17 @@ export function createCombinationPreview(document, config, { region, pageId = 's
     for (const [z, entry] of regionEntries(config, region).entries()) {
       if (entry.kind === 'image') { if (entry.item.scope !== 'user'){let host=designCanvas?artHost:canvas;if((designCanvas||config.avatarEffects)&&entry.item.anchor==='avatar'){host=node('div');Object.assign(host.style,avatarArtworkFrameStyle(config,false,{...geometry,reserveTop:0},z));canvas.append(host);}image(entry.item,z,host);} continue; }
       if (entry.kind === 'avatar') {
-        const p = config.photos.ai,filled=config.avatarFill.ai.enabled,effects=effectSettings(config),mask=maskSource(effects.mask);
+        const p = config.photos.ai,filled=config.avatarFill.ai.enabled,effects=effectSettings(config),mask=avatarMaskCss(effects,config.avatarFill.ai,avatarRectangleMask(effects,p,config.avatarFill.ai,config.radius,geometry));
+        canvas.style.setProperty('--otl-preview-avatar-mask',mask);
         const n = node('div', '头像');
-        n.style.cssText = `position:absolute;display:grid;place-items:center;box-sizing:border-box;background:#e1e3e6;color:#696d73;font:13px sans-serif;width:${geometry.photoWidth}px;height:${geometry.photoHeight}px;border:${p.enabled ? p.frameWidth : 0}px solid ${p.frameColor};border-radius:${p.radius}px;left:${filled?0:padding + p.x}px;top:${filled?0:padding + geometry.photoTop - p.y}px;transform:rotate(${p.rotation}deg) scale(${effects.scale/100});transform-origin:50% 100%;mask-image:${mask?`url("${mask}")`:'none'};mask-size:contain;mask-position:center;mask-repeat:no-repeat;z-index:${z};`;
+        n.style.cssText = `position:absolute;display:grid;place-items:center;box-sizing:border-box;background:#e1e3e6;color:#696d73;font:13px sans-serif;width:${geometry.photoWidth}px;height:${geometry.photoHeight}px;border:${p.enabled ? p.frameWidth : 0}px solid ${p.frameColor};border-radius:${p.radius}px;left:${filled?0:padding + p.x}px;top:${filled?0:padding + geometry.photoTop - p.y}px;transform:rotate(${p.rotation}deg) scale(${effects.scale/100});transform-origin:50% 100%;mask-image:var(--otl-preview-avatar-mask);mask-composite:intersect;mask-mode:alpha;mask-size:contain;mask-position:center;mask-repeat:no-repeat;-webkit-mask-image:var(--otl-preview-avatar-mask);-webkit-mask-composite:source-in;-webkit-mask-size:contain;-webkit-mask-position:center;-webkit-mask-repeat:no-repeat;z-index:${z};`;
         if(effects.frame){n.style.border='0';n.style.borderRadius='0';}
+        n.style.clipPath=`polygon(${avatarClipPolygon(config,geometry,p)})`;
+        if(filled)n.style.transform=`scale(${effects.scale/100})`;
         canvas.append(n);
-        if(effects.frame){const frame=node('div');frame.style.cssText=n.style.cssText;Object.assign(frame.style,{background:effects.frame.color,border:'0',borderRadius:'0',maskImage:`url("${frameAssetUrl(effects.frame.id)}")`,maskSize:'contain',maskPosition:'center',maskRepeat:'no-repeat',pointerEvents:'none'});canvas.append(frame);}
+        if(region==='header'&&effects.reflection){const reflection=createAvatarReflectionNode(document,{owned:false,placeholder:true});styleStaticAvatarReflection(reflection,{avatarStyle:n.style.cssText,c:config,p,fill:config.avatarFill.ai,g:geometry,effects,mask:'var(--otl-preview-avatar-mask)',sourceClip:avatarClipPolygon(config,geometry,p)});canvas.append(reflection);}
+        if(effects.fx){const fx=createAvatarFxNode(document,effects.fx,{owned:false});fx.style.cssText=n.style.cssText;Object.assign(fx.style,{background:'transparent',border:'0',pointerEvents:'none',overflow:'hidden'});styleStaticAvatarFx(fx,effects.fx);canvas.append(fx);}
+        if(effects.frame){const frame=node('div');frame.style.cssText=n.style.cssText;Object.assign(frame.style,{background:effects.frame.color,border:'0',borderRadius:'0',maskImage:`url("${frameAssetUrl(effects.frame.id)}")`,maskSize:'contain',maskPosition:'center',maskRepeat:'no-repeat',webkitMaskImage:`url("${frameAssetUrl(effects.frame.id)}")`,pointerEvents:'none'});canvas.append(frame);}
         continue;
       }
       const actual=designCanvas&&['name','time'].includes(entry.key)?resolveMetadata(config)[entry.key]:null;

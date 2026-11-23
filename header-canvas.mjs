@@ -33,6 +33,7 @@ export function projectHeaderConfig(c,actualWidth){
  for(const v of [...Object.values(out.textItems),...out.captions]){v.x=v.x/inner*100;if(v.width!=='auto')v.width=v.width/inner*100;v.y*=s;if(Number.isFinite(v.size))v.size*=s;}
  for(const group of [out.metadata?.unified,out.metadata?.roles.ai,out.metadata?.roles.user])for(const v of Object.values(group||{}))if(v?.region==='header'){v.x=v.x/inner*100;v.y*=s;if(v.width!=='auto')v.width=v.width/inner*100;v.style.size*=s;if(v.prefixStyle?.size!=null)v.prefixStyle.size*=s;}
  for(const p of Object.values(out.photos)){if(p.widthUnit==='px')p.size*=s;scale(p,['height','radius','frameWidth','x','y']);}
+ if(c.avatarEffects)out.avatarEffects=Object.fromEntries(Object.entries(c.avatarEffects).map(([role,effects])=>[role,effects.reflection?{...effects,reflection:{...effects.reflection,gap:effects.reflection.gap*s}}:effects]));
  for(const layer of out.layers.filter(l=>['header','avatar'].includes(l.anchor))){if(layer.widthUnit==='px')layer.width*=s;if(layer.offsetUnit==='px')scale(layer,['x','y']);if(layer.kind==='shape'&&layer.heightUnit==='px')scale(layer,['height']);if(layer.kind==='shape')scale(layer,['cornerRadius','borderWidth']);if(layer.imageSizing?.heightUnit==='px')layer.imageSizing.height*=s;}
  return out;
 }

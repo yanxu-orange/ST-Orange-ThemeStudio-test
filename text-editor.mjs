@@ -150,6 +150,7 @@ export function createTextEditor({
         {
           ...f,
           beforeApply: commit,
+          positionSource: group[key] ? undefined : getConfig().textItems[key],
           beforePreview: () => {
             const previous = group[key];
             commit();
