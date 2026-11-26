@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "yanxuorange",
-  "version": "0.29.0-test.6",
+  "version": "0.29.0-test.7",
   "minimum_client_version": "1.18.0",
   "auto_update": false
 }

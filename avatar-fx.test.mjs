@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {createSchemeModel} from './scheme-model.mjs';
 import {chooseAvatarFx,chooseAvatarFrame,effectSettings,avatarEffectRules} from './avatar-effects.mjs';
-import {validateAvatarFx,AVATAR_FX_CSS} from './avatar-fx.mjs';
+import {validateAvatarFx,AVATAR_FX_CSS,avatarSnowTile} from './avatar-fx.mjs';
 import {createAvatarFxRuntime} from './avatar-fx-runtime.mjs';
 import {snapshotDraft} from './draft-snapshot.mjs';
 import {captureCombination,applyCombination} from './region-combinations.mjs';
@@ -60,4 +60,31 @@ test('stable sync performs no DOM writes; switching/static/off never stacks node
 test('missing IO degrades to static; hidden native avatar and replaced parent clean old overlay',()=>{
  const e=env({io:false}),{msg,parent}=e.add(),node=e.runtime.sync(msg,parent,fx('sweep'));assert.equal(node.dataset.fxPlay,'false');assert.equal(node.dataset.fxMotion,'false');assert.equal(e.instances.length,0);
  const next=e.document.createElement('div');msg.append(next);e.runtime.sync(msg,next,fx());assert.equal(parent.children.length,0);assert.equal(next.children.length,1);e.runtime.sync(msg,next,fx(),true);assert.equal(next.children.length,0);e.runtime.stop();
+});
+
+test('snow texture preserves density, shape, color and width limits without stretching flakes',()=>{
+ for(const density of [3,6,12]){
+  const url=avatarSnowTile({...fx('snow'),density,size:150});
+  const svg=decodeURIComponent(url.slice('url("data:image/svg+xml,'.length,-2));
+  assert.match(svg,/<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="100%" height="100%" fill="#bcaadd">/);
+  assert.equal([...svg.matchAll(/<polygon /g)].length,Math.ceil(density/2));
+  assert.equal([...svg.matchAll(/<circle /g)].length,Math.floor(density/2));
+  assert.equal([...svg.matchAll(/preserveAspectRatio="xMinYMin meet"/g)].length,density);
+  assert.match(svg,/width:clamp\(3px,5\.25%,15px\)/);
+  assert.match(svg,/width:clamp\(2px,2\.85%,8\.25px\)/);
+ }
+ const large=decodeURIComponent(avatarSnowTile({...fx('snow'),size:200}));
+ assert.match(large,/width:clamp\(3px,7%,20px\)/);
+ assert.match(large,/width:clamp\(2px,3\.8%,11px\)/);
+ const c=base();c.avatarDesign='separate';
+ chooseAvatarFx(c,'ai','snow');chooseAvatarFx(c,'user','float');
+ effectSettings(c).fx.speed=200;effectSettings(c).fx.strength=150;
+ let css=avatarEffectRules('.mes',c);
+ assert.equal([...css.matchAll(/--otl-fx-snow-tile:url\("/g)].length,1);
+ assert.match(css,/--otl-fx-strength:1\.5;--otl-fx-speed:2;/);
+ assert.match(css,/@media\(prefers-reduced-motion:no-preference\)\{\s*\.otl-avatar-fx\[data-fx-kind=snow\]\[data-fx-motion=true\]>span\{display:none;animation:none!important\}/);
+ assert.match(css,/@keyframes otl-fx-snow-tile\{to\{transform:translateY\(50%\)\}\}/);
+ effectSettings(c).fx.motion=false;
+ css=avatarEffectRules('.mes',c);
+ assert.doesNotMatch(css,/--otl-fx-snow-tile:url\("/);
 });
