@@ -36,6 +36,20 @@ test('the smallest phone toolbar allocates four controls on the first row and th
 test('outside and Escape dismiss More without consuming native pointer input',()=>{const {window,document,shadow}=fixture();const menu=shadow.querySelector('.desktop-scheme');menu.open=true;const e=new window.Event('pointerdown',{bubbles:true,cancelable:true});document.body.dispatchEvent(e);assert.equal(menu.open,false);assert.equal(e.defaultPrevented,false);menu.open=true;const esc=new window.Event('keydown',{bubbles:true,cancelable:true});esc.key='Escape';shadow.dispatchEvent(esc);assert.equal(menu.open,false);});
 test('work setup can return without replacement and closes open menus',()=>{const {shadow,flow}=fixture();const menu=shadow.querySelector('.desktop-scheme');menu.open=true;shadow.querySelector('.mobile-work').click();assert.equal(menu.open,false);assert.equal(shadow.querySelector('.flow-overlay').classList.contains('hidden'),false);shadow.querySelector('[data-flow=back]').click();assert.equal(shadow.querySelector('.flow-overlay').classList.contains('hidden'),true);flow.setEditorOpen();assert.equal(menu.open,false);});
 
+test('workshop home uses the browser viewport and resets scroll after focusing its heading',()=>{
+ const {shadow,flow}=fixture();
+ const css=[...shadow.querySelectorAll('style')].find(style=>style.textContent.startsWith('.flow-overlay')).textContent;
+ const overlay=shadow.querySelector('.flow-overlay'),title=overlay.querySelector('h2');
+ assert.match(css,/\.flow-overlay\{[^}]*top:0;height:100vh;height:100dvh;/);
+ assert.doesNotMatch(css,/--wb-vv-(?:top|height)/);
+ assert.equal(title.getAttribute('tabindex'),'-1');
+ let focusOptions;
+ title.focus=options=>{focusOptions=options;overlay.scrollTop=100;};
+ flow.show();
+ assert.deepEqual(focusOptions,{preventScroll:true});
+ assert.equal(overlay.scrollTop,0);
+});
+
 test('phone More aligns to the right and primary labels get intrinsic width and a 44px touch target',()=>{const {shadow}=fixture();const css=shadow.querySelector('style').textContent;assert.match(css,/\.bar \.menu\{right:0;width:min\(280px,calc\(100vw - 24px\)\)/);assert.doesNotMatch(css,/right:-48px/);const labels=['full-view','undo','mode-library','save','apply-live'].map(id=>shadow.querySelector('#'+id).textContent);assert.deepEqual(labels,['预览','撤销','素材库','保存草稿','应用']);assert.ok(css.includes('.bar>button,.bar>details{flex:1 0 max-content;min-width:44px}'));assert.match(css,/button,summary\{min-height:44px\}select\{min-height:40px\}/);assert.ok(css.includes('.bar summary{display:flex;align-items:center;justify-content:center;min-height:44px}'));assert.match(css,/\.bar>\.desktop-scheme\{order:6\}/);});
 
 test('selected and primary command hover retains readable dark contrast',()=>{const {shadow}=fixture();const css=shadow.querySelector('style').textContent;assert.ok(css.includes('button[aria-pressed=true]:hover:not(:disabled),button.primary:hover:not(:disabled){background:#425b4b;border-color:#425b4b;color:white}'));});
