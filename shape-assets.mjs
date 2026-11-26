@@ -1,7 +1,8 @@
 import {imageSizeStyle} from './image-sizing.mjs';
 /** Recolorable vector layers. All SVG content is generated from validated values. */
-export const SHAPES = Object.freeze(['rectangle','star','heart','line','dashed','dotted','wave']);
-export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心',line:'实线',dashed:'虚线',dotted:'点线',wave:'波浪线'});
+export const ORNAMENT_DIVIDER = 'ornament-divider';
+export const SHAPES = Object.freeze(['rectangle','star','heart','line','dashed','dotted','wave',ORNAMENT_DIVIDER]);
+export const SHAPE_NAMES = Object.freeze({rectangle:'矩形',star:'星形',heart:'爱心',line:'实线',dashed:'虚线',dotted:'点线',wave:'波浪线',[ORNAMENT_DIVIDER]:'星饰分隔线'});
 export const isLineShape = shape => ['line','dashed','dotted','wave'].includes(shape);
 export const lineHeightFactor = shape => shape === 'wave' ? 6 : 1;
 // Keep saved height as the real artwork box; expose stroke thickness in the editor.
@@ -21,6 +22,7 @@ const decimal = value => String(Number(value.toFixed(6)));
 export function validateShapeSettings(layer,{limit=500}={}){
   if(!layer||typeof layer!=='object'||Array.isArray(layer)||layer.kind!=='shape'||!SHAPES.includes(layer.shape))throw Error('形状类型无效');
   if(!['solid','gradient'].includes(layer.fillMode)||!['px','percent'].includes(layer.heightUnit))throw Error('形状填色或高度单位无效');
+  if(layer.shape===ORNAMENT_DIVIDER&&(layer.fillMode!=='solid'||layer.heightUnit!=='px'))throw Error('星饰分隔线使用两种纯色和像素高度');
   if(!range(layer.height,1,limit)||!range(layer.cornerRadius,0,250)||!range(layer.gradientAngle,0,360))throw Error('形状参数超出范围');
   if(!hex(layer.color)||!hex(layer.color2))throw Error('形状颜色无效');
   return Object.fromEntries(SHAPE_KEYS.map(key=>[key,layer[key]]));
@@ -44,10 +46,21 @@ export function gradientVector(angle,width=100,height=100){
   return {x1:Number(decimal((width-dx*span)/2)),y1:Number(decimal((height-dy*span)/2)),x2:Number(decimal((width+dx*span)/2)),y2:Number(decimal((height+dy*span)/2))};
 }
 
+function ornamentDividerSvg(height,lineColor,ornamentColor){
+  const middle=decimal(height/2),radius=Math.min(7,height/2),joint=decimal(radius*.25),gap=radius+4;
+  const point=`M0 ${decimal(-radius)} Q${joint} ${-Number(joint)} ${decimal(radius)} 0 Q${joint} ${joint} 0 ${decimal(radius)} Q${-Number(joint)} ${joint} ${decimal(-radius)} 0 Q${-Number(joint)} ${-Number(joint)} 0 ${decimal(-radius)}Z`;
+  // Each image establishes its own viewport and mask. Percent x centres a fixed px star.
+  const centered=child=>`<svg x="50%" width="1" height="${height}" overflow="visible">${child}</svg>`;
+  const hole=centered(`<rect x="${decimal(-gap)}" width="${decimal(gap*2)}" height="${height}" fill="#000000"/>`);
+  const star=centered(`<path d="${point}" transform="translate(0 ${middle})" fill="${ornamentColor}"/>`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${height}"><defs><mask id="divider" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="${height}"><rect width="100%" height="${height}" fill="#ffffff"/>${hole}</mask></defs><line x1="0" x2="100%" y1="${middle}" y2="${middle}" stroke="${lineColor}" stroke-width="1" stroke-dasharray="2 2" mask="url(#divider)"/>${star}</svg>`;
+}
+
 export function shapeSvg(layer){
   const shape=validateShapeSettings(layer,{limit:4000});
   if(!range(layer.width,1,4000))throw Error('形状宽度无效');
   const width=layer.width,height=shape.height;
+  if(shape.shape===ORNAMENT_DIVIDER)return ornamentDividerSvg(height,shape.color,shape.color2);
   let defs='',fill=shape.color;
   if(shape.fillMode==='gradient'){
     const vector=gradientVector(shape.gradientAngle,width,height);

@@ -13,7 +13,7 @@ export function validateReflection(value){
 export function reflectionGeometry(c,p,fill,g,effects){
  const r=effects?.reflection;if(!r||!g.photoWidth||!g.photoHeight)return {reserve:0,clip:'',bottom:0};
  const w=g.photoWidth,h=g.photoHeight,scale=effects.scale/100,angle=(fill.enabled?0:p.rotation)*Math.PI/180,co=Math.cos(angle),si=Math.sin(angle),ox=w/2,oy=h;
- const x=fill.enabled?0:cardPadding(c)+p.x,y=fill.enabled?0:cardPadding(c)+g.photoTop-p.y,right=g.width+cardPadding(c)*2;
+ const x=fill.enabled?0:cardPadding(c)+p.x,y=fill.enabled?0:cardPadding(c)+g.photoTop+(g.photoShiftY??-p.y),right=g.width+cardPadding(c)*2;
  const forward=([px,py])=>({x:x+ox+scale*(co*(px-ox)-si*(py-oy)),y:y+oy+scale*(si*(px-ox)+co*(py-oy))});
  const visible=clipPolygon([[0,0],[w,0],[w,h],[0,h]].map(forward),[['x',0,1],['x',right,-1],['y',0,1],['y',g.baseHeight,-1]]);
  if(polygonArea(visible)<1e-6)return {reserve:0,clip:'',bottom:0,extent:0,top:0,offset:0};

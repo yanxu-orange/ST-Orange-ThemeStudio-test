@@ -11,7 +11,7 @@ import { uniqueId } from './unique-id.mjs';
 export const COMBINATION_REGIONS = Object.freeze({header:'头像区',footer:'尾部区',home:'首页头部',page:'子页面头部',input:'输入区',topbar:'顶栏'});
 const clone = value => structuredClone(value);
 const roles = ['ai','user'];
-const headerKeys = ['avatarEffects','headerCanvas','version','layout','avatarDesign','avatarSize','avatarRadius','headerHeight','userHeaderHeight','avatarFill','nameFont','nameColor','nameSize','timeFont','timeColor','timeSize','textAlign','textInset','textTop'];
+const headerKeys = ['avatarEffects','headerCanvas','headerTextStack','version','layout','avatarDesign','avatarSize','avatarRadius','headerHeight','userHeaderHeight','avatarFill','nameFont','nameColor','nameSize','timeFont','timeColor','timeSize','textAlign','textInset','textTop'];
 const pick = (value, keys) => Object.fromEntries(keys.filter(key => Object.hasOwn(value,key)).map(key => [key,clone(value[key])]));
 function checkRegion(region,pageId) {
   if (!Object.hasOwn(COMBINATION_REGIONS,region)) throw Error('组合区域无效');
@@ -170,7 +170,7 @@ export function applyCombination(config,combination,pageId,{moveNative=false}={}
   if(region==='header'){
     const existingMetadata=Object.fromEntries(roles.map(role=>[role,Object.fromEntries(['name','time'].map(key=>[key,clone(resolveMetadata(config,role==='user')[key]??metadataItem(config,key))]))]));
     delete out.userHeaderHeight;
-    delete out.headerCanvas;delete out.avatarEffects;Object.assign(out,pick(combo.settings,headerKeys));if(!out.headerCanvas&&!out.avatarEffects)out.version=10;
+    delete out.headerCanvas;delete out.headerTextStack;delete out.avatarEffects;Object.assign(out,pick(combo.settings,headerKeys));if(!out.headerCanvas&&!out.avatarEffects)out.version=10;
     out.photos=Object.fromEntries(roles.map(role=>[role,{...clone(combo.photos[role]),asset:config.photos[role].asset,image:config.photos[role].image}]));
     out.textItems=clone(combo.textItems);out.captions=clone(combo.captions);
     for(const role of roles)Object.assign(existingMetadata[role],clone(combo.metadata[role]));

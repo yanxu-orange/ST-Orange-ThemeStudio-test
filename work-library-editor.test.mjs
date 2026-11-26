@@ -26,7 +26,8 @@ test('named works open and save independently without replacing the saved draft 
   assert.equal(entrySettings.querySelector('summary').textContent, '工坊入口');
   assert.ok(entrySettings.querySelector('[data-workshop-entry-settings]'));
   assert.equal(entrySettings.querySelector('h4'), null);
-  const menuActions = [...menu.children].filter(node => node.tagName === 'BUTTON').map(node => node.id || node.className);
+  assert.deepEqual([...menu.querySelectorAll('[data-menu-group]')].map(node=>node.dataset.menuGroup),['works','files','workspace','session']);
+  const menuActions = [...menu.querySelectorAll('[data-menu-group] > button')].map(node => node.id || node.className);
   assert.ok(menuActions.indexOf('open-work-library') < menuActions.indexOf('import'));
   assert.ok(menuActions.indexOf('export') < menuActions.indexOf('restore'));
   assert.equal(menuActions.at(-1), 'close');

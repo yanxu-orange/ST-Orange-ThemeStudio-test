@@ -27,7 +27,7 @@ test('metadata body anchors remain responsive while header uses design pixels',(
  const c=enableHeaderCanvas(model.templates.spring);c.metadata.roles.ai.name.region='body-top';c.metadata.roles.ai.name.x=20;c.metadata.roles.ai.time.x=300;
  const r=projectHeaderConfig(c,1000);assert.equal(r.metadata.roles.ai.name.x,20);assert.equal(r.metadata.roles.ai.name.style.size,c.metadata.roles.ai.name.style.size);
  assert.ok(Math.abs(r.metadata.roles.ai.time.x-300/(600-c.cardPadding*2)*100)<1e-8);
- assert.equal(newSceneCaption(c).x,0);
+ assert.equal(newSceneCaption(c).x,c.textItems.name.x);
 });
 test('header combination carries and replaces the coordinate protocol explicitly',()=>{
  const c=enableHeaderCanvas(model.templates.spring),old=model.templates.blank;

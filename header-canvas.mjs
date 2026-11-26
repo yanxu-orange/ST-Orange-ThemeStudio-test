@@ -3,8 +3,8 @@ import {cardPadding} from './body-card.mjs';
 export const canvasEnabled=c=>[11,12].includes(c.version)&&!!c.headerCanvas;
 export function validateHeaderCanvas(raw){
  if(raw.headerCanvas===undefined){if(raw.version===11)throw Error('制作画布缺失');return undefined;}
- const v=raw.headerCanvas;if(![11,12].includes(raw.version)||!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).length!==1||!Number.isFinite(v.width)||v.width<200||v.width>2000)throw Error('制作画布无效');
- return {width:v.width};
+ const v=raw.headerCanvas;if(![11,12].includes(raw.version)||!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(key=>!['width','textScale'].includes(key))||!Number.isFinite(v.width)||v.width<200||v.width>2000||v.textScale!==undefined&&!['follow','fixed'].includes(v.textScale))throw Error('制作画布无效');
+ return {width:v.width,...(v.textScale==='fixed'?{textScale:'fixed'}:{})};
 }
 export function headerCanvasScale(c,actualWidth){return canvasEnabled(c)?Math.max(1,actualWidth)/c.headerCanvas.width:1;}
 export function designInnerWidth(c){return Math.max(1,c.headerCanvas.width-cardPadding(c)*2);}
@@ -29,9 +29,10 @@ export function projectHeaderConfig(c,actualWidth){
  if(!canvasEnabled(c))return c;
  // Copy geometry that this pass changes; embedded image strings stay shared and immutable.
  const out={...c,textItems:structuredClone(c.textItems),captions:structuredClone(c.captions),metadata:structuredClone(c.metadata),photos:Object.fromEntries(Object.entries(c.photos).map(([key,p])=>[key,{...p}])),layers:c.layers.map(l=>['header','avatar'].includes(l.anchor)?{...l,...(l.imageSizing?{imageSizing:{...l.imageSizing}}:{})}:l)},s=headerCanvasScale(c,actualWidth),inner=designInnerWidth(c),scale=(o,keys)=>{for(const k of keys)if(Number.isFinite(o[k]))o[k]*=s;};
- out.cardPadding=cardPadding(c)*s;scale(out,['headerHeight','userHeaderHeight','nameSize','timeSize']);
- for(const v of [...Object.values(out.textItems),...out.captions]){v.x=v.x/inner*100;if(v.width!=='auto')v.width=v.width/inner*100;v.y*=s;if(Number.isFinite(v.size))v.size*=s;}
- for(const group of [out.metadata?.unified,out.metadata?.roles.ai,out.metadata?.roles.user])for(const v of Object.values(group||{}))if(v?.region==='header'){v.x=v.x/inner*100;v.y*=s;if(v.width!=='auto')v.width=v.width/inner*100;v.style.size*=s;if(v.prefixStyle?.size!=null)v.prefixStyle.size*=s;}
+ const textFollows=c.headerCanvas.textScale!=='fixed';
+ out.cardPadding=cardPadding(c)*s;scale(out,['headerHeight','userHeaderHeight']);if(textFollows)scale(out,['nameSize','timeSize']);
+ for(const v of [...Object.values(out.textItems),...out.captions]){v.x=v.x/inner*100;if(v.width!=='auto')v.width=v.width/inner*100;v.y*=s;if(textFollows&&Number.isFinite(v.size))v.size*=s;}
+ for(const group of [out.metadata?.unified,out.metadata?.roles.ai,out.metadata?.roles.user])for(const v of Object.values(group||{}))if(v?.region==='header'){v.x=v.x/inner*100;v.y*=s;if(v.width!=='auto')v.width=v.width/inner*100;if(textFollows){v.style.size*=s;if(v.prefixStyle?.size!=null)v.prefixStyle.size*=s;}}
  for(const p of Object.values(out.photos)){if(p.widthUnit==='px')p.size*=s;scale(p,['height','radius','frameWidth','x','y']);}
  if(c.avatarEffects)out.avatarEffects=Object.fromEntries(Object.entries(c.avatarEffects).map(([role,effects])=>[role,effects.reflection?{...effects,reflection:{...effects.reflection,gap:effects.reflection.gap*s}}:effects]));
  for(const layer of out.layers.filter(l=>['header','avatar'].includes(l.anchor))){if(layer.widthUnit==='px')layer.width*=s;if(layer.offsetUnit==='px')scale(layer,['x','y']);if(layer.kind==='shape'&&layer.heightUnit==='px')scale(layer,['height']);if(layer.kind==='shape')scale(layer,['cornerRadius','borderWidth']);if(layer.imageSizing?.heightUnit==='px')layer.imageSizing.height*=s;}
@@ -39,11 +40,11 @@ export function projectHeaderConfig(c,actualWidth){
 }
 export function headerCanvasRules(q,head,c){
  if(!canvasEnabled(c))return '';
- const pad=cardPadding(c),v=n=>`calc(${n}px * var(--hc-scale))`;
+ const pad=cardPadding(c),v=n=>`calc(${n}px * var(--hc-scale))`,textSize=c.headerCanvas.textScale==='fixed'?n=>n+'px':v;
  let css=`${q} > .mesAvatarWrapper{left:${v(pad)}!important;top:calc(${v(pad)} + var(--ol-photo-top) + var(--sc-reserve-top,0px))!important;}\n${head} .otl-scene-art{left:${v(pad)}!important;top:${v(pad)}!important;width:calc(100% - ${v(pad*2)})!important;}\n`;
  const meta=`${head} [data-otl-live-meta]`;
- css+=`${meta} > .name_text{font-size:${v(c.nameSize)}!important}${meta} > .timestamp{font-size:${v(c.timeSize)}!important}`;
- for(const cap of c.captions)css+=`${meta} [data-caption-id="${cap.id}"].otl-live-caption{font-size:${v(cap.size)}!important}`;
- const m=c.metadata;if(m)for(const scope of m.design==='separate'?['ai','user']:['unified'])for(const key of ['name','time']){const item=(scope==='unified'?m.unified:m.roles[scope])[key];if(item?.region!=='header')continue;const sel=q+(scope==='unified'?'':`[is_user="${scope==='user'}"]`)+` > .mes_block > .ch_name [data-otl-live-meta] > .${key==='name'?'name_text':'timestamp'}[data-otl-metadata="${key}"]`;css+=`${sel}{font-size:${v(item.style.size)}!important}`;if(key==='time')css+=`${q+(scope==='unified'?'':`[is_user="${scope==='user'}"]`)} > .mes_block > .ch_name [data-otl-live-meta] > .timestamp-icon[data-otl-metadata="time-icon"]{font-size:${v(item.style.size)}!important}`;if(key==='name'&&item.prefixStyle?.size!=null)css+=`${sel}::before{font-size:${v(item.prefixStyle.size)}!important}`;}
+ css+=`${meta} > .name_text{font-size:${textSize(c.nameSize)}!important}${meta} > .timestamp{font-size:${textSize(c.timeSize)}!important}`;
+ for(const cap of c.captions)css+=`${meta} [data-caption-id="${cap.id}"].otl-live-caption{font-size:${textSize(cap.size)}!important}`;
+ const m=c.metadata;if(m)for(const scope of m.design==='separate'?['ai','user']:['unified'])for(const key of ['name','time']){const item=(scope==='unified'?m.unified:m.roles[scope])[key];if(item?.region!=='header')continue;const sel=q+(scope==='unified'?'':`[is_user="${scope==='user'}"]`)+` > .mes_block > .ch_name [data-otl-live-meta] > .${key==='name'?'name_text':'timestamp'}[data-otl-metadata="${key}"]`;css+=`${sel}{font-size:${textSize(item.style.size)}!important}`;if(key==='time')css+=`${q+(scope==='unified'?'':`[is_user="${scope==='user'}"]`)} > .mes_block > .ch_name [data-otl-live-meta] > .timestamp-icon[data-otl-metadata="time-icon"]{font-size:${textSize(item.style.size)}!important}`;if(key==='name'&&item.prefixStyle?.size!=null)css+=`${sel}::before{font-size:${textSize(item.prefixStyle.size)}!important}`;}
  return css;
 }

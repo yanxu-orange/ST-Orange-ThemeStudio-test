@@ -12,6 +12,8 @@ test('real canvas editor preserves host nodes across drag, pending apply, return
  const scheme=await editorStorage(null);await import('./index.js');const sh=document.querySelector('#orange-theme-lab').shadowRoot,save=()=>saveEditorScheme(sh,scheme),click=s=>{const n=sh.querySelector(s);assert.ok(n,s);n.click();},button=text=>{const n=[...sh.querySelectorAll('button')].find(n=>n.textContent===text);assert.ok(n,text);n.click();};
  const msg=document.querySelector('.mes'),name=msg.querySelector('.name_text'),nativeImage=msg.querySelector('.avatar img'),edit=msg.querySelector('.mes_edit'),draft=document.querySelector('#send_textarea'),before=msg.outerHTML;let edits=0;edit.addEventListener('click',()=>edits++);
  openEditor(sh);await settle();assert.equal(document.querySelector('[data-orange-lab-fixture]'),null);assert.equal(msg.querySelector('.name_text'),name);assert.equal(msg.querySelector('.avatar img'),nativeImage);edit.click();assert.equal(edits,1);assert.equal(draft.value,'Native draft');
+ const layout=sh.querySelector('[aria-label="头像区文字排列"]');assert.equal(layout.value,'stack');
+ assert.equal(name.dataset.previewDraggable,'false');layout.value='free';layout.dispatchEvent(new window.Event('change'));await settle();
  name.click();assert.equal(name.dataset.previewDraggable,'true');const original=await save();
  let globalDragScans=0;const originalQuery=document.querySelectorAll.bind(document);document.querySelectorAll=selector=>{if(selector.startsWith('.mes[data-otl-live] :is('))globalDragScans++;return originalQuery(selector);};
  // Palette changes are live but don't mutate the saved draft until confirmed.

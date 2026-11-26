@@ -1,12 +1,13 @@
 import {compositionScale} from './avatar-effects.mjs';
 import {canvasEnabled,enableHeaderCanvas,designInnerWidth} from './header-canvas.mjs';
 import {cardPadding} from './body-card.mjs';
-import {photoDimensions} from './photos.mjs';
+import {photoDimensions,photoShiftY} from './photos.mjs';
 import {runLayoutPass} from './layout-pass.mjs';
 import {regionZ} from './region-layers.mjs';
 import {fillSettings} from './avatar-fill.mjs';
 import {clone} from './layers.mjs';
 import {captionKey,newCaption,textEntries,textTokens} from './captions.mjs';
+import {metadataItem,resolveMetadata} from './native-metadata.mjs';
 export const TITLE_SIZE_MIN=8,TITLE_SIZE_MAX=200;
 export const HEAD_X_MIN=-100,HEAD_X_MAX=200,HEAD_Y_MIN=-400,HEAD_Y_MAX=1600;
 export const CARD_PADDING=24;
@@ -22,7 +23,28 @@ export function normalizeTextScene(c){
  if(c.version>=8){if(Object.hasOwn(c,'timePosition')||c.captions.some(v=>Object.hasOwn(v,'position')))throw Error('新版方案不能包含旧文字排布镜像');return clone(c);}
  const out=seedTextPositions(c);for(const v of Object.values(out.textItems))v.width='auto';out.version=8;return out;
 }
-export function newSceneCaption(c,overrides={}){const v=newCaption({font:c.font,color:c.accent,...overrides});delete v.position;const last=Math.max(0,c.textItems.name.y,c.textItems.time.y,...c.captions.map(v=>v.y));return {...v,x:(c.layout==='collage'?49:c.layout==='left'?25:0)*(canvasEnabled(c)?designInnerWidth(c)/100:1),y:Math.min(HEAD_Y_MAX,last+32),...overrides};}
+export function newSceneCaption(c,overrides={}){
+ const caption=newCaption({font:c.font,color:c.accent,...overrides});
+ delete caption.position;
+ const canvas=canvasEnabled(c),roles=caption.scope==='both'?[false,true]:[caption.scope==='user'];
+ const effective=(user,key)=>resolveMetadata(c,user)[key]??metadataItem(c,key);
+ const name=effective(roles[0],'name'),anchor=name.region==='header'?name:metadataItem(c,'name');
+ const span=canvas?designInnerWidth(c):100;
+ const inset=canvas?0:(c.textInset??0),offset=canvas?0:(c.textTop??0);
+ const width=anchor.width==='auto'?span:anchor.width;
+ const factor={left:0,center:.5,right:1}[anchor.anchor];
+ const x=Math.max(0,Math.min(span*.8,anchor.x+(span-width)*factor))-inset;
+ const nativePoints=roles.flatMap(user=>['name','time'].map(key=>effective(user,key)))
+  .filter(item=>item.region==='header').map(item=>item.y);
+ const captionPoints=c.captions.filter(item=>item.visible&&item.content.trim()&&
+   (item.scope==='both'||caption.scope==='both'||item.scope===caption.scope)).map(item=>item.y+offset);
+ const next=Math.max(0,...nativePoints,...captionPoints)+32;
+ const pad=cardPadding(c),height=Math.min(...roles.map(user=>headerHeightFor(c,user)));
+ const line=caption.size*(caption.lineHeight??1.6);
+ const reserve=canvas&&c.headerCanvas.textScale==='fixed'?line*Math.max(1,c.headerCanvas.width/320):line;
+ const y=Math.max(-pad,Math.min(next,height-pad-reserve))-offset;
+ return {...caption,x,y,width:anchor.width,...overrides};
+}
 export function resetSceneLayout(c,layout){return seedTextPositions({...clone(c),layout,timePosition:'below'},{offsets:false});}
 export function sceneWidth(msg,c){return Math.max(1,(msg.clientWidth||c.cardWidth)-cardPadding(c)*2);}
 export const headerHeightFor=(c,user=false)=>user&&(c.userHeaderHeight!=null)?c.userHeaderHeight:c.headerHeight;
@@ -31,7 +53,8 @@ export function sceneGeometry(c,width,p,hidden=false,user=false){
  const fill=fillSettings(c,user),areaWidth=width+cardPadding(c)*2;
  if(fill.enabled&&!hidden)return {width,baseHeight:height,photoWidth:areaWidth,photoHeight:height,photoTop:-cardPadding(c)};
  const dimensions=photoDimensions(p,width),photoWidth=hidden?0:dimensions.width,photoHeight=hidden?0:dimensions.height;
- return {width,baseHeight:height,photoWidth,photoHeight,photoTop:0};
+ return {width,baseHeight:height,photoWidth,photoHeight,photoTop:0,
+  ...(p.verticalAnchor==='bottom'?{photoShiftY:photoShiftY(p,height,photoHeight,cardPadding(c))}:{})};
 }
 export function itemPoint(c,item,width){return {x:width*(item.x+(c.textInset??0))/100,y:item.y+(c.textTop??0)};}
 export function itemWidth(item,width){return item.width==='auto'?width:width*item.width/100;}
@@ -40,7 +63,7 @@ export function sceneBounds(c,g){return {reserveTop:0,height:g.baseHeight};}
 /** Clip a transformed avatar to the fixed header without moving native DOM nodes. */
 export function avatarClipPolygon(c,g,p,user=false){
  const fill=fillSettings(c,user).enabled,angle=(fill?0:p.rotation)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
- const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:cardPadding(c)+p.x,y=fill?0:cardPadding(c)-p.y,scale=compositionScale(c,user);
+ const w=g.photoWidth,h=g.photoHeight,ox=w/2,oy=h,x=fill?0:cardPadding(c)+p.x,y=fill?0:cardPadding(c)+(g.photoShiftY??-p.y),scale=compositionScale(c,user);
  return [[0,0],[g.width+cardPadding(c)*2,0],[g.width+cardPadding(c)*2,g.baseHeight],[0,g.baseHeight]].map(([px,py])=>{
   const dx=px-x-ox,dy=py-y-oy;
   return `${Number((ox+(cos*dx+sin*dy)/scale).toFixed(4))}px ${Number((oy+(-sin*dx+cos*dy)/scale).toFixed(4))}px`;

@@ -3,6 +3,7 @@ import {createAvatarFxRuntime} from './avatar-fx-runtime.mjs';
 import {createAvatarReflectionRuntime,reflectionGeometry} from './avatar-reflection.mjs';
 import {validateAvatarEffects,avatarEffectRules,hasAvatarEffects,effectSettings} from './avatar-effects.mjs';
 import {canvasEnabled,projectHeaderConfig,headerCanvasScale,headerCanvasRules,validateHeaderCanvas} from './header-canvas.mjs';
+import {headerTextStack,validateHeaderTextStack,STACK_BOX,STACK_MEMBER,stackCaptionClip,stackBoxGeometry} from './header-text-stack.mjs';
 import {normalizeGlassConfig} from './glass-model.mjs';
 import {glassRule} from './glass-style.mjs';
 import {glassPageRules} from './glass-targets.mjs';
@@ -33,7 +34,7 @@ import {normalizeTextScene,prepareScene,placeSceneLayout,sceneWidth,sceneTextRul
 import {normalizeNativeConfig,nativeRules,nativeLayout,latestAI,nativeControlNodes,clearNativeIconFailures} from './native.mjs';
 import {normalizeFooterConfig,footerTextEntries,footerRules,renderFooter,footerLayout} from './footer.mjs';
 import {normalizeReasoningConfig,reasoningFontEntries,reasoningRules,reasoningShellRules,updateReasoningLabel,interfaceFont,watchInterfaceFont} from './reasoning.mjs';
-import {bodyCardSettings,bodyCardRules,chatFrameRules,cardPadding} from './body-card.mjs';
+import {bodyCardSettings,bodyCardRules,chatFrameRules,sharedChatWidthRules,cardPadding,cardShadowValue} from './body-card.mjs';
 import {normalizeCaptionConfig,captionKey,textEntries,textTokens,textFallbacks} from './captions.mjs';
 import {clone} from './layers.mjs';
 import {createFontSession} from './font-sources.mjs';
@@ -47,6 +48,26 @@ const avatar = `${q} > .mesAvatarWrapper > .avatar`;
 const meta = `${head} [data-otl-live-meta]`;
 const captionHost = `${meta} > :is(.otl-live-caption,.otl-live-caption-slot)`;
 
+function liveStackRules(c){
+  if(!c.headerTextStack)return '';
+  const rule=(selector,props)=>selector+'{'+Object.entries(props).map(([key,value])=>key+':'+value+'!important').join(';')+'}';
+  return [false,true].map(user=>{
+    const stack=headerTextStack(c,user),header=q+`[is_user="${user}"] > .mes_block > .ch_name`,group=header+' [data-otl-live-meta]';
+    const member=(selector,order,style={})=>rule(group+' '+selector,{...STACK_MEMBER,order,...style});
+    return [
+      rule(header,{height:'auto','max-height':'none','padding-top':'var(--yj-stack-y)'}),
+      rule(header+' > .flex1:has(> [data-otl-live-meta])',{display:'contents',position:'static'}),
+      rule(group,STACK_BOX),
+      rule(group+' > .mes_ghost',{position:'absolute',right:'calc(var(--yj-stack-width) - var(--yj-stack-card-width) + var(--yj-stack-x) + 4px)',top:'calc(4px - var(--yj-stack-y))'}),
+      rule(group+' > .timestamp-icon',{display:'none'}),
+      stack.name&&member('> .name_text:is(.name_text,[data-otl-metadata])',1),
+      stack.time&&member('> .timestamp:is(.timestamp,[data-otl-metadata])',2),
+      stack.caption&&member(`.otl-live-caption[data-caption-id="${stack.caption.id}"]`,3,{'clip-path':stackCaptionClip(stack.caption)}),
+      rule(group+' > :is(.name_text,.timestamp):is(:empty,[hidden])',{display:'none'}),
+    ].filter(Boolean).join('\n');
+  }).join('\n');
+}
+
 function styleText(config,families={},interfaceFamily='sans-serif') {
   const items=textEntries(config),tokens=textTokens(config);
   const settings=textSettings(config),custom=customTextLayout(settings);
@@ -57,7 +78,7 @@ function styleText(config,families={},interfaceFamily='sans-serif') {
   const font=new URL('./materials/字体/SourceHanSerifCN-VF.ttf.woff2',import.meta.url).href;
   return `@font-face{font-family:LabSongti;src:url("${font}") format("woff2");font-style:normal;font-weight:250 900;font-display:swap}
 html[data-orange-live] #chat{${Object.entries(vars).map(([k,v])=>`--ol-${k}:${v}`).join(';')};background:var(--ol-background)!important;padding:20px 12px 90px!important;gap:18px!important}
-${q}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;max-width:var(--ol-cardWidth)!important;min-width:0!important;height:auto!important;max-height:none!important;margin:0 auto 18px!important;padding:${cardPadding(config)}px!important;background:var(--ol-surface)!important;color:var(--ol-text)!important;border:1px solid #ffffff88!important;border-radius:var(--ol-radius)!important;box-shadow:${config.cardShadow===false?'none':'0 5px 25px #344b4210'}!important;backdrop-filter:blur(var(--ol-glass))!important;text-shadow:none!important;overflow:visible!important;container-type:inline-size}
+${q}{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;max-width:var(--ol-cardWidth)!important;min-width:0!important;height:auto!important;max-height:none!important;margin:0 auto 18px!important;padding:${cardPadding(config)}px!important;background:var(--ol-surface)!important;color:var(--ol-text)!important;border:1px solid #ffffff88!important;border-radius:var(--ol-radius)!important;box-shadow:${cardShadowValue(config)}!important;backdrop-filter:blur(var(--ol-glass))!important;text-shadow:none!important;overflow:visible!important;container-type:inline-size}
 ${q} > .mes_block{position:static!important;display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;min-width:0!important;overflow:visible!important}
 ${head}{position:relative!important;display:block!important;box-sizing:border-box!important;min-height:var(--ol-header-height)!important;width:100%!important;margin:0 0 14px!important;padding:0!important}
 ${meta}{position:static!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;width:auto!important;min-width:0!important;padding:0!important;z-index:auto!important;transform:none!important}
@@ -92,7 +113,7 @@ body.documentstyle ${q} > .mesAvatarWrapper,body.documentstyle ${captionHost}{di
 ${footerRules(q,config,families)}
 ${nativeRules(q,config,'.ch_name',families)}
 ${bodyCardRules(`${q} > .mes_block > .mes_text`,q,config,'live',families.body)}
-${chatFrameRules('html[data-orange-live] #chat',q,config)}
+${chatFrameRules('html[data-orange-live] #chat',q,config)}${config.chatMaxWidth!==undefined?'\n'+sharedChatWidthRules(config,'html[data-orange-live]'):''}
 ${config.captions.map(cap=>{const node=`${meta} .otl-live-caption[data-caption-id="${cap.id}"]`;return `${node}{font-family:${cap.font}!important;font-size:${cap.size}px!important;color:${cap.color}!important;${cap.visible?'':'display:none!important;'}}`;}).join('\n')}
 ${meta} .otl-live-caption[hidden]{display:none!important}
 ${textItemRules(items,selectors,families,tokens,fallbacks,{position:false})}
@@ -109,7 +130,7 @@ ${commonStyleRules(config,{family:families.common||''})}
 ${pageStyleRules(config,{families})}
 ${glassRule(q,config,'message')}
 ${glassPageRules(config)}
-${headerCanvasRules(q,head,config)}
+${headerCanvasRules(q,head,config)}${config.headerTextStack?'\n'+liveStackRules(config):''}
 
 `;
 }
@@ -117,6 +138,7 @@ ${headerCanvasRules(q,head,config)}
 function normalizeLiveConfig(config){
   const next=normalizeAvatarFill(normalizeChromeConfig(normalizeTextScene(normalizeNativeConfig(normalizeFooterConfig(normalizeReasoningConfig(normalizeCaptionConfig(clone(config))))))));
   Object.assign(next,bodyCardSettings(next),{commonStyle:normalizeCommonConfig(next).commonStyle,pageStyle:normalizePageConfig(next).pageStyle,pageHeaders:normalizePageHeaders(next).pageHeaders});
+  if(next.headerTextStack!==undefined)next.headerTextStack=validateHeaderTextStack(next.headerTextStack,next.captions);
   Object.assign(next,normalizeGlassConfig(next));if(next.metadata!==undefined)next.metadata=validateMetadata(next.metadata,{pixels:next.version===11||(next.version===12&&!!next.headerCanvas)});validateHeaderCanvas(next);next.hideScrollbars=normalizeScrollbars(next.hideScrollbars);const effects=validateAvatarEffects(next);if(effects)next.avatarEffects=effects;return next;
 }
 const cssRootFields=new Set(['background','surface','surfaceOpacity','text','accent','nameColor','timeColor','cardBorderColor','bodyLeftBorderColor','glass','hideScrollbars','canvasBackground','canvasWallpaper','canvasWallpaperAsset','glassStyle']);
@@ -316,6 +338,14 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     const actualWidth=yield()=>msg.clientWidth||snapshot.cardWidth;c=projectHeaderConfig(snapshot,actualWidth);p=c.photos[user?'user':'ai'];
     variable(state,msg,'--hc-scale',String(headerCanvasScale(snapshot,actualWidth)));const width=Math.max(1,actualWidth-cardPadding(c)*2);
     const scene=prepareScene(msg,header,c,sceneNodes,(node,key,value)=>variable(state,node,key,value),photoHidden,width);
+    const stack=headerTextStack(c,user);
+    if(stack){
+      const box=stackBoxGeometry(stack,actualWidth,cardPadding(c));
+      for(const [key,value] of Object.entries({...box,'card-width':actualWidth}))variable(state,msg,'--yj-stack-'+key,value+'px');
+      if(stack.name)delete sceneNodes.name;
+      if(stack.time)delete sceneNodes.time;
+      if(stack.caption)delete sceneNodes[captionKey(stack.caption.id)];
+    }
     const {photoWidth,photoHeight,photoTop}=scene;
     state.avatarSceneReady=true;
     const reflection=photoHidden?{reserve:0,clip:''}:reflectionGeometry(c,p,c.avatarFill[user?'user':'ai'],scene,effectSettings(c,user));
@@ -324,7 +354,7 @@ export function createLiveAdapter({document,resolveArtwork,requestFrame,cancelFr
     for(const [key,value]of Object.entries({'top':reflection.top||0,'height':reflection.extent||0,'source-offset':reflection.offset||0}))if(effectSettings(c,user).reflection||msg.style.getPropertyValue('--otl-reflection-'+key))variable(state,msg,'--otl-reflection-'+key,value+'px');
     if(effectSettings(c,user).maskFinish?.feather>0&&effectSettings(c,user).mask.kind==='none')variable(state,msg,'--otl-avatar-shape-mask',`url("${avatarRectangleMask(effectSettings(c,user),p,c.avatarFill[user?'user':'ai'],c.radius,scene)}")`);
     else if(state.variables.some(v=>v.node===msg&&v.key==='--otl-avatar-shape-mask'))variable(state,msg,'--otl-avatar-shape-mask','none');
-    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(-p.y)+'px','photo-rotation':p.rotation+'deg'}))variable(state,msg,'--ol-'+key,value);
+    for(const [key,value]of Object.entries({'header-height':scene.height+'px','photo-top':photoTop+'px','photo-width':photoWidth+'px','photo-height':photoHeight+'px','photo-x':p.x+'px','photo-y':(scene.photoShiftY??-p.y)+'px','photo-rotation':p.rotation+'deg'}))variable(state,msg,'--ol-'+key,value);
     const headerArtwork=[],destinations={header,avatar:header,message:msg,'reasoning-entry':reasonEntry,'reasoning-body':hasReason?reasonBody:null};
     for(const anchor of Object.keys(destinations)){
       if(!destinations[anchor])continue;const container=artContainer(state,destinations[anchor],anchor);if(anchor==='header')container.classList.add('otl-scene-art');if(anchor.startsWith('reasoning-'))container.setAttribute('data-otl-reason-owned','');

@@ -34,9 +34,18 @@ export function createAvatarEditor({
 }) {
   let avatarTab='whole', uploadToken=0, pendingUpload=null, compositionList=null;
   const editorControl=(container,f,target,onUpdate)=>baseEditorControl(container,{...f,nudge:false},target,onUpdate);
+  function choice(container,title,value,options,update,redraw=false){
+    const row=make('label','field',title),select=make('select');
+    for(const [key,text] of options){const option=make('option','',text);option.value=key;select.append(option);}
+    select.setAttribute('aria-label',title);
+    select.value=value;row.append(select);container.append(row);
+    select.addEventListener('change',()=>{remember();update(select.value);apply();if(redraw)renderFields();});
+  }
   function renderPhotoFields(container) {
     compositionList?.dispose();compositionList=null;
     ++uploadToken;
+    const roles=make('div',getConfig().avatarDesign==='separate'?'paired-fields':'');
+    container.append(roles);
     const mode = make('label', 'field', 'AI 与用户'),
       select = make('select');
     select.setAttribute('aria-label', 'AI 与用户');
@@ -50,7 +59,7 @@ export function createAvatarEditor({
     }
     select.value = getConfig().avatarDesign;
     mode.append(select);
-    container.append(mode);
+    roles.append(mode);
     select.addEventListener('change', () => {
       remember();
       getConfig().avatarDesign = select.value;
@@ -79,7 +88,7 @@ export function createAvatarEditor({
       }
       scope.value = getPhotoScope();
       label.append(scope);
-      container.append(label);
+      roles.append(label);
       scope.addEventListener('change', () => {
         setPhotoScope(scope.value);
         getUi().object = 'photo-' + getPhotoScope();
@@ -90,12 +99,11 @@ export function createAvatarEditor({
       fill = getConfig().avatarFill[getPhotoScope()];
 
     const tabs=make('div','kind-tabs');tabs.setAttribute('aria-label','头像组合设置');
-    for(const [id,text]of [['whole','整体设置'],['avatar','头像'],['materials','组合素材']]){const b=make('button','',text);b.type='button';b.dataset.avatarTab=id;b.setAttribute('aria-pressed',String(avatarTab===id));b.addEventListener('click',()=>{avatarTab=id;renderFields();});tabs.append(b);}container.append(tabs);
+    for(const [id,text]of [['whole','尺寸与位置'],['avatar','取景与效果'],['materials','组合素材']]){const b=make('button','',text);b.type='button';b.dataset.avatarTab=id;b.setAttribute('aria-pressed',String(avatarTab===id));b.addEventListener('click',()=>{avatarTab=id;renderFields();});tabs.append(b);}container.append(tabs);
     if(avatarTab==='materials'){renderCompositionFields(container);return;}
     if(avatarTab==='avatar'){renderAvatarEffects(container,p,fill);return;}
     const effects=effectSettings(getConfig(),getPhotoScope()==='user');
-    propertyHeading(container,'整体大小');
-    editorControl(container,{...field('组合缩放','scale','range',{min:25,max:300,unit:'%'}),beforeApply:()=>setAvatarEffects(getConfig(),getPhotoScope(),effects)},effects);
+    const compositionScale=()=>editorControl(container,{...field('组合缩放','scale','range',{min:25,max:300,unit:'%'}),beforeApply:()=>setAvatarEffects(getConfig(),getPhotoScope(),effects)},effects);
     propertyHeading(container, '显示方式');
     editorControl(
       container,
@@ -108,8 +116,8 @@ export function createAvatarEditor({
       fill,
       () => renderFields(),
     );
-    if (fill.enabled) {
-    } else {
+    if (fill.enabled) compositionScale();
+    else {
       propertyHeading(container, '头像窗口');
       const syncPhoto = () => {
         if (getConfig().avatarDesign === 'unified')
@@ -209,6 +217,24 @@ export function createAvatarEditor({
           }),
           p,
         );
+      compositionScale();
+      propertyHeading(container, '位置与旋转');
+      choice(container,'头像纵向定位',p.verticalAnchor??'manual',[['manual','手动定位'],['bottom','贴齐头像区底部']],value=>{
+        if(value==='bottom')p.verticalAnchor='bottom';else delete p.verticalAnchor;
+        syncPhoto();
+      },true);
+      for (const f of [
+        field('头像横向移动', 'x', 'range', { min: canvasEnabled(getConfig())?-2000:-80, max: canvasEnabled(getConfig())?2000:80, unit: 'px' }),
+        ...(p.verticalAnchor==='bottom'?[]:[field('头像纵向移动', 'y', 'range', { min: canvasEnabled(getConfig())?-2000:-80, max: canvasEnabled(getConfig())?2000:80, unit: 'px' })]),
+        field('头像旋转', 'rotation', 'range', {
+          min: -20,
+          max: 20,
+          step: 0.1,
+          unit: '°',
+        }),
+      ])
+        editorControl(container, f, p);
+      propertyHeading(container, '边框与阴影');
       editorControl(
         container,
         field('头像圆角', 'radius', 'range', { min: 0, max: 150, unit: 'px' }),
@@ -246,18 +272,6 @@ export function createAvatarEditor({
         }),
         p,
       );
-      propertyHeading(container, '位置与旋转');
-      for (const f of [
-        field('头像横向移动', 'x', 'range', { min: canvasEnabled(getConfig())?-2000:-80, max: canvasEnabled(getConfig())?2000:80, unit: 'px' }),
-        field('头像纵向移动', 'y', 'range', { min: canvasEnabled(getConfig())?-2000:-80, max: canvasEnabled(getConfig())?2000:80, unit: 'px' }),
-        field('头像旋转', 'rotation', 'range', {
-          min: -20,
-          max: 20,
-          step: 0.1,
-          unit: '°',
-        }),
-      ])
-        editorControl(container, f, p);
     }
   }
 
@@ -343,6 +357,23 @@ export function createAvatarEditor({
   function renderHeaderHeightFields(container) {
     const c=getConfig(), separate=c.userHeaderHeight!=null;
     if(!canvasEnabled(c)){const start=make('button','','启用等比制作画布');start.type='button';start.id='enable-header-canvas';start.addEventListener('click',()=>{let next;try{next=validate(enableHeaderCanvas(c));}catch(error){notify('未启用制作画布：'+error.message);return;}remember();Object.assign(c,next);apply();renderFields();});container.append(start);}else{propertyHeading(container,'制作画布');editorControl(container,field('制作宽度','width','range',{min:200,max:2000,unit:'px'}),c.headerCanvas);}
+    if(canvasEnabled(c))choice(container,'头像区文字字号',c.headerCanvas.textScale??'follow',[['follow','跟随画布'],['fixed','保持字号']],value=>{
+      if(value==='fixed')c.headerCanvas.textScale='fixed';else delete c.headerCanvas.textScale;
+    });
+    propertyHeading(container,'文字排列');
+    choice(container,'头像区文字排列',c.headerTextStack?'stack':'free',[['free','自由摆放'],['stack','纵向排列']],value=>{
+      if(value==='stack')c.headerTextStack={captionId:''};else delete c.headerTextStack;
+    },true);
+    if(c.headerTextStack&&c.captions.length)choice(container,'纵排文案',c.headerTextStack.captionId,[['','仅姓名和时间'],...c.captions.map(cap=>[cap.id,cap.name+(!cap.visible?'（隐藏）':!cap.content.trim()?'（未填写）':'')])],value=>{
+      c.headerTextStack.captionId=value;
+    });
+    if(c.headerTextStack){
+      const stack=c.headerTextStack;
+      choice(container,'纵排列宽限制',stack.maxWidth===undefined?'auto':'custom',[['auto','不限'],['custom','限制最大宽度']],value=>{
+        if(value==='custom')stack.maxWidth=126;else delete stack.maxWidth;
+      },true);
+      if(stack.maxWidth!==undefined)editorControl(container,field('纵排文字最大宽度','maxWidth','range',{min:40,max:1000,unit:'px'}),stack);
+    }
 
     const label=make('label','field','AI 与用户头像区高度'), select=make('select');
     select.setAttribute('aria-label','AI 与用户头像区高度');

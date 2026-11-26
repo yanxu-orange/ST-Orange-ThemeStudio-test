@@ -64,7 +64,8 @@ test('fresh entrance offers the same startup choices on desktop and mobile, then
   phone.click('[data-flow=library]');
   await settle();
   const card = phone.get('[data-work-id=spring] [data-work-action=open]');
-  assert.equal(card.textContent, '使用这份作品');
+  assert.equal(card.textContent, '预览作品');
+  assert.match(phone.get('[data-work-id=spring] .spring-work-thumbnail img').src,/spring-flower-stem\.webp$/);
   let confirms = 0;
   phone.window.confirm = () => { confirms++; return true; };
   card.click();

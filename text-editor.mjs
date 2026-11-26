@@ -251,6 +251,7 @@ export function createTextEditor({
           ],
         }),
       );
+    if(!(key==='time'&&getConfig().headerTextStack&&item.region==='header')){
     control(
       field('水平对齐', 'anchor', 'select', {
         options: [
@@ -302,6 +303,7 @@ export function createTextEditor({
           unit: pixels?'px':'%',
         }),
       );
+    }
     propertyHeading(container, '字体设计');
     const style = item.style;
     control(
@@ -393,8 +395,9 @@ export function createTextEditor({
     const key = getTextItemKey(),
       cap = selectedCaption(),
       item = cap || getConfig().textItems[key],
-      labelName = cap ? '文案' : { name: '名字', time: '时间' }[key];
-    propertyHeading(container, cap ? '内容与位置' : '位置');
+      labelName = cap ? '文案' : { name: '名字', time: '时间' }[key],
+      stacked = cap&&getUi().region==='header'&&getConfig().headerTextStack?.captionId===cap.id;
+    propertyHeading(container, cap ? stacked?'内容':'内容与位置' : '位置');
     if (cap) {
       editorControl(
         container,
@@ -445,11 +448,11 @@ export function createTextEditor({
         input.addEventListener(event, () => (tracking = false));
       label.append(input);
       container.append(label);
-      renderCaptionWidth(container, cap);
+      if(!stacked)renderCaptionWidth(container, cap);
     } else {
       renderCaptionWidth(container, item, labelName);
     }
-    for (const f of [
+    if(!stacked)for (const f of [
       field(
         labelName + (getUi().region === 'footer' ? ' 左右移动' : ' 水平位置'),
         'x',
@@ -556,6 +559,7 @@ export function createTextEditor({
         const list = currentCaptions(),
           index = list.indexOf(cap);
         list.splice(index, 1);
+        if(getUi().region==='header'&&getConfig().headerTextStack?.captionId===cap.id)getConfig().headerTextStack.captionId='';
         getUi().object = list[Math.min(index, list.length - 1)]
           ? currentCaptionKey(list[Math.min(index, list.length - 1)].id)
           : getUi().region === 'footer'

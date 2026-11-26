@@ -12,7 +12,7 @@ const rule=(sheet,selector)=>allRules(sheet).find(r=>r.selectorText?.replace(/,\
 test('workbench surfaces are square and mobile selectors use compact readable controls',()=>{
  const sheet=parse(css()),rules=allRules(sheet),mobile=[...sheet.cssRules].find(r=>r.conditionText?.replace(/\s/g,'')==='(max-width:700px)');
  assert.ok(mobile);
- for(const r of rules)if(r.selectorText!==':host'&&r.style?.getPropertyValue('border-radius'))assert.equal(r.style.getPropertyValue('border-radius'),'0',r.selectorText);
+ for(const r of rules)if(r.selectorText!==':host'&&r.style?.getPropertyValue('border-radius'))assert.equal(r.style.getPropertyValue('border-radius'),r.selectorText==='.launcher'?'22px':'0',r.selectorText);
  assert.equal(rule(sheet,':host').getPropertyValue('--wb-font-body'),'14px');
  assert.equal(rule(sheet,':host').getPropertyValue('--wb-font-label'),'12px');
  assert.equal(rule(sheet,':host').getPropertyValue('--wb-font-title'),'16px');

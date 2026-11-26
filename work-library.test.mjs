@@ -69,3 +69,16 @@ test('closing while a named work loads does not later replace the draft', async 
   ui.click('.work-library-item:last-child [data-work-action="open"]'); ui.click('[data-work-library="close"]');
   resolve('{"image":"late"}'); await settle(); assert.equal(ui.opened, undefined);
 });
+
+test('preview returns keyboard focus to the More summary when its opener is collapsed',async()=>{
+  const ui=await setup(),document=ui.shadow.ownerDocument;
+  const menu=document.createElement('details'),summary=document.createElement('summary'),button=document.createElement('button');
+  menu.className='desktop-scheme';menu.append(summary,button);ui.shadow.append(menu);
+  let focused='';
+  summary.focus=()=>{focused='summary';};button.focus=()=>{focused='button';};
+  await ui.library.show(button);
+  ui.click('[data-work-id="spring"] [data-work-action="open"]');
+  await settle();
+  assert.equal(ui.opened,'spring');
+  assert.equal(focused,'summary');
+});

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DOMParser} from 'linkedom';
 import {newLayer,validateLayers,KINDS,clone} from './layers.mjs';
 import {ASSETS} from './catalog.mjs';
-import {SHAPES,SHAPE_KEYS,SHAPE_DEFAULTS,validateShapeSettings,shapeSvg,shapeDataUrl,gradientVector,layerSizeStyle} from './shape-assets.mjs';
+import {ORNAMENT_DIVIDER,SHAPES,SHAPE_KEYS,SHAPE_DEFAULTS,validateShapeSettings,shapeSvg,shapeDataUrl,gradientVector,layerSizeStyle} from './shape-assets.mjs';
 const documentFor=layer=>new DOMParser().parseFromString(shapeSvg(layer),'image/svg+xml');
 
 test('new shapes have independent fill and geometry while sharing standard layer placement',()=>{
@@ -67,7 +67,7 @@ test('stars and hearts use controlled native vector paths with customizable non-
 test('two-stop gradients support full-turn CSS directions and remain local to each SVG image',()=>{
   const expected=[{x1:100,y1:100,x2:100,y2:0},{x1:0,y1:50,x2:200,y2:50},{x1:100,y1:0,x2:100,y2:100},{x1:200,y1:50,x2:0,y2:50},{x1:100,y1:100,x2:100,y2:0}];
   [0,90,180,270,360].forEach((angle,i)=>assert.deepEqual(gradientVector(angle,200,100),expected[i]));
-  for(const shape of SHAPES)for(const angle of [0,45,90,180,270,360]){
+  for(const shape of SHAPES.filter(s=>s!==ORNAMENT_DIVIDER))for(const angle of [0,45,90,180,270,360]){
     const doc=documentFor(newLayer('shape',{shape,width:200,height:100,fillMode:'gradient',color:'#123456',color2:'#abcdef',gradientAngle:angle})),gradient=doc.querySelector('linearGradient'),stops=[...doc.querySelectorAll('stop')];
     assert.equal(gradient.getAttribute('id'),'fill');assert.equal(gradient.getAttribute('gradientUnits'),'userSpaceOnUse');
     assert.deepEqual(stops.map(n=>[n.getAttribute('offset'),n.getAttribute('stop-color')]),[['0','#123456'],['1','#abcdef']]);

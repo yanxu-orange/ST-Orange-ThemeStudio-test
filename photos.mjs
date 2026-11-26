@@ -11,7 +11,11 @@ export function validatePhotos(raw,{pixels=false}={}) {
   for(const scope of ['ai','user']) {
     const p=raw[scope];if(!p||typeof p!=='object'||Array.isArray(p))throw Error('头像设置无效：'+scope);
     const out=defaultPhoto();
-    if(Object.keys(p).some(key=>!Object.hasOwn(out,key)))throw Error('头像设置包含未知参数');
+    if(Object.keys(p).some(key=>!Object.hasOwn(out,key)&&key!=='verticalAnchor'))throw Error('头像设置包含未知参数');
+    if(p.verticalAnchor!==undefined){
+      if(p.verticalAnchor!=='bottom')throw Error('头像纵向定位无效');
+      out.verticalAnchor=p.verticalAnchor;
+    }
     const unit=p.widthUnit??'px',height=p.height??'auto';
     if(!['px','percent'].includes(unit))throw Error('头像宽度单位无效');
     if(height!=='auto'&&(!Number.isFinite(height)||height<1||height>(pixels?2000:600)))throw Error('头像高度超出范围');
@@ -48,4 +52,8 @@ export function kittyLayers() {
 export function photoDimensions(photo,innerWidth){
  const width=photo.widthUnit==='percent'?innerWidth*photo.size/100:photo.size;
  return {width,height:photo.height===undefined||photo.height==='auto'?width/Number(photo.ratio):photo.height};
+}
+
+export function photoShiftY(photo,areaHeight,photoHeight,padding){
+ return photo.verticalAnchor==='bottom'?Math.max(0,areaHeight-photoHeight)-padding:-photo.y;
 }

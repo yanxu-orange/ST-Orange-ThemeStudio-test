@@ -108,7 +108,7 @@ export function createBodyCardEditors({
     }
     for (const definition of [
       field('卡片边框粗细', 'cardBorderWidth', 'range', {min:0, max:12, step:.25, unit:'px'}),
-      field('卡片边框线型', 'cardBorderStyle', 'select', {options:[['solid', '实线'], ['dashed', '虚线'], ['dotted', '点线']]}),
+      field('卡片边框线型', 'cardBorderStyle', 'select', {options:[['solid', '实线'], ['dashed', '虚线'], ['dotted', '点线'], ['paper', '手绘纸边']]}),
     ]) {
       editorControl(container, {...definition, notice}, config);
     }

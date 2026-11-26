@@ -9,13 +9,15 @@ import {
   pageHeaderSceneFontKey,
 } from './page-header-scene.mjs';
 import { uniqueId } from './unique-id.mjs';
-import { SHAPE_NAMES, isLineShape, lineThicknessTarget } from './shape-assets.mjs';
+import { ORNAMENT_DIVIDER, SHAPE_NAMES, isLineShape, lineThicknessTarget } from './shape-assets.mjs';
 import {
   PAGE_TITLE_SUBTITLE_TARGETS,
   newPageTitleSubtitle,
   pageTitleSubtitleFontKey,
 } from './page-title-subtitle.mjs';
 import { PAGE_HEADER_PAGES } from './page-headers.mjs';
+import { normalizeCommonConfig } from './common-style.mjs';
+import { resolvePageGroup } from './page-style.mjs';
 import { assetUrl } from './catalog.mjs';
 
 export function createPageHeaderEditor({
@@ -340,7 +342,14 @@ export function createPageHeaderEditor({
     add.addEventListener('click', () => {
       if (image) return addPageSceneImage();
       remember();
-      const text = newPageHeaderText({ name: '文字' + (list.length + 1) });
+      const config=getConfig(),page=getUi().page;
+      const style=page==='home'?normalizeCommonConfig(config).commonStyle.text:resolvePageGroup(config,page,'text');
+      const next=Math.max(8,...list.filter(item=>item.visible&&item.content.trim())
+        .map(item=>item.y+Math.max(24,item.size*(item.lineHeight??1.35)+4)));
+      const text = newPageHeaderText({
+        name:'文字'+(list.length+1),x:3,y:Math.max(0,Math.min(next,head.height-style.size*1.35)),
+        font:style.font==='auto'?'sans-serif':style.font,fontLink:clone(style.fontLink),color:style.color,size:style.size,
+      });
       list.push(text);
       scene.order.push('text:' + text.id);
       head.enabled = true;
@@ -456,7 +465,7 @@ export function createPageHeaderEditor({
       if (item.kind === 'shape') {
         for (const f of [
           field('形状', 'shape', 'select', {
-            options: Object.entries(SHAPE_NAMES),
+            options: Object.entries(SHAPE_NAMES).filter(([shape])=>shape!==ORNAMENT_DIVIDER),
           }),
           field(isLineShape(item.shape) ? '粗细单位' : '高度单位', 'heightUnit', 'select', {
             options: [

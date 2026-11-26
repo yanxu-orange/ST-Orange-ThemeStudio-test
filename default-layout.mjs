@@ -38,3 +38,12 @@ export function defaultReadingScheme(source) {
   c.footerCaptions = [];
   return syncRegionOrder(c);
 }
+
+export function freshBlankScheme(source) {
+  const c = structuredClone(source);
+  for (const photo of Object.values(c.photos))
+    Object.assign(photo, { size: 88, widthUnit: 'px', height: 'auto', ratio: '0.75' });
+  c.captions = [];
+  c.headerTextStack = { captionId: '' };
+  return syncRegionOrder(c);
+}

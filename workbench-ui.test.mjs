@@ -1,5 +1,6 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {createWorkbenchState,layerRegion,matchingLayers,normalizeSelection,layoutWidths} from './workbench-ui.mjs';
+import {WORKSHOP_ICON_URL} from './workshop-entries.mjs';
 test('workbench selection follows all three anchors without modifying layer data',()=>{
  const layers=[{id:'a',anchor:'header'},{id:'b',anchor:'avatar'},{id:'c',anchor:'message'}],before=structuredClone(layers),ui=createWorkbenchState();
  assert.equal(layerRegion(layers[1]),'header');assert.deepEqual(matchingLayers(layers,'header').map(l=>l.id),['a','b']);assert.deepEqual(matchingLayers(layers,'overall').map(l=>l.id),['c']);
@@ -17,12 +18,16 @@ test('visible workshop branding keeps existing controls and technical identity',
  const {readFileSync}=await import('node:fs');
  const {document}=parseHTML('<html><body>'+workbenchMarkup()+'</body></html>');
  assert.equal(document.querySelector('.bar strong').textContent,'绘境·美化工坊');
- assert.equal(document.querySelector('.launcher').textContent,'绘境');
+ const icon=document.querySelector('.launcher img');
+ assert.equal(icon.getAttribute('src'),WORKSHOP_ICON_URL);
+ assert.equal(icon.getAttribute('alt'),'');
+ assert.equal(icon.getAttribute('aria-hidden'),'true');
+ assert.equal(icon.getAttribute('draggable'),'false');
  assert.equal(document.querySelector('.launcher').getAttribute('aria-label'),'打开绘境·美化工坊，可拖动调整位置');
  assert.equal(document.querySelector('#close').textContent,'退出编辑');
  assert.equal(document.querySelector('#stop-and-close').textContent,'停用美化并退出');
  const manifest=JSON.parse(readFileSync(new URL('./manifest.json',import.meta.url),'utf8'));
  assert.equal(manifest.display_name,'绘境·美化工坊 · 轻量特效测试');
- assert.equal(manifest.js,'index.js');assert.equal(manifest.version,'0.29.0-test.7');
+ assert.equal(manifest.js,'index.js');assert.equal(manifest.version,'0.29.0-test.8');
 });
 

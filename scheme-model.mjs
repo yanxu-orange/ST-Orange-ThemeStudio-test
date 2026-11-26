@@ -1,5 +1,6 @@
 import {validateAvatarEffects} from './avatar-effects.mjs';
 import {validateHeaderCanvas} from './header-canvas.mjs';
+import {validateHeaderTextStack} from './header-text-stack.mjs';
 import {newGlassStyle,normalizeGlassStyle} from './glass-model.mjs';
 import { defaultReadingScheme } from './default-layout.mjs';
 import {
@@ -449,6 +450,7 @@ export function createSchemeModel() {
     result.hideScrollbars = hideScrollbars;
     result.textItems = canonical.textItems;
     result.captions = canonical.captions;
+    const stack=validateHeaderTextStack(raw.headerTextStack,result.captions);if(stack)result.headerTextStack=stack;
     result.layers = migrateLayers(raw);
     result.photos = validatePhotos(raw.photos,{pixels:raw.version===11||(raw.version===12&&!!raw.headerCanvas)});
     const effects=validateAvatarEffects(raw);if(effects)result.avatarEffects=effects;

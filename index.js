@@ -1,8 +1,11 @@
+import {legacyDecorationUrl} from './legacy-decorations.mjs';
 import {createAlignmentGuides,renderAlignmentControls} from './editor-alignment.mjs';
 import {canvasEnabled,headerCanvasScale,projectHeaderConfig,designInnerWidth} from './header-canvas.mjs';
+import {headerTextStack} from './header-text-stack.mjs';
 import {requestExportName} from './export-name.mjs';
+import {requestThemeExport,downloadTheme} from './theme-export/dialog.mjs';
 import {createGlassEditor} from './glass-editor.mjs';
-import { avatarCombinationScheme } from './default-layout.mjs';
+import { avatarCombinationScheme, freshBlankScheme } from './default-layout.mjs';
 import { activateEditedRegion } from './edit-activation.mjs';
 import { createCombinationLibrary } from './combination-library.mjs';
 import { captureCombination, applyCombination, inspectCombinationConflicts, builtinPageCombination } from './region-combinations.mjs';
@@ -12,7 +15,7 @@ import { rebaseBundledFontLinks } from './spring-fonts.mjs';
 import { portableScheme } from './portable-scheme.mjs';
 import { createCustomWorkStorage } from './custom-work-storage.mjs';
 import { createWorkLibrary } from './work-library.mjs';
-import { createBuiltinTemplateLibrary } from './builtin-template-library.mjs';
+import { BUILTIN_TEMPLATES, createBuiltinTemplateLibrary } from './builtin-template-library.mjs';
 import { createSchemeModel } from './scheme-model.mjs';
 import { createIconControlsEditor } from './icon-controls-editor.mjs';
 import { createLayerEditor } from './layer-editor.mjs';
@@ -46,7 +49,7 @@ import { prepareImageUpload } from './image-processing.mjs';
 import { normalizeImageUrl } from './image-sources.mjs';
 import { installLauncherDrag } from './launcher-drag.mjs';
 import { syncRegionOrder } from './region-layers.mjs';
-import { shapeDataUrl, SHAPE_NAMES } from './shape-assets.mjs';
+import { ORNAMENT_DIVIDER, shapeDataUrl, SHAPE_NAMES } from './shape-assets.mjs';
 import { updateHeaderArtworkClip } from './header-art-clip.mjs';
 import { previewFrameGeometry } from './preview-layout.mjs';
 import { NUMERIC_STEPPER_CSS } from './numeric-stepper.mjs';
@@ -107,7 +110,7 @@ await (async () => {
   let loadError = null;
   const { fonts, base, templates, field, groups, validate } =
     createSchemeModel();
-  let config = validate(structuredClone(templates.blank)),
+  let config = validate(freshBlankScheme(templates.blank)),
     saved = null,
     history = [],
     active = false,
@@ -133,6 +136,7 @@ await (async () => {
   config = normalizePageHeaders(
     normalizePageConfig(normalizeCommonConfig(config)),
   );
+  let currentWorkName = '';
   const assetLibrary = createAssetLibrary();
   const builtinAssets = createBuiltinAssetLibrary();
   const iconLibrary = createIconLibrary();
@@ -187,15 +191,6 @@ await (async () => {
     applicationLoadError = error;
     console.warn('[主题工坊] 已应用方案未载入', error.message);
   }
-  const decorations = {
-    flower:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><g fill="#e5b3b1"><ellipse cx="60" cy="35" rx="15" ry="27"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(72 60 60)"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(144 60 60)"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(216 60 60)"/><ellipse cx="60" cy="35" rx="15" ry="27" transform="rotate(288 60 60)"/></g><circle cx="60" cy="60" r="13" fill="#e9ca81"/></svg>',
-    star: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="m60 8 14 34 37 3-28 24 9 36-32-19-32 19 9-36L9 45l37-3z" fill="#e6c480" stroke="#b89355" stroke-width="2"/><path d="m22 8 3 9 9 3-9 3-3 9-3-9-9-3 9-3z" fill="#acb8a0"/></svg>',
-    tape: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 48"><path d="m5 3 8 4 6-4 9 4 7-4h126l-3 8 7 8-5 9 5 9-8 8H15l4-7-8-7 6-10-8-7z" fill="#d6c1a1" fill-opacity=".85"/><path d="M20 16h130M20 30h130" stroke="#fff" stroke-opacity=".3" stroke-width="2" stroke-dasharray="3 6"/></svg>',
-    leaf: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 180"><path d="M43 172Q22 100 69 10" fill="none" stroke="#718d70" stroke-width="2"/><g fill="#8fa284"><ellipse cx="42" cy="131" rx="11" ry="27" transform="rotate(-40 42 131)"/><ellipse cx="56" cy="104" rx="11" ry="26" transform="rotate(40 56 104)"/><ellipse cx="40" cy="79" rx="10" ry="25" transform="rotate(-35 40 79)"/><ellipse cx="64" cy="52" rx="9" ry="24" transform="rotate(35 64 52)"/><ellipse cx="65" cy="22" rx="8" ry="19" transform="rotate(15 65 22)"/></g></svg>',
-  };
-  const svgUrl = (svg) =>
-    'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   let noticeTimer;
   function notify(text, duration = 4500) {
     const n = shadow.querySelector('#notice');
@@ -357,6 +352,68 @@ await (async () => {
     ['footer', '聊天 / 尾部区'],
     ['input', '首页和全局 / 共用输入区'],
   ];
+  function materialDestination(purpose,target){
+    const region=MATERIAL_TARGETS.find(([id])=>id===target)?.[1];
+    if(region)return region.split(' / ').at(-1);
+    if(purpose==='avatar-composition')return '头像组合';
+    if(purpose==='canvas-wallpaper')return '聊天壁纸';
+    if(purpose==='page-background')return (PAGE_HEADER_PAGES[ui.page]||'当前页面')+'背景';
+    if(purpose==='page-header'||purpose==='page-scene')return (PAGE_HEADER_PAGES[ui.page]||'当前页面')+'头部';
+    if(purpose==='reasoning-background')return '思维入口背景';
+    if(purpose.startsWith('chrome:')||purpose.startsWith('native-'))return '当前按钮';
+    return '';
+  }
+  function addImageLayer(source,target){
+    const layer=newLayer(source.shape?'shape':source.asset?'asset':'custom',{
+      name:source.name,asset:source.asset||'',image:source.image||'',
+      ...(source.shape?{shape:source.shape}:{}),opacity:1,anchor:target,
+    });
+    config.layers.push(layer);
+    selectedLayerId=layer.id;
+    return layer;
+  }
+  function addDirectImageUpload(parent,{destination,current,commit,disabled=false}){
+    const trigger=make('button','','上传新图'),upload=make('input');
+    trigger.type='button';trigger.id='upload-current-image';trigger.disabled=disabled;
+    trigger.setAttribute('aria-label','上传新图到'+destination);
+    upload.type='file';upload.hidden=true;
+    upload.accept='image/png,image/apng,image/jpeg,image/webp,image/gif';
+    upload.setAttribute('aria-label','选择'+destination+'图片');
+    parent.append(trigger,upload);
+    trigger.addEventListener('click',()=>upload.click());
+    upload.addEventListener('change',async()=>{
+      const file=upload.files[0];
+      upload.value='';
+      if(!file||disabled||!current())return;
+      const original=config;
+      invalidateEditing();
+      const controller=new AbortController(),epoch=editEpoch;
+      imageUploadAbort=controller;
+      const valid=()=>active&&editEpoch===epoch&&config===original&&current();
+      trigger.disabled=true;
+      try{
+        const prepared=await prepareImageUpload(file,{valid,signal:controller.signal});
+        if(!prepared||!valid())return;
+        const choice=await cropImage(prepared.image,valid,{destination});
+        if(!choice||!valid())return;
+        const source={name:file.name.slice(0,80)||'我的图片',image:choice.image};
+        if(commit(source)===false)return;
+        if(choice.store){
+          try{
+            await assetLibrary.add(source);
+            if(active&&config===original)notify('图片已放入，并保存到素材库。');
+          }catch(error){
+            if(active&&config===original)notify('图片已放入，素材库保存失败：'+error.message);
+          }
+        }
+      }catch(error){
+        if(valid())notify(uploadFailure(error));
+      }finally{
+        if(imageUploadAbort===controller)imageUploadAbort=null;
+        if(trigger.isConnected)trigger.disabled=disabled;
+      }
+    });
+  }
   function targetForRegion() {
     return ui.page === 'home' && ui.region === 'input'
       ? 'input'
@@ -439,6 +496,10 @@ await (async () => {
         minY: -500,
         maxY: 500,
       };
+    if(!footerId&&config.headerTextStack){
+      const stack=headerTextStack(config,node.closest('.mes[data-otl-live]')?.getAttribute('is_user')==='true');
+      if(id?stack.caption?.id===id:stack[key])return null;
+    }
     if (!id && !footerId && ['name', 'time'].includes(key)) {
       const msg = node.closest('.mes[data-otl-live]'),
         user = msg?.getAttribute('is_user') === 'true',
@@ -955,9 +1016,7 @@ await (async () => {
         ? assetUrl(layer.asset)
         : layer.kind === 'custom'
           ? layer.image
-          : decorations[layer.kind]
-            ? svgUrl(decorations[layer.kind])
-            : '';
+          : legacyDecorationUrl(layer.kind);
   }
   function renderFontShelf(container) {
     const session = materialSession;
@@ -1154,6 +1213,11 @@ await (async () => {
       );
       return;
     }
+    const destination=session&&materialDestination(purpose,session.target);
+    if(destination){
+      const title=make('h3','material-destination','放入 '+destination);
+      container.append(title);
+    }
     const anchor = () =>
       session && MATERIAL_TARGETS.some(([id]) => id === session.target)
         ? session.target
@@ -1166,14 +1230,14 @@ await (async () => {
         session.config !== config ||
         libraryPurpose !== purpose
       )
-        return;
+        return false;
       if (!isSourceTarget && !anchor()) {
         notify('请先选择素材要放入的区域。');
-        return;
+        return false;
       }
       if (!isSourceTarget && config.layers.length >= LAYER_LIMIT) {
         notify(`最多放置 ${LAYER_LIMIT} 层素材；素材库可继续保存图片。`);
-        return;
+        return false;
       }
       invalidateEditing();
       remember();
@@ -1209,27 +1273,25 @@ await (async () => {
         apply();
         returnFromMaterials();
       } else {
-        const layer = newLayer(
-          source.shape ? 'shape' : source.asset ? 'asset' : 'custom',
-          {
-            name: source.name,
-            asset: source.asset || '',
-            image: source.image || '',
-            ...(source.shape ? { shape: source.shape } : {}),
-            opacity: 1,
-            anchor: anchor(),
-          },
-        );
-        config.layers.push(layer);
-        selectedLayerId = layer.id;
+        const layer = addImageLayer(source,anchor());
         apply();
         revealMaterialTarget(layerRegion(layer), 'image', layer.id);
       }
       notify('已添加，尚未保存');
+      return true;
+    }
+    if(destination&&purpose!=='layer'){
+      const direct=make('div','material-add-actions');
+      addDirectImageUpload(direct,{destination,
+        current:()=>direct.isConnected&&materialSession===session&&libraryPurpose===purpose,
+        commit:useSource,
+      });
+      container.append(direct);
     }
     if (materialCategory === 'shapes') {
       const shapes = make('div', 'material-grid');
       for (const [shape, name] of Object.entries(SHAPE_NAMES)) {
+        if (shape === ORNAMENT_DIVIDER && materialSession && (libraryPurpose === 'page-scene' || anchor() !== 'footer')) continue;
         const card = make(materialSession ? 'button' : 'div', 'material-card'),
           preview = make('img');
         preview.src = shapeDataUrl(newLayer('shape', { shape }));
@@ -1318,7 +1380,8 @@ await (async () => {
               remove.disabled = false;
             }
           });
-          entry.append(card, remove);
+          entry.append(card);
+          if(!session)entry.append(remove);
           builtin.append(entry);
         }
       if (!builtin.children.length) builtin.append(make('p', 'hint', '暂无内置素材'));
@@ -1333,7 +1396,7 @@ await (async () => {
       imports.hidden = !imports.hidden;
       add.setAttribute('aria-expanded', String(!imports.hidden));
     });
-    mine.append(add, imports);
+    if(!session)mine.append(add, imports);
 
     const uploadLabel = make('label', 'field', '上传图片到素材库'),
       upload = make('input');
@@ -1387,7 +1450,7 @@ await (async () => {
         list.replaceChildren();
         if (!records.length)
           list.append(
-            make('p', 'hint', '暂无图片，点击“添加图片”上传或粘贴链接。'),
+            make('p', 'hint', session?'暂无自定义图片。':'暂无图片，点击“添加图片”上传或粘贴链接。'),
           );
         for (const record of records) {
           const card = make('div', 'asset-library-card');
@@ -1463,7 +1526,7 @@ await (async () => {
           });
           const actions = make('div', 'actions');
           if (materialSession) actions.append(use);
-          actions.append(remove);
+          else actions.append(remove);
           detail.append(name, source, actions);
           card.append(preview, detail);
           list.append(card);
@@ -1778,7 +1841,7 @@ await (async () => {
         workbench.choose(
           'header',
           'text',
-          config.captions[0] ? captionKey(config.captions[0].id) : 'name',
+          config.captions[0] ? captionKey(config.captions[0].id) : 'caption',
         );
       else if (group === 'text')
         workbench.choose('header', 'text', textItemKey);
@@ -2128,10 +2191,23 @@ await (async () => {
     } else title = '此区域尚未开放';
     let extra;
     if (supportsLayers(ui) && ui.mode === 'edit' && ui.kind === 'image') {
-      extra = make('button', '', '＋ 添加图片');
-      extra.id = 'add-current-image';
-      extra.addEventListener('click', () => {
-        openMaterialPicker('layer', 'images', targetForRegion());
+      const target=targetForRegion(),destination=materialDestination('layer',target);
+      extra=make('div','material-add-actions');
+      const pick=make('button','','从素材库选');
+      pick.type='button';pick.id='add-current-image';pick.disabled=!target||config.layers.length>=LAYER_LIMIT;
+      pick.setAttribute('aria-label','从素材库选图到'+destination);
+      pick.addEventListener('click',()=>openMaterialPicker('layer','images',target));
+      extra.append(pick);
+      addDirectImageUpload(extra,{destination,disabled:pick.disabled,
+        current:()=>extra.isConnected&&ui.mode==='edit'&&ui.kind==='image'&&targetForRegion()===target,
+        commit:source=>{
+          if(config.layers.length>=LAYER_LIMIT)return false;
+          remember();
+          const layer=addImageLayer(source,target);
+          ui.object=layer.id;
+          apply();renderFields();notify('图片已放入'+destination+'，尚未保存。');
+          return true;
+        },
       });
     }
     let actions;
@@ -2225,6 +2301,15 @@ await (async () => {
       }
       if (ui.region === 'overall' && ui.kind !== 'image') {
         propertyHeading(container, '画布与卡片');
+        const sharedWidth={mode:config.chatMaxWidth===undefined?'stock':'shared'};
+        editorControl(container,{
+          ...field('聊天与输入栏宽度','mode','select',{options:[['stock','跟随酒馆'],['shared','共用最大宽度']]}),
+          beforeApply:()=>{
+            if(sharedWidth.mode==='shared')config.chatMaxWidth=780;else delete config.chatMaxWidth;
+          },
+        },sharedWidth,()=>renderFields());
+        if(config.chatMaxWidth!==undefined)
+          editorControl(container,field('聊天与输入栏最大宽度','chatMaxWidth','range',{min:320,max:2000,unit:'px'}),config);
         const desktopWidth = make('div', 'desktop-card-width');
         container.append(desktopWidth);
         editorControl(
@@ -2500,7 +2585,7 @@ await (async () => {
     setSaveState(saved ? 'saved' : 'draft');
   }
 
-  function startScheme(next, { preview }) {
+  function startScheme(next, { preview, workName = '' }) {
     if (exiting || applying) return false;
     if (!document.querySelector('#chat')) {
       notify('请先打开酒馆聊天界面');
@@ -2512,6 +2597,7 @@ await (async () => {
     invalidateEditing();
     if (replacing) remember(false);
     config = next;
+    currentWorkName = workName;
     selectedLayerId = config.layers[0]?.id;
     ui.mode = 'edit';
     ui.mobileView = preview ? 'preview' : 'adjust';
@@ -2521,9 +2607,14 @@ await (async () => {
     return true;
   }
 
+  function starterScheme(id) {
+    const next = id === 'blank' ? freshBlankScheme(templates.blank) : clone(templates[id]);
+    if(id==='spring')next.headerTextStack={captionId:'flower-whisper'};
+    return validate(next);
+  }
   function replaceStart(id) {
     if (!Object.hasOwn(templates, id)) return false;
-    return startScheme(validate(clone(templates[id])), { preview: id !== 'blank' });
+    return startScheme(starterScheme(id), { preview: id !== 'blank', workName: BUILTIN_TEMPLATES.find(item => item.id === id)?.name || '' });
   }
 
   const exitDialog = make('dialog', 'workbench-exit');
@@ -2611,7 +2702,7 @@ await (async () => {
     scrollbarToggle,
     make('span', '', '隐藏滚动条（仍可滚动）'),
   );
-  shadow.querySelector('.bar details .menu').append(scrollbarLabel);
+  shadow.querySelector('[data-menu-group="workspace"]').append(scrollbarLabel);
   scrollbarToggle.addEventListener('change', () => {
     remember(false);
     config.hideScrollbars = scrollbarToggle.checked;
@@ -2640,10 +2731,20 @@ await (async () => {
     builtins: builtinLibrary,
     storage: createCustomWorkStorage(),
     snapshot: () => JSON.stringify(validate(config)),
+    builtinPreview: id => {
+      if(id!=='spring')return null;
+      const preview=make('div','spring-work-thumbnail'),flower=make('img');
+      preview.setAttribute('role','img');
+      preview.setAttribute('aria-label','春日来信封面');
+      flower.src=assetUrl('shared-spring-flower-stem');
+      flower.alt='';
+      preview.append(make('span','','SPRING\nLETTER'),flower);
+      return preview;
+    },
     onBuiltin: replaceStart,
-    onOpen: (json) => startScheme(
+    onOpen: (json, workName) => startScheme(
       validate(rebaseBundledFontLinks(JSON.parse(json), import.meta.url)),
-      { preview: true },
+      { preview: true, workName },
     ),
     onImport: () => shadow.querySelector('#import-file').click(),
     onMessage: notify,
@@ -2686,7 +2787,7 @@ await (async () => {
   const libraryButton = make('button', '', '作品库');
   libraryButton.type = 'button';
   libraryButton.id = 'open-work-library';
-  shadow.querySelector('.desktop-scheme .menu').prepend(libraryButton);
+  shadow.querySelector('[data-menu-group="works"]').append(libraryButton);
   libraryButton.addEventListener('click', () => workLibrary.show(libraryButton));
   const saveWorkButton = make('button', '', '另存为作品');
   saveWorkButton.type = 'button';
@@ -2716,7 +2817,7 @@ await (async () => {
   const entryControls = entries.renderSettings();
   entryControls.querySelector('h4')?.remove();
   entrySettings.append(entryControls);
-  shadow.querySelector('.menu-session-divider').before(entrySettings);
+  shadow.querySelector('[data-menu-group="workspace"]').append(entrySettings);
   const entryStyle = make('style');
   entryStyle.textContent =
     '[data-workshop-entry-settings] h4{margin:10px 0 4px}[data-workshop-entry-settings] p{font-size:12px}[data-workshop-entry-settings] .checkbox_label{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:13px}[data-workshop-entry-settings] input{width:20px;height:20px;flex:none}';
@@ -2887,6 +2988,18 @@ await (async () => {
     renderFields();
     notify('已恢复上次保存的方案');
   });
+  shadow.querySelector('#export-theme').addEventListener('click', async () => {
+    const button = shadow.querySelector('#export-theme');
+    if (button.disabled) return;
+    button.disabled = true;
+    const source = snapshotDraft(config);
+    try {
+      const filename = await requestThemeExport({document, root: shadow, trigger: button, source, value: currentWorkName || '绘境主题',
+        download: artifact => downloadTheme(artifact, {document})});
+      if (filename) notify('已导出酒馆主题。停用绘境美化后，在酒馆 UI 主题中导入。');
+    } catch (error) { notify('主题导出失败：' + error.message); }
+    finally { button.disabled = false; if (button.isConnected) button.focus?.(); }
+  });
   shadow.querySelector('#export').addEventListener('click', async () => {
     const button = shadow.querySelector('#export');
     button.disabled = true;
@@ -2903,7 +3016,7 @@ await (async () => {
       a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      notify('已导出实验方案；它不是酒馆原生主题文件。');
+      notify('已导出可编辑方案，可在绘境中继续编辑。');
     } catch (error) { notify('导出失败：' + error.message); }
     finally {
       button.disabled = false;

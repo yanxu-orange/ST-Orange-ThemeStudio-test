@@ -2,16 +2,19 @@ import {validateImageSizing} from './image-sizing.mjs';
 import {uniqueId} from './unique-id.mjs';
 export const LAYER_LIMIT = 20;
 import {ASSETS} from './catalog.mjs';
-import {SHAPE_DEFAULTS,SHAPE_NAMES,isLineShape,lineHeightFactor,validateShapeSettings} from './shape-assets.mjs';
+import {ORNAMENT_DIVIDER,SHAPE_DEFAULTS,SHAPE_NAMES,isLineShape,lineHeightFactor,validateShapeSettings} from './shape-assets.mjs';
 import {validImage} from './image-sources.mjs';
 export {validImage} from './image-sources.mjs';
 export const KINDS = ['flower', 'star', 'tape', 'leaf', 'custom', 'asset', 'shape'];
 export const clone = value => structuredClone(value);
 
 export function newLayer(kind = 'flower', overrides = {}) {
+  const divider=overrides.shape===ORNAMENT_DIVIDER
+    ? {width:100,widthUnit:'percent',height:16,x:0,y:0,side:'left',color:'#d2dbeb',color2:'#93a3cd'}
+    : {};
   return { id: uniqueId(), name: kind==='shape'?(SHAPE_NAMES[overrides.shape||SHAPE_DEFAULTS.shape]||'形状'):({flower:'花朵',star:'星星',tape:'纸胶带',leaf:'叶枝',custom:'我的图片',asset:'内置素材'})[kind], kind,
     image:'', width:90, x:8, y:8, opacity:.8, rotation:0, z:2, visible:true,
-    anchor:'header', side:'right', scope:'both', asset:'', widthUnit:'px', offsetUnit:'px', vertical:'top', heightPercent:0, ...(kind==='shape'?{...SHAPE_DEFAULTS,...(isLineShape(overrides.shape)?{width:200,height:2*lineHeightFactor(overrides.shape),cornerRadius:0}:{}),opacity:1}:{}), ...overrides };
+    anchor:'header', side:'right', scope:'both', asset:'', widthUnit:'px', offsetUnit:'px', vertical:'top', heightPercent:0, ...(kind==='shape'?{...SHAPE_DEFAULTS,...(isLineShape(overrides.shape)?{width:200,height:2*lineHeightFactor(overrides.shape),cornerRadius:0}:{}),...divider,opacity:1}:{}), ...overrides };
 }
 
 export function migrateLayers(raw) {

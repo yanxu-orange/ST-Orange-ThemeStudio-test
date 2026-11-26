@@ -3,7 +3,7 @@ import {canvasEnabled} from './header-canvas.mjs';
 import {activateEditedRegion} from './edit-activation.mjs';
 import {prepareCropSource,cropOutputSize} from './crop-source.mjs';
 import {renderImageSizing} from './image-sizing-editor.mjs';
-import { isLineShape, lineThicknessTarget } from './shape-assets.mjs';
+import { ORNAMENT_DIVIDER, isLineShape, lineThicknessTarget } from './shape-assets.mjs';
 import { LAYER_LIMIT, newLayer, clone, cropRect } from './layers.mjs';
 import { uniqueId } from './unique-id.mjs';
 import { matchingLayers } from './workbench-ui.mjs';
@@ -107,9 +107,6 @@ export function createLayerEditor({
           feedbackStatus(report, 0, '准备裁剪…', true);
           const output = await cropImage(
             layer.image,
-            layer.image.startsWith('data:image/gif')
-              ? 'image/gif'
-              : 'image/png',
             valid,
           );
           if (!valid()) return;
@@ -194,7 +191,9 @@ export function createLayerEditor({
         layer,
       );
       propertyHeading(container, '外观');
-      for (const f of [
+      const appearanceFields = layer.shape === ORNAMENT_DIVIDER
+        ? [field('线条颜色', 'color', 'color'), field('星饰颜色', 'color2', 'color')]
+        : [
         field('填色', 'fillMode', 'select', {
           options: [
             ['solid', '纯色'],
@@ -221,7 +220,8 @@ export function createLayerEditor({
               }),
             ]
           : []),
-      ])
+      ];
+      for (const f of appearanceFields)
         editorControl(
           container,
           f,
@@ -472,28 +472,29 @@ export function createLayerEditor({
       );
     }
   }
-  async function cropImage(source, mime, valid = () => isActive()) {
+  async function cropImage(source, valid = () => isActive(), { destination } = {}) {
     const prepared = await prepareCropSource(source);
     if (!valid()) return null;
-    if (prepared.animated) { notify('动画素材保持原样，暂不支持动画裁剪。'); return null; }
+    if (prepared.animated && !destination) { notify('动画素材保持原样，暂不支持动画裁剪。'); return null; }
     const image = new Image(), objectUrl = URL.createObjectURL(prepared.blob);
     try { image.src=objectUrl; await image.decode(); }
     catch(error){ URL.revokeObjectURL(objectUrl); throw Error('图片未能解码，原图未改变。'); }
     if (!valid()) { URL.revokeObjectURL(objectUrl); return null; }
     return new Promise((resolve) => {
       const dialog = make('dialog', 'crop-dialog');
-      const canvas = make('canvas');
+      const canvas = make(prepared.animated?'img':'canvas');
+      if(prepared.animated){canvas.src=objectUrl;canvas.alt='';canvas.className='crop-animation-preview';}
       let zoom = 1,
         panX = 50,
         panY = 50,
         ratio = image.naturalWidth / image.naturalHeight,
         done = false;
       dialog.append(
-        make('h3', '', '裁剪这张素材'),
+        make('h3', '', destination?(prepared.animated?'放入':'裁剪并放入')+destination:'裁剪这张素材'),
         make(
           'p',
           'hint',
-          '选择比例，再移动取景。也可以保持原图，保留完整透明边缘。',
+          prepared.animated?'使用原图会保留动画。':'选择比例，再移动取景。也可以保持原图，保留完整透明边缘。',
         ),
         canvas,
       );
@@ -512,7 +513,7 @@ export function createLayerEditor({
         ratioSelect.append(option);
       }
       ratioLabel.append(ratioSelect);
-      dialog.append(ratioLabel);
+      if(!prepared.animated)dialog.append(ratioLabel);
       const draw = () => {
         const rect = cropRect(
           image.naturalWidth,
@@ -548,7 +549,7 @@ export function createLayerEditor({
             : Number(ratioSelect.value);
         draw();
       });
-      for (const [key, name, min, max, step, initial] of [
+      if(!prepared.animated)for (const [key, name, min, max, step, initial] of [
         ['zoom', '放大取景', 1, 4, 0.05, 1],
         ['panX', '横向取景', 0, 100, 1, 50],
         ['panY', '纵向取景', 0, 100, 1, 50],
@@ -587,10 +588,13 @@ export function createLayerEditor({
         numericRow(label, input, number, key === 'zoom' ? '×' : '%');
         dialog.append(label);
       }
-      if (mime === 'image/gif')
-        dialog.append(
-          make('p', 'hint', '裁剪 GIF 后会成为静态图片；保持原图可保留动画。'),
-        );
+      const store=destination?make('input'):null;
+      if(store){
+        store.type='checkbox';store.id='crop-save-to-library';
+        const label=make('label','crop-save-choice');
+        label.append(store,make('span','','同时保存到素材库'));
+        dialog.append(label);
+      }
       const cancel = () => finish(null);
       const finish = (value) => {
         if (done) return;
@@ -599,14 +603,15 @@ export function createLayerEditor({
         dialog.close();
         dialog.remove();
         URL.revokeObjectURL(objectUrl);
-        resolve(valid() ? value : null);
+        resolve(valid()&&value?(destination?{image:value,store:store.checked}:value):null);
       };
       setCancelCrop(cancel);
       const actions = make('div', 'actions');
-      for (const [name, action] of [
-        ['取消', () => finish(null)],
-        ['保持原图', () => finish(source)],
-        [
+      for (const [id,name,action] of [
+        ['cancel','取消', () => finish(null)],
+        ['keep-original',prepared.animated?'使用原图':'保持原图', () => finish(source)],
+        ...(prepared.animated?[]:[[
+          'use-crop',
           '使用裁剪图',
           () => {
             let output;
@@ -623,14 +628,15 @@ export function createLayerEditor({
             }
             finish(output);
           },
-        ],
+        ]]),
       ]) {
         const button = make(
           'button',
-          name === '使用裁剪图' ? 'primary' : '',
+          id==='use-crop'||prepared.animated&&id==='keep-original' ? 'primary' : '',
           name,
         );
         button.type = 'button';
+        button.dataset.cropAction=id;
         button.addEventListener('click', action);
         actions.append(button);
       }
@@ -641,7 +647,7 @@ export function createLayerEditor({
         finish(null);
       });
       shadow.append(dialog);
-      try { draw(); dialog.showModal(); } catch(error) { notify('裁剪预览失败，原图未改变：'+error.message); finish(null); }
+      try { if(!prepared.animated)draw(); dialog.showModal(); } catch(error) { notify('裁剪预览失败，原图未改变：'+error.message); finish(null); }
     });
   }
 
